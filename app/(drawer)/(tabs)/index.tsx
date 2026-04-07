@@ -1,15 +1,16 @@
-import { Stack } from 'expo-router';
+import { Avatar, Button } from 'heroui-native';
+import { YStack, XStack } from 'tamagui';
+import { Text, View } from 'react-native';
 
-import { Container } from '@/components/Container';
-import { ScreenContent } from '@/components/ScreenContent';
+import { TopNavigationBar } from '@/components/home/TopNavigationBar';
 
 export default function Home() {
   return (
-    <>
-      <Stack.Screen options={{ title: 'Tab One' }} />
-      <Container>
-        <ScreenContent path="app/(drawer)/(tabs)/index.tsx" title="Tab One" />
-      </Container>
-    </>
+    <View className="flex-1">
+      <TopNavigationBar userName="Nationalian" />
+
+
+    </View>
   );
 }
+  
