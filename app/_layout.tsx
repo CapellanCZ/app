@@ -27,14 +27,16 @@ export default function RootLayout() {
   }
 
   const themeName = colorScheme === 'dark' ? 'dark' : 'light';
+  const rootBackgroundColor = colorScheme === 'dark' ? '#000000' : '#FFFFFF';
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: rootBackgroundColor }}>
       <HeroUINativeProvider>
         <TamaguiProvider config={tamaguiConfig} defaultTheme={themeName}>
           <SafeAreaProvider>
             <UniwindInsetSync />
-            <Stack>
+            <Stack screenOptions={{ contentStyle: { flex: 1 } }}>
+              <Stack.Screen name="(auth)" options={{ headerShown: false }} />
               <Stack.Screen name="(drawer)" options={{ headerShown: false }} />
               <Stack.Screen name="modal" options={{ title: 'Modal', presentation: 'modal' }} />
             </Stack>

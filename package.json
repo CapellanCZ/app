@@ -25,6 +25,7 @@
     "@tamagui/config": "^2.0.0-rc.36",
     "@tamagui/font-inter": "^2.0.0-rc.36",
     "expo": "^54.0.0",
+    "expo-blur": "~15.0.8",
     "expo-constants": "~18.0.9",
     "expo-dev-client": "~6.0.13",
     "expo-device": "~8.0.9",

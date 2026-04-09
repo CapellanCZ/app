@@ -4,3 +4,8 @@
 @import 'heroui-native/styles';
 
 @source './node_modules/heroui-native/lib';
+
+@theme {
+  --text-md: 1rem;
+  --text-md--line-height: 1.5rem;
+}
