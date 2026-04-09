@@ -1,14 +1,14 @@
-import { Ionicons } from '@expo/vector-icons';
 import { DrawerActions } from '@react-navigation/native';
 import { useNavigation } from 'expo-router';
-import { Pressable } from 'react-native';
+import { Image, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Avatar, Text, XStack, YStack } from 'tamagui';
 
 import { IconsaxMenuIcon } from '@/components/icons/IconsaxMenuIcon';
 
+import profileCirclePlaceholder from '@/assets/profile-circle.png';
+
 const AVATAR_BG = '#EAF2FF';
-const AVATAR_ICON = '#B4DBFF';
 const SUBTITLE_COLOR = '#414651';
 const TITLE_COLOR = '#1F2024';
 
@@ -39,7 +39,12 @@ export function TopNavigationBar({
           alignItems="center"
           backgroundColor={AVATAR_BG}
           justifyContent="center">
-          <Ionicons name="person" size={22} color={AVATAR_ICON} />
+          <Image
+            accessibilityLabel="Profile picture"
+            source={profileCirclePlaceholder}
+            style={{ width: 48, height: 48, borderRadius: 24 }}
+            resizeMode="cover"
+          />
         </Avatar.Fallback>
       </Avatar>
 
