@@ -31,7 +31,6 @@ export function TopNavigationBar({
   return (
     <XStack
       gap={12}
-      px={18}
       pt={Math.max(insets.top, 12)}
       style={{ alignItems: 'center' }}>
       <Avatar circular size={48} backgroundColor={AVATAR_BG}>
