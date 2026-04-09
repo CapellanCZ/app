@@ -4,6 +4,7 @@ import { HeroUINativeProvider } from 'heroui-native';
 import { Stack } from 'expo-router';
 import { useColorScheme } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { TamaguiProvider } from 'tamagui';
 
@@ -18,8 +19,7 @@ export const unstable_settings = {
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const [fontsLoaded] = useFonts({
-    Inter: require('@tamagui/font-inter/otf/Inter-Medium.otf'),
-    InterBold: require('@tamagui/font-inter/otf/Inter-Bold.otf'),
+    InstrumentSans: require('../assets/fonts/InstrumentSans-Variable.ttf'),
   });
 
   if (!fontsLoaded) {
@@ -34,12 +34,14 @@ export default function RootLayout() {
       <HeroUINativeProvider>
         <TamaguiProvider config={tamaguiConfig} defaultTheme={themeName}>
           <SafeAreaProvider>
-            <UniwindInsetSync />
-            <Stack screenOptions={{ contentStyle: { flex: 1 } }}>
-              <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-              <Stack.Screen name="(drawer)" options={{ headerShown: false }} />
-              <Stack.Screen name="modal" options={{ title: 'Modal', presentation: 'modal' }} />
-            </Stack>
+            <KeyboardProvider>
+              <UniwindInsetSync />
+              <Stack screenOptions={{ contentStyle: { flex: 1 } }}>
+                <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+                <Stack.Screen name="(drawer)" options={{ headerShown: false }} />
+                <Stack.Screen name="modal" options={{ title: 'Modal', presentation: 'modal' }} />
+              </Stack>
+            </KeyboardProvider>
           </SafeAreaProvider>
         </TamaguiProvider>
       </HeroUINativeProvider>

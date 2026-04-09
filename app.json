@@ -40,7 +40,8 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.yscplln.campuscareapplication"
+      "package": "com.yscplln.campuscareapplication",
+      "softwareKeyboardLayoutMode": "resize"
     },
     "extra": {
       "router": {},

@@ -1,10 +1,11 @@
-import { FontAwesome5, Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { Text, View } from 'react-native';
 
 import { AuthChrome } from '@/components/auth/AuthChrome';
 import { AuthSegmentedNav } from '@/components/auth/AuthSegmentedNav';
 import { PLACEHOLDER_NU_EMAIL } from '@/components/auth/constants';
+import { IconsaxEnvelopeIcon } from '@/components/icons/IconsaxEnvelopeIcon';
+import { IconsaxStarFilledIcon } from '@/components/icons/IconsaxStarFilledIcon';
 import { Button, InputGroup } from 'heroui-native';
 
 export default function Login() {
@@ -16,12 +17,12 @@ export default function Login() {
       subtitle="Welcome back, Nationalian! Please sign in to manage your account.">
       <AuthSegmentedNav active="login" />
 
-      <View className="mt-4 flex flex-col gap-4">
-        <View className="gap-2">
-          <Text className="text-xs font-semibold text-[#494A50]">NU Email</Text>
+      <View className="mt-4 flex flex-col gap-6">
+        <View className="gap-1.5">
+          <Text className="text-xs font-semibold leading-4 text-[#494A50]">NU Email</Text>
           <InputGroup className="relative w-full">
             <InputGroup.Input
-              variant="secondary"
+              variant="primary"
               autoCapitalize="none"
               autoCorrect={false}
               keyboardType="email-address"
@@ -29,10 +30,9 @@ export default function Login() {
               placeholderColorClassName="text-[#8F9098]"
               value={email}
               onChangeText={setEmail}
-              className="h-12 w-full rounded-xl border border-[#C5C6CC] bg-white px-4 text-sm text-[#181D27]"
             />
             <InputGroup.Suffix isDecorative>
-              <Ionicons name="mail-outline" size={18} color="#717680" />
+              <IconsaxEnvelopeIcon size={22} color="#717680" />
             </InputGroup.Suffix>
           </InputGroup>
         </View>
@@ -41,7 +41,7 @@ export default function Login() {
           variant="primary"
           className="bg-[#2970FF]">
           <Button.Label className="font-semibold text-white">Send magic link</Button.Label>
-          <FontAwesome5 name="magic" size={14} color="#FFFFFF" />
+          <IconsaxStarFilledIcon size={20} color="#FFFFFF" />
         </Button>
       </View>
     </AuthChrome>

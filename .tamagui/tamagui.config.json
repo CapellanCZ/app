@@ -25810,7 +25810,7 @@
   "tamaguiConfig": {
     "fonts": {
       "body": {
-        "family": "Inter",
+        "family": "InstrumentSans",
         "lineHeight": {
           "1": 16,
           "2": 21,
@@ -25870,31 +25870,31 @@
         },
         "face": {
           "100": {
-            "normal": "Inter"
+            "normal": "InstrumentSans"
           },
           "200": {
-            "normal": "Inter"
+            "normal": "InstrumentSans"
           },
           "300": {
-            "normal": "Inter"
+            "normal": "InstrumentSans"
           },
           "400": {
-            "normal": "Inter"
+            "normal": "InstrumentSans"
           },
           "500": {
-            "normal": "Inter"
+            "normal": "InstrumentSans"
           },
           "600": {
-            "normal": "InterBold"
+            "normal": "InstrumentSans"
           },
           "700": {
-            "normal": "InterBold"
+            "normal": "InstrumentSans"
           },
           "800": {
-            "normal": "InterBold"
+            "normal": "InstrumentSans"
           },
           "900": {
-            "normal": "InterBold"
+            "normal": "InstrumentSans"
           }
         },
         "size": {
@@ -25918,7 +25918,7 @@
         }
       },
       "heading": {
-        "family": "Inter",
+        "family": "InstrumentSans",
         "lineHeight": {
           "1": 13,
           "2": 14,
@@ -25979,31 +25979,31 @@
         },
         "face": {
           "100": {
-            "normal": "Inter"
+            "normal": "InstrumentSans"
           },
           "200": {
-            "normal": "Inter"
+            "normal": "InstrumentSans"
           },
           "300": {
-            "normal": "Inter"
+            "normal": "InstrumentSans"
           },
           "400": {
-            "normal": "Inter"
+            "normal": "InstrumentSans"
           },
           "500": {
-            "normal": "Inter"
+            "normal": "InstrumentSans"
           },
           "600": {
-            "normal": "InterBold"
+            "normal": "InstrumentSans"
           },
           "700": {
-            "normal": "InterBold"
+            "normal": "InstrumentSans"
           },
           "800": {
-            "normal": "InterBold"
+            "normal": "InstrumentSans"
           },
           "900": {
-            "normal": "InterBold"
+            "normal": "InstrumentSans"
           }
         },
         "size": {

@@ -18,7 +18,7 @@ export function AuthLegalFooter({ topSpacing = true }: AuthLegalFooterProps) {
   return (
     <>
       <View className={`${topSpacing ? 'mt-6' : 'mt-0'} items-center gap-0.5 px-1`}>
-        <Text className="text-center text-xs text-[#71727A]">
+        <Text className="text-center text-sm leading-5 text-[#71727A]">
           <Text>By continuing, you accept our </Text>
           <Text className="font-medium underline" onPress={openTerms}>
             Terms & Condition
@@ -26,7 +26,7 @@ export function AuthLegalFooter({ topSpacing = true }: AuthLegalFooterProps) {
           <Text> and </Text>
         </Text>
         <Pressable onPress={openPrivacy}>
-          <Text className="text-xs font-medium text-[#71727A] underline">Privacy Policy</Text>
+          <Text className="text-sm font-medium leading-5 text-[#71727A] underline">Privacy Policy</Text>
         </Pressable>
       </View>
     </>
