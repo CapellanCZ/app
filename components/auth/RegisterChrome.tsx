@@ -24,6 +24,7 @@ export function RegisterChrome({ title, subtitle, children, footer }: RegisterCh
         style={{ flex: 1 }}
         contentContainerStyle={{
           flexGrow: 1,
+          alignItems: 'center',
           paddingBottom: Math.max(insets.bottom, 24),
         }}
         keyboardShouldPersistTaps="handled"
@@ -32,14 +33,14 @@ export function RegisterChrome({ title, subtitle, children, footer }: RegisterCh
         extraKeyboardSpace={12}>
         <AuthBackRow />
 
-        <View className="gap-10 px-5 pt-2">
-          <View className="items-center gap-5">
-            <AppLogoIcon width={51} height={48} />
+        <View className="w-full max-w-md self-center gap-8 px-5 pt-10">
+          <View className="items-center gap-4">
+            <AppLogoIcon width={60} height={57} />
             <View className="items-center gap-2 px-1">
-              <Text className="text-center text-2xl font-semibold leading-8 text-[#181D27]">
+              <Text className="text-center text-3xl font-[600] leading-8 text-[#181D27]">
                 {title}
               </Text>
-              <Text className="text-center text-sm leading-5 text-[#535862]">{subtitle}</Text>
+              <Text className="text-center text-md leading-6 text-[#535862]">{subtitle}</Text>
             </View>
           </View>
 

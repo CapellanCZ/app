@@ -26,7 +26,7 @@ export default function SignUp() {
     <>
     <RegisterChrome
       title="Create your Account"
-      subtitle="Set up your National University account to access student welfare and support with CampusCare."
+      subtitle="Sign up to enjoy the best student welfare experience exclusively on National University."
       footer={
         <>
           <Button
@@ -40,7 +40,7 @@ export default function SignUp() {
       <View className="gap-4">
         <AuthSegmentedNav active="signup" className="mt-0" />
 
-        <View className="gap-2">
+        <View className="gap-1.5">
           <Text className="text-xs font-semibold leading-4 text-[#494A50]">NU Email</Text>
           <InputGroup className="relative w-full">
             <InputGroup.Input
@@ -60,7 +60,7 @@ export default function SignUp() {
         </View>
 
         <View className="flex-row gap-4">
-          <View className="min-w-0 flex-1 gap-2">
+          <View className="min-w-0 flex-1 gap-1.5">
             <Text className="text-xs font-semibold leading-4 text-[#494A50]">First name</Text>
             <InputGroup className="relative w-full">
               <InputGroup.Input
@@ -73,7 +73,7 @@ export default function SignUp() {
               />
             </InputGroup>
           </View>
-          <View className="min-w-0 flex-1 gap-2">
+            <View className="min-w-0 flex-1 gap-1.5">
             <Text className="text-xs font-semibold leading-4 text-[#494A50]">Last name</Text>
             <InputGroup className="relative w-full">
               <InputGroup.Input
@@ -89,7 +89,7 @@ export default function SignUp() {
         </View>
 
         <View className="flex-row gap-4">
-          <View className="min-w-0 flex-1 gap-2">
+          <View className="min-w-0 flex-1 gap-1.5">
             <Text className="text-xs font-semibold leading-4 text-[#494A50]">Program</Text>
             <BottomSheet
               className="w-full"
@@ -138,7 +138,7 @@ export default function SignUp() {
               </BottomSheet.Portal>
             </BottomSheet>
           </View>
-          <View className="min-w-0 flex-1 gap-2">
+          <View className="min-w-0 flex-1 gap-1.5">
             <Text className="text-xs font-semibold leading-4 text-[#494A50]">Student ID</Text>
             <InputGroup className="relative w-full">
               <InputGroup.Input

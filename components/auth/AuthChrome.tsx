@@ -35,7 +35,7 @@ export function AuthChrome({ title, subtitle, children }: AuthChromeProps) {
           <View
             className="-mt-10 rounded-t-[32px] bg-white px-5 pt-6"
             style={{ paddingBottom: Math.max(insets.bottom, 12) }}>
-            <Text className="text-3xl font-semibold leading-[36px] text-[#181D27]">{title}</Text>
+            <Text className="text-3xl font-[600] leading-[36px] text-[#181D27]">{title}</Text>
             <Text className="mt-2 text-md leading-6 text-[#535862]">{subtitle}</Text>
 
             {children}
