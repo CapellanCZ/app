@@ -201,7 +201,7 @@ export function DisciplineCaseProgressCard({
               <View className="w-full flex-row items-start justify-between">
                 <View className="min-w-0 flex-1 flex-col gap-2 pr-3">
                   <Text
-                    className="text-[18px] font-bold leading-[22px] tracking-[0.09px]"
+                    className="text-[20px] font-bold leading-[22px] tracking-[0.09px]"
                     style={{ color: TEXT_TITLE }}>
                     {title}
                   </Text>
