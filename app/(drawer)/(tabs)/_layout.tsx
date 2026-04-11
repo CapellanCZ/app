@@ -74,6 +74,13 @@ export default function TabLayout() {
           tabBarIcon: ({ focused }) => <IconsaxProfileTabIcon focused={focused} />,
         }}
       />
+      <Tabs.Screen
+        name="appointments"
+        options={{
+          href: null,
+          title: 'Appointments',
+        }}
+      />
     </Tabs>
   );
 }

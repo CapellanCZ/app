@@ -1,6 +1,6 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { useCallback, useEffect, useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { type LayoutChangeEvent, Pressable, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   Easing,
@@ -37,6 +37,20 @@ const STACK_LIFT_MID_REST = 5;
 const STACK_LIFT_MID_END = 0;
 const STACK_LIFT_DEEP_REST = 12;
 const STACK_LIFT_DEEP_END = 6;
+
+/**
+ * Spacing when the swipe hint is gone (or single-card deck):
+ * - **STACK_PEEK_BOTTOM_BUFFER** — extra `minHeight` under the front card when `stack.length > 1`
+ *   so back cards are not clipped. Smaller = tighter deck, less empty space under the cards.
+ * - **`className` on `<AppointmentCardStack />`** — e.g. `mb-2` / `pb-1` for margin outside this component.
+ * - **Home layout** — `app/(drawer)/(tabs)/index.tsx`: `gap-2` between calendar and stack; root `gap-3`
+ *   between the “Upcoming Appointments” block and “Quick Actions”.
+ *
+ * While the hint is visible, gap under the cards is the hint’s **`mt-3`** on its wrapper (search “swipeHintStyle”).
+ */
+const STACK_PEEK_BOTTOM_BUFFER = 22
+/** Hint row layout height cap (collapses with opacity so no gap after dismiss). */
+const HINT_ROW_MAX_HEIGHT = 22;
 
 const SPRING_RESET = { damping: 26, stiffness: 200, mass: 0.85 } as const;
 const EXIT_EASING = Easing.out(Easing.cubic);
@@ -115,6 +129,7 @@ function AppointmentCardFace({ item, preview }: AppointmentCardFaceProps) {
 
 export type AppointmentCardStackProps = {
   appointments: AppointmentCardData[];
+  /** Applied to the outer wrapper; use for margin/padding vs siblings after the hint is dismissed (e.g. `mb-2`). */
   className?: string;
 };
 
@@ -124,9 +139,15 @@ export type AppointmentCardStackProps = {
  */
 export function AppointmentCardStack({ appointments, className }: AppointmentCardStackProps) {
   const [stack, setStack] = useState<AppointmentCardData[]>(appointments);
+  const [hintUnmounted, setHintUnmounted] = useState(false);
+  const [frontCardHeight, setFrontCardHeight] = useState(0);
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
   const stackLen = useSharedValue(appointments.length);
+  const hintOpacity = useSharedValue(1);
+  const hintMaxHeight = useSharedValue(HINT_ROW_MAX_HEIGHT);
+
+  const appointmentsKey = useMemo(() => appointments.map((a) => a.id).join('|'), [appointments]);
 
   useEffect(() => {
     setStack(appointments);
@@ -136,9 +157,42 @@ export function AppointmentCardStack({ appointments, className }: AppointmentCar
     stackLen.value = stack.length;
   }, [stack.length, stackLen]);
 
+  useEffect(() => {
+    setHintUnmounted(false);
+    hintOpacity.value = 1;
+    hintMaxHeight.value = HINT_ROW_MAX_HEIGHT;
+  }, [appointmentsKey, hintOpacity, hintMaxHeight]);
+
   const rotate = useCallback(() => {
     setStack((prev) => (prev.length <= 1 ? prev : [...prev.slice(1), prev[0]]));
   }, []);
+
+  const fadeOutSwipeHint = useCallback(() => {
+    const timing = { duration: 280, easing: Easing.out(Easing.cubic) };
+    hintOpacity.value = withTiming(0, timing);
+    hintMaxHeight.value = withTiming(0, timing, (finished) => {
+      if (finished) runOnJS(setHintUnmounted)(true);
+    });
+  }, [hintOpacity, hintMaxHeight]);
+
+  const onSwipeDismissComplete = useCallback(() => {
+    rotate();
+    fadeOutSwipeHint();
+  }, [rotate, fadeOutSwipeHint]);
+
+  const onFrontCardLayout = useCallback((e: LayoutChangeEvent) => {
+    setFrontCardHeight(Math.ceil(e.nativeEvent.layout.height));
+  }, []);
+
+  const stackContainerStyle = useMemo(() => {
+    if (stack.length <= 1) {
+      return undefined;
+    }
+    if (frontCardHeight > 0) {
+      return { minHeight: frontCardHeight + STACK_PEEK_BOTTOM_BUFFER };
+    }
+    return { minHeight: 172 };
+  }, [stack.length, frontCardHeight]);
 
   const pan = Gesture.Pan()
     .activeOffsetX([-12, 12])
@@ -157,7 +211,7 @@ export function AppointmentCardStack({ appointments, className }: AppointmentCar
           { duration: 340, easing: EXIT_EASING },
           (finished) => {
             if (finished) {
-              runOnJS(rotate)();
+              runOnJS(onSwipeDismissComplete)();
               translateX.value = 0;
               translateY.value = 0;
             }
@@ -220,6 +274,10 @@ export function AppointmentCardStack({ appointments, className }: AppointmentCar
     };
   });
 
+  const swipeHintStyle = useAnimatedStyle(() => ({
+    opacity: hintOpacity.value,
+  }));
+
   const second = stack[1];
   const third = stack[2];
   const front = stack[0];
@@ -234,7 +292,7 @@ export function AppointmentCardStack({ appointments, className }: AppointmentCar
 
   return (
     <View className={`w-full ${className ?? ''}`}>
-      <View className="w-full" style={{ minHeight: 200 }}>
+      <View className="w-full" style={stackContainerStyle}>
         {third ? (
           <Animated.View
             className="absolute left-0 right-0 z-0 px-3 shadow-none"
@@ -262,14 +320,22 @@ export function AppointmentCardStack({ appointments, className }: AppointmentCar
         <GestureDetector gesture={pan}>
           <Animated.View
             className="z-10 w-full shadow-none"
+            onLayout={onFrontCardLayout}
             style={[frontStyle, { elevation: 0, shadowOpacity: 0 }]}>
             <AppointmentCardFace item={front} />
           </Animated.View>
         </GestureDetector>
       </View>
 
-      {stack.length > 1 ? (
-        <Text className="mt-1 text-center text-[11px] text-[#8F9098]">Swipe left or right for next appointment</Text>
+      {stack.length > 1 && !hintUnmounted ? (
+        <Animated.View className="mt-6" style={swipeHintStyle}>
+          <Text
+            className="text-center text-[11px] text-[#8F9098]"
+            includeFontPadding={false}
+            style={{ lineHeight: 13, marginVertical: 0, paddingVertical: 0 }}>
+            Swipe left or right for next appointment
+          </Text>
+        </Animated.View>
       ) : null}
     </View>
   );

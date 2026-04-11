@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Text, View } from 'react-native';
 
 import {
@@ -7,9 +7,10 @@ import {
 } from '@/components/home/AppointmentCardStack';
 import { PromoBannerCarousel, type PromoBannerItem } from '@/components/home/PromoBannerCarousel';
 import { SearchBar } from '@/components/SearchBar';
+import { TextLinkButton } from '@/components/TextLinkButton';
 import { TopNavigationBar } from '@/components/home/TopNavigationBar';
 import { WeeklyCalendar } from '@/components/home/WeeklyCalendar';
-import { XStack } from 'tamagui';
+import { QuickActionPill } from '@/components/home/QuickActionPill';
 
 const SAMPLE_APPOINTMENTS: AppointmentCardData[] = [
   {
@@ -78,14 +79,26 @@ export default function Home() {
 
       <PromoBannerCarousel items={SAMPLE_BANNERS} />
 
-      <View>
-        <XStack justifyContent="space-between">
+      <View className="mt-2">
+        <View className="w-full flex-row items-center justify-between">
           <Text className="text-lg font-semibold">Upcoming Appointments</Text>
-          <Text className="text-sm font-normal text-[#006FFD]">See All</Text>
-        </XStack>
+          <TextLinkButton
+            accessibilityLabel="See all upcoming appointments"
+            href="/(drawer)/(tabs)/appointments"
+            label="See All"
+          />
+        </View>
         <View className="gap-2 mt-1">
           <WeeklyCalendar selectedDate={selectedDate} onSelectDate={setSelectedDate} />
           <AppointmentCardStack appointments={SAMPLE_APPOINTMENTS} />
+        </View>
+      </View>
+
+      <View >
+        <Text className="text-lg font-semibold">Quick Actions</Text>
+        <View className="w-full flex-row gap-2.5 mt-2">
+          <QuickActionPill className="min-w-0 flex-1 basis-0" icon="calendar" label="Book Appointment" onPress={() => {}} />
+          <QuickActionPill className="min-w-0 flex-1 basis-0" icon="tag-user" label="Incident Report" onPress={() => {}} />
         </View>
       </View>
     </View>
