@@ -91,6 +91,7 @@ const DrawerLayout = () => {
         <Drawer.Screen
           name="discipline-office"
           options={{
+            headerShown: false,
             title: 'Discipline Office',
             drawerLabel: 'Discipline Office',
             drawerIcon: ({ color, size, focused }) => (
