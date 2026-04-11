@@ -81,7 +81,7 @@ export function ScreenNavbar({
         </Pressable>
 
         <Text
-          className="min-w-0 flex-1 text-lg font-bold text-[#181D27]"
+          className="min-w-0 flex-1 text-xl font-bold text-[#181D27]"
           numberOfLines={1}
           style={{ letterSpacing: 0.09 }}>
           {title}
