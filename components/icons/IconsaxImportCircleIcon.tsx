@@ -2,25 +2,35 @@ import Svg, { Path } from 'react-native-svg';
 
 type Props = {
   size?: number;
-  /** Matches Figma “Upload Proof” link color (`brand/text-brand-secondary`). */
+  /** Default matches link color (`brand/text-brand-secondary`). */
   color?: string;
 };
 
-/** Upload / import-in-circle (Figma `iconsax-import-circle-01`). */
+/** `components/icons/iconsax-import-circle-01.svg` */
 export function IconsaxImportCircleIcon({ size = 20, color = '#004EEB' }: Props) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Path
-        d="M12 15V8M8.5 11.5L12 8L15.5 11.5"
+        d="M9.31982 11.6797L11.8798 14.2397L14.4398 11.6797"
         stroke={color}
         strokeWidth={1.5}
+        strokeMiterlimit={10}
         strokeLinecap="round"
         strokeLinejoin="round"
       />
       <Path
-        d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z"
+        d="M11.8799 4V14.17"
         stroke={color}
         strokeWidth={1.5}
+        strokeMiterlimit={10}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M20 12.1797C20 16.5997 17 20.1797 12 20.1797C7 20.1797 4 16.5997 4 12.1797"
+        stroke={color}
+        strokeWidth={1.5}
+        strokeMiterlimit={10}
         strokeLinecap="round"
         strokeLinejoin="round"
       />

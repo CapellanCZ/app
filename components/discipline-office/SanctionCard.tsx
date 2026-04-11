@@ -12,12 +12,14 @@ import { SanctionInReviewBadge } from './SanctionInReviewBadge';
 
 const TEXT_TITLE = '#1F2024';
 const TEXT_BODY = '#1F2024';
-const TEXT_DESC = '#717680';
+const TEXT_DESC = '#1F2024';
 const TEXT_MUTED = '#717680';
+/** Figma link / “Upload Proof” (text button, not filled). */
 const LINK = '#004EEB';
 const TRACK = '#E8E9F1';
 const FILL = '#006FFD';
-const DIVIDER = '#D4D6DD';
+/** Subtle rule under progress / above footer */
+const DIVIDER = 'rgba(212, 214, 221, 0.45)';
 
 const BADGE_IN_PROGRESS_BG = '#D1E0FF';
 const BADGE_IN_PROGRESS_TEXT = '#00359E';
@@ -126,7 +128,7 @@ export function SanctionCard({
               {title}
             </Text>
             <Text
-              className="text-xs leading-4 tracking-[0.12px]"
+              className="text-sm leading-4 tracking-[0.12px]"
               style={{ color: TEXT_DESC }}>
               {description}
             </Text>
@@ -171,11 +173,13 @@ export function SanctionCard({
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Upload proof"
-              hitSlop={8}
+              hitSlop={10}
               onPress={() => onUploadProof?.()}
-              className="flex-row items-center gap-1">
+              className="-mr-1 flex-row items-center gap-1 py-1 active:opacity-70">
               <IconsaxImportCircleIcon size={20} color={LINK} />
-              <Text className="text-xs leading-4 tracking-[0.12px]" style={{ color: LINK }}>
+              <Text
+                className="text-xs font-normal leading-4 tracking-[0.12px]"
+                style={{ color: LINK }}>
                 Upload Proof
               </Text>
             </Pressable>

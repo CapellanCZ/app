@@ -1,5 +1,6 @@
+import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Alert, ScrollView, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { Tabs } from 'heroui-native';
 
 import { DisciplineTabEmptyState } from '@/components/discipline/DisciplineTabEmptyState';
@@ -53,6 +54,7 @@ const MOCK_SANCTIONS = [
 ];
 
 export default function DisciplineOfficeScreen() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<string>(DISCIPLINE_TABS[0].value);
 
   return (
@@ -85,7 +87,7 @@ export default function DisciplineOfficeScreen() {
                 className="flex-1"
                 showsVerticalScrollIndicator={false}
                 keyboardShouldPersistTaps="handled">
-                <View className="gap-3 pb-10">
+                <View className="gap-8 pb-10">
                   {MOCK_SANCTIONS.map((item) => (
                     <SanctionCard
                       key={item.id}
@@ -95,10 +97,10 @@ export default function DisciplineOfficeScreen() {
                       dueDateLabel={item.dueDateLabel}
                       progress={item.progress}
                       onUploadProof={() =>
-                        Alert.alert(
-                          'Upload proof',
-                          'Connect this action to your document picker or backend when ready.',
-                        )
+                        router.push({
+                          pathname: '/discipline-office/upload-proof',
+                          params: { sanctionId: item.id },
+                        })
                       }
                     />
                   ))}
