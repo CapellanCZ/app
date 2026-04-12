@@ -2,6 +2,7 @@ import { Pressable, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 
 import { IconsaxCalendar2Icon } from '@/components/icons/IconsaxCalendar2Icon';
+import { IconsaxMedalIcon } from '@/components/icons/IconsaxMedalIcon';
 import { IconsaxTagUserIcon } from '@/components/icons/IconsaxTagUserIcon';
 
 const ICON_COLOR = '#2970FF';
@@ -10,7 +11,7 @@ const PRESS_SPRING = { damping: 18, stiffness: 380, mass: 0.35 } as const;
 const PRESS_SCALE = 0.96;
 const PRESS_OPACITY = 0.92;
 
-export type QuickActionPillIcon = 'calendar' | 'tag-user';
+export type QuickActionPillIcon = 'calendar' | 'tag-user' | 'medal';
 
 export type QuickActionPillProps = {
   label: string;
@@ -22,8 +23,14 @@ export type QuickActionPillProps = {
 /**
  * Capsule quick action (Figma 703:33274): soft gray pill, brand-tint icon well, 14px label.
  */
+const ICON_MAP = {
+  calendar: IconsaxCalendar2Icon,
+  'tag-user': IconsaxTagUserIcon,
+  medal: IconsaxMedalIcon,
+} as const;
+
 export function QuickActionPill({ label, icon, onPress, className }: QuickActionPillProps) {
-  const IconComponent = icon === 'calendar' ? IconsaxCalendar2Icon : IconsaxTagUserIcon;
+  const IconComponent = ICON_MAP[icon];
   const scale = useSharedValue(1);
   const dim = useSharedValue(1);
 

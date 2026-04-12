@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   AppointmentCardStack,
@@ -65,6 +66,7 @@ const SAMPLE_BANNERS: PromoBannerItem[] = [
 ];
 
 export default function Home() {
+  const insets = useSafeAreaInsets();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDate, setSelectedDate] = useState(() => {
     const d = new Date();
@@ -73,42 +75,73 @@ export default function Home() {
   });
 
   return (
-    <View className="mx-5 flex-1 gap-3">
-      <TopNavigationBar userName="Nationalian" />
+    <View className="flex-1 bg-white">
+      <ScrollView
+        className="flex-1"
+        keyboardDismissMode="on-drag"
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{
+          flexGrow: 1,
+          paddingHorizontal: 20,
+          paddingBottom: Math.max(insets.bottom, 12) + 20,
+        }}>
+        <View className="gap-3">
+          <TopNavigationBar userName="Nationalian" />
 
-      <SearchBar placeholder="Search" onChangeText={setSearchQuery} value={searchQuery} />
+          <SearchBar placeholder="Search" onChangeText={setSearchQuery} value={searchQuery} />
 
-      <PromoBannerCarousel items={SAMPLE_BANNERS} />
+          <PromoBannerCarousel items={SAMPLE_BANNERS} />
 
-      <View className="mt-2">
-        <View className="w-full flex-row items-center justify-between">
-          <Text className="text-lg font-semibold">Upcoming Appointments</Text>
-          <TextLinkButton
-            accessibilityLabel="See all upcoming appointments"
-            href="/(drawer)/(tabs)/appointments"
-            label="See All"
-          />
+          <View className="mt-2">
+            <View className="w-full flex-row items-center justify-between">
+              <Text className="text-lg font-semibold">Upcoming Appointments</Text>
+              <TextLinkButton
+                accessibilityLabel="See all upcoming appointments"
+                href="/(drawer)/(tabs)/appointments"
+                label="See All"
+              />
+            </View>
+            <View className="mt-1 gap-2">
+              <WeeklyCalendar selectedDate={selectedDate} onSelectDate={setSelectedDate} />
+              <AppointmentCardStack appointments={SAMPLE_APPOINTMENTS} />
+            </View>
+          </View>
+
+          <View>
+            <Text className="text-lg font-semibold">Quick Actions</Text>
+            <View className="mt-2 w-full gap-2.5">
+              <View className="w-full flex-row gap-2.5">
+                <QuickActionPill
+                  className="min-w-0 flex-1 basis-0"
+                  icon="calendar"
+                  label="Book Appointment"
+                  onPress={() => {}}
+                />
+                <QuickActionPill
+                  className="min-w-0 flex-1 basis-0"
+                  icon="tag-user"
+                  label="Incident Report"
+                  onPress={() => {
+                    router.push('/discipline-office/incident-report');
+                  }}
+                />
+              </View>
+              <View className="w-full flex-row gap-2.5">
+                <QuickActionPill
+                  className="min-w-0 flex-1 basis-0"
+                  icon="medal"
+                  label="My Scholarship"
+                  onPress={() => {
+                    router.push('/student-development-affairs');
+                  }}
+                />
+                <View className="min-w-0 flex-1 basis-0" />
+              </View>
+            </View>
+          </View>
         </View>
-        <View className="gap-2 mt-1">
-          <WeeklyCalendar selectedDate={selectedDate} onSelectDate={setSelectedDate} />
-          <AppointmentCardStack appointments={SAMPLE_APPOINTMENTS} />
-        </View>
-      </View>
-
-      <View >
-        <Text className="text-lg font-semibold">Quick Actions</Text>
-        <View className="w-full flex-row gap-2.5 mt-2">
-          <QuickActionPill className="min-w-0 flex-1 basis-0" icon="calendar" label="Book Appointment" onPress={() => {}} />
-          <QuickActionPill
-            className="min-w-0 flex-1 basis-0"
-            icon="tag-user"
-            label="Incident Report"
-            onPress={() => {
-              router.push('/discipline-office/incident-report');
-            }}
-          />
-        </View>
-      </View>
+      </ScrollView>
     </View>
   );
 }
