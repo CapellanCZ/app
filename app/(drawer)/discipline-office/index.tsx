@@ -1,6 +1,7 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { Tabs } from 'heroui-native';
 
 import { DisciplineTabEmptyState } from '@/components/discipline/DisciplineTabEmptyState';
@@ -98,6 +99,25 @@ export default function DisciplineOfficeScreen() {
     <View className="flex-1 bg-[#FAFAFA]">
       <ScreenNavbar title="Discipline Office" menuIconSize={32} />
       <View className="mt-2 flex-1 px-4">
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Open incident report form"
+          onPress={() => router.push('/discipline-office/incident-report')}
+          className="mb-3 flex-row items-center gap-3 rounded-xl border border-[#EEF0F6] bg-white px-4 py-3.5 active:opacity-90">
+          <View
+            className="h-10 w-10 items-center justify-center rounded-full"
+            style={{ backgroundColor: 'rgba(41, 112, 255, 0.12)' }}>
+            <Ionicons name="document-text-outline" size={22} color="#2970FF" />
+          </View>
+          <View className="min-w-0 flex-1">
+            <Text className="text-sm font-semibold text-[#1F2024]">Incident report</Text>
+            <Text className="mt-0.5 text-xs leading-4 text-[#717680]">
+              File a confidential report with the discipline office
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color="#ABB7C2" />
+        </Pressable>
+
         <UnderlineTabs
           className="flex-1"
           tabs={[...DISCIPLINE_TABS]}
