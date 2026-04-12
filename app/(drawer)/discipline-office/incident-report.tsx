@@ -49,22 +49,6 @@ const ICON_SUFFIX = '#717680';
 /** Home tab (Quick Actions / main student dashboard). */
 const HOME_TABS_ROUTE = '/(drawer)/(tabs)';
 
-/** Narrative limits: ~5 medium paragraphs ≈ 650 words cap. */
-const WHAT_MIN_WORDS = 60;
-const WHAT_MAX_PARAGRAPHS = 5;
-const WHAT_MAX_WORDS = 650;
-
-function countWords(text: string) {
-  return text.trim().split(/\s+/).filter(Boolean).length;
-}
-
-/** Paragraphs separated by a blank line (Enter twice). */
-function countParagraphs(text: string) {
-  const t = text.trim();
-  if (!t) return 0;
-  return t.split(/\n\s*\n/).filter((p) => p.trim().length > 0).length;
-}
-
 function normalizePhoneDigits(value: string) {
   return value.replace(/\D/g, '');
 }
@@ -363,13 +347,7 @@ export default function IncidentReportScreen() {
     incidentType.length > 0 &&
     (incidentType !== INCIDENT_TYPE_OTHER || incidentTypeOther.trim().length > 0);
 
-  const whatWordCount = countWords(whatHappened);
-  const whatParagraphCount = countParagraphs(whatHappened);
-  const whatHappenedValid =
-    whatWordCount >= WHAT_MIN_WORDS &&
-    whatParagraphCount >= 1 &&
-    whatParagraphCount <= WHAT_MAX_PARAGRAPHS &&
-    whatWordCount <= WHAT_MAX_WORDS;
+  const whatHappenedValid = whatHappened.trim().length > 0;
 
   const phoneDigits = normalizePhoneDigits(reporterPhone);
   const phoneValid = phoneDigits.length >= 10 && phoneDigits.length <= 15;
@@ -454,16 +432,17 @@ export default function IncidentReportScreen() {
       toast.show({
         variant: 'success',
         placement: 'top',
-        duration: 4200,
-        label: 'Report received',
+        duration: 5000,
+        label: 'Report submitted successfully',
         description:
-          'Thank you. Your incident report was submitted. The discipline office will review it and follow up if needed.',
+          'Thank you. The discipline office has received your incident report and will review it. They may contact you if more information is needed.',
         icon: (
           <View className="shrink-0 pt-0.5">
             <Ionicons name="checkmark-circle" size={26} color={TOAST_SUCCESS_ICON} />
           </View>
         ),
       });
+      await new Promise<void>((resolve) => setTimeout(resolve, 400));
       router.replace(HOME_TABS_ROUTE);
     } catch {
       submitLockedRef.current = false;
@@ -733,7 +712,7 @@ export default function IncidentReportScreen() {
             <TextArea
               variant="primary"
               className="min-h-[180px] w-full"
-              placeholder="Write at least 60 words. Start a new paragraph with a blank line (up to 5 paragraphs, about 650 words max)."
+              placeholder="Describe what happened in as much detail as you can remember."
               placeholderColorClassName="text-[#8F9098]"
               value={whatHappened}
               onChangeText={setWhatHappened}
@@ -741,8 +720,7 @@ export default function IncidentReportScreen() {
               editable={!isSubmitting}
             />
             <Text className="text-[10px] leading-[14px] tracking-[0.15px] text-[#8F9098]">
-              {whatWordCount} / {WHAT_MIN_WORDS} words (min) · {whatParagraphCount} / {WHAT_MAX_PARAGRAPHS}{' '}
-              paragraphs · max {WHAT_MAX_WORDS} words. Use a blank line between paragraphs.
+              Include who, what, when, and where if you know them. You can use multiple paragraphs.
             </Text>
           </TextField>
 
