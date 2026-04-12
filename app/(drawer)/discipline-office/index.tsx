@@ -120,40 +120,6 @@ export default function DisciplineOfficeScreen() {
                 showsVerticalScrollIndicator={false}
                 keyboardShouldPersistTaps="handled">
                 <View className="gap-4 pb-10">
-                  <View
-                    className="overflow-hidden rounded-2xl bg-white pr-3.5 py-4 pl-3.5"
-                    style={{
-                      borderWidth: 1,
-                      borderColor: '#E4E7EC',
-                      borderLeftWidth: 4,
-                      borderLeftColor: '#2970FF',
-                      shadowColor: '#101828',
-                      shadowOffset: { width: 0, height: 1 },
-                      shadowOpacity: 0.06,
-                      shadowRadius: 6,
-                      elevation: 2,
-                    }}>
-                    <View className="flex-row gap-3">
-                      <View
-                        className="mt-0.5 h-9 w-9 items-center justify-center rounded-xl"
-                        style={{ backgroundColor: 'rgba(41, 112, 255, 0.12)' }}>
-                        <Ionicons name="information-circle-outline" size={22} color="#2970FF" />
-                      </View>
-                      <View className="min-w-0 flex-1">
-                        <Text className="text-[13px] font-bold leading-5 tracking-wide text-[#1F2024]">
-                          How cases are classified
-                        </Text>
-                        <Text className="mt-2 text-[12px] leading-[18px] text-[#475467]">
-                          <Text style={{ fontWeight: '600', color: '#344054' }}>Minor</Text>
-                          {' cases use lighter outcomes. '}
-                          <Text style={{ fontWeight: '600', color: '#344054' }}>Three minor cases</Text>
-                          {' together are escalated and reviewed as '}
-                          <Text style={{ fontWeight: '600', color: '#344054' }}>one major case</Text>
-                          {' for sanctions.'}
-                        </Text>
-                      </View>
-                    </View>
-                  </View>
                   {MOCK_CASES.map((item) => (
                     <DisciplineCaseProgressCard
                       key={item.id}

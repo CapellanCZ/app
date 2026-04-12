@@ -62,7 +62,7 @@ export const ScholarshipSearchBar = forwardRef<TextInput, ScholarshipSearchBarPr
 
     return (
       <View
-        className={`w-full flex-row items-center gap-3 rounded-[20px] bg-white px-3 py-2 ${className ?? ''}`}
+        className={`w-full flex-row items-center gap-3 rounded-[30px] bg-white px-3 py-2 ${className ?? ''}`}
         style={SEARCH_BAR_SHADOW}>
         <InputGroup className="min-w-0 flex-1 flex-row items-center gap-3">
           <InputGroup.Prefix isDecorative className="justify-center">
