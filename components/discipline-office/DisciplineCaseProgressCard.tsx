@@ -31,6 +31,10 @@ const GUTTER_W = 24;
 const LINE_LEFT = (GUTTER_W - 2) / 2;
 const ICON_COLOR = '#1F2024';
 const SEPARATOR_STROKE = '#D4D6DD';
+const TAG_MINOR_BG = '#ECFDF3';
+const TAG_MINOR_TEXT = '#027A48';
+const TAG_MAJOR_BG = '#FEE4E2';
+const TAG_MAJOR_TEXT = '#B42318';
 
 /** Dashed rule with long gaps and shorter dashes (fewer segments than CSS `border-dashed`). */
 function WideGapDashedSeparator({ className }: { className?: string }) {
@@ -64,9 +68,13 @@ export type DisciplineCaseStep = {
   date?: string;
 };
 
+export type CaseSeverity = 'minor' | 'major';
+
 export type DisciplineCaseProgressCardProps = {
   title: string;
   description: string;
+  /** Discipline classification shown as a pill on the card header. */
+  severity?: CaseSeverity;
   /** 0–100; drives the blue fill width */
   progressPercent: number;
   /** e.g. “2 of 5 Completed” */
@@ -213,9 +221,25 @@ function CaseTimeline({
 /**
  * Expandable case card: summary, overall progress, and vertical status timeline (Figma node 736:3318).
  */
+function SeverityTag({ severity }: { severity: CaseSeverity }) {
+  const isMinor = severity === 'minor';
+  return (
+    <View
+      className="self-start rounded-full px-2.5 py-1"
+      style={{ backgroundColor: isMinor ? TAG_MINOR_BG : TAG_MAJOR_BG }}>
+      <Text
+        className="text-[11px] font-semibold uppercase tracking-wide"
+        style={{ color: isMinor ? TAG_MINOR_TEXT : TAG_MAJOR_TEXT }}>
+        {isMinor ? 'Minor case' : 'Major case'}
+      </Text>
+    </View>
+  );
+}
+
 export function DisciplineCaseProgressCard({
   title,
   description,
+  severity,
   progressPercent,
   completedSummary,
   percentLabel,
@@ -253,6 +277,7 @@ export function DisciplineCaseProgressCard({
                     style={{ color: TEXT_PRIMARY }}>
                     {description}
                   </Text>
+                  {severity ? <SeverityTag severity={severity} /> : null}
                 </View>
                 <View className="h-7 w-7 shrink-0 items-center justify-center self-start pt-0.5">
                   <Accordion.Indicator isAnimatedStyleActive={false}>

@@ -24,6 +24,8 @@ export type ScreenNavbarProps = {
   backIconSize?: number;
   /** Optional: different size for the menu icon only. */
   menuIconSize?: number;
+  /** Allow long titles to wrap (Figma: Student Development & Activities). */
+  titleNumberOfLines?: number;
 };
 
 /**
@@ -39,6 +41,7 @@ export function ScreenNavbar({
   iconSize = DEFAULT_ICON_SIZE,
   backIconSize,
   menuIconSize,
+  titleNumberOfLines = 1,
 }: ScreenNavbarProps) {
   const router = useRouter();
   const navigation = useNavigation();
@@ -52,8 +55,8 @@ export function ScreenNavbar({
       onBackPress();
       return;
     }
-    if (router.canGoBack()) {
-      router.back();
+    if (navigation.canGoBack()) {
+      navigation.goBack();
     } else {
       router.replace('/(drawer)/(tabs)');
     }
@@ -82,7 +85,7 @@ export function ScreenNavbar({
 
         <Text
           className="min-w-0 flex-1 text-xl font-bold text-[#181D27]"
-          numberOfLines={1}
+          numberOfLines={titleNumberOfLines}
           style={{ letterSpacing: 0.09 }}>
           {title}
         </Text>

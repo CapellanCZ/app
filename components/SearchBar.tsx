@@ -15,6 +15,8 @@ export type SearchBarProps = Omit<TextInputProps, 'value' | 'defaultValue' | 'on
   value?: string;
   defaultValue?: string;
   onChangeText?: (text: string) => void;
+  /** HeroUI placeholder tone (e.g. `text-[#8F9098]`). */
+  placeholderColorClassName?: string;
   /** Outer wrapper (`TextField` when `label` is set, else `View`). */
   className?: string;
   /** `InputGroup` classes (default: full width + clip to pill). */

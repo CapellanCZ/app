@@ -11,6 +11,7 @@ import { TextLinkButton } from '@/components/TextLinkButton';
 import { TopNavigationBar } from '@/components/home/TopNavigationBar';
 import { WeeklyCalendar } from '@/components/home/WeeklyCalendar';
 import { QuickActionPill } from '@/components/home/QuickActionPill';
+import { router } from 'expo-router';
 
 const SAMPLE_APPOINTMENTS: AppointmentCardData[] = [
   {
@@ -98,7 +99,14 @@ export default function Home() {
         <Text className="text-lg font-semibold">Quick Actions</Text>
         <View className="w-full flex-row gap-2.5 mt-2">
           <QuickActionPill className="min-w-0 flex-1 basis-0" icon="calendar" label="Book Appointment" onPress={() => {}} />
-          <QuickActionPill className="min-w-0 flex-1 basis-0" icon="tag-user" label="Incident Report" onPress={() => {}} />
+          <QuickActionPill
+            className="min-w-0 flex-1 basis-0"
+            icon="tag-user"
+            label="Incident Report"
+            onPress={() => {
+              router.push('/discipline-office/incident-report');
+            }}
+          />
         </View>
       </View>
     </View>

@@ -63,6 +63,7 @@ const DrawerLayout = () => {
         <Drawer.Screen
           name="student-development-affairs"
           options={{
+            headerShown: false,
             title: 'Student Development & Activities',
             drawerLabel: 'Student Development & Activities',
             drawerIcon: ({ color, size, focused }) => (
@@ -97,6 +98,14 @@ const DrawerLayout = () => {
             drawerIcon: ({ color, size, focused }) => (
               <IconsaxJudgeDrawerIcon color={color} focused={focused} size={size} />
             ),
+          }}
+          listeners={{
+            drawerItemPress: (e) => {
+              e.preventDefault();
+              // `useNavigation()` in this layout resolves to the root stack, not the Drawer, so
+              // `navigate('discipline-office', …)` is not handled. Use Expo Router hrefs instead.
+              router.navigate('/discipline-office');
+            },
           }}
         />
         <Drawer.Screen

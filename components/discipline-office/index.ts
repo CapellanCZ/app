@@ -1,5 +1,6 @@
 export {
   DisciplineCaseProgressCard,
+  type CaseSeverity,
   type DisciplineCaseProgressCardProps,
   type DisciplineCaseStep,
 } from './DisciplineCaseProgressCard';

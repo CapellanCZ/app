@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 import { Tabs } from 'heroui-native';
 
 import { DisciplineTabEmptyState } from '@/components/discipline/DisciplineTabEmptyState';
@@ -40,6 +40,7 @@ const MOCK_CASES = [
     id: 'case-1',
     title: 'Academic Dishonesty',
     description: 'Unauthorized collaboration on individual assignment.',
+    severity: 'minor' as const,
     progressPercent: 25,
     completedSummary: '2 of 5 Completed',
     percentLabel: '25%',
@@ -50,6 +51,7 @@ const MOCK_CASES = [
     id: 'case-2',
     title: 'Campus Conduct',
     description: 'Noise complaint and repeated dorm policy violations.',
+    severity: 'major' as const,
     progressPercent: 80,
     completedSummary: '4 of 5 Completed',
     percentLabel: '80%',
@@ -66,6 +68,7 @@ const MOCK_SANCTIONS = [
     status: 'in_progress' as const,
     title: 'Community Service',
     description: 'Complete 24 hours of community service at the Court',
+    caseTypeLabel: 'Campus conduct',
     dueDateLabel: 'Thu, Feb 19',
     progress: { current: 8, total: 24, unit: 'hours' },
   },
@@ -75,6 +78,7 @@ const MOCK_SANCTIONS = [
     title: 'Academic Integrity Workshop',
     description:
       'Attend a mandatory 2-hour workshop on academic integrity and ethical conduct.',
+    caseTypeLabel: 'Academic dishonesty',
     dueDateLabel: 'Fri, Feb 20',
   },
   {
@@ -83,6 +87,7 @@ const MOCK_SANCTIONS = [
     title: 'Reflective Essay',
     description:
       'Submit a 1,000-word reflection on academic honesty and lessons learned from the incident.',
+    caseTypeLabel: 'Academic dishonesty',
     dueDateLabel: 'Proof submitted Mar 2, 2026',
     reviewDaysMin: 1,
     reviewDaysMax: 3,
@@ -97,27 +102,12 @@ export default function DisciplineOfficeScreen() {
 
   return (
     <View className="flex-1 bg-[#FAFAFA]">
-      <ScreenNavbar title="Discipline Office" menuIconSize={32} />
+      <ScreenNavbar
+        title="Discipline Office"
+        menuIconSize={32}
+        onBackPress={() => router.replace('/(drawer)/(tabs)')}
+      />
       <View className="mt-2 flex-1 px-4">
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Open incident report form"
-          onPress={() => router.push('/discipline-office/incident-report')}
-          className="mb-3 flex-row items-center gap-3 rounded-xl border border-[#EEF0F6] bg-white px-4 py-3.5 active:opacity-90">
-          <View
-            className="h-10 w-10 items-center justify-center rounded-full"
-            style={{ backgroundColor: 'rgba(41, 112, 255, 0.12)' }}>
-            <Ionicons name="document-text-outline" size={22} color="#2970FF" />
-          </View>
-          <View className="min-w-0 flex-1">
-            <Text className="text-sm font-semibold text-[#1F2024]">Incident report</Text>
-            <Text className="mt-0.5 text-xs leading-4 text-[#717680]">
-              File a confidential report with the discipline office
-            </Text>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color="#ABB7C2" />
-        </Pressable>
-
         <UnderlineTabs
           className="flex-1"
           tabs={[...DISCIPLINE_TABS]}
@@ -130,11 +120,46 @@ export default function DisciplineOfficeScreen() {
                 showsVerticalScrollIndicator={false}
                 keyboardShouldPersistTaps="handled">
                 <View className="gap-4 pb-10">
+                  <View
+                    className="overflow-hidden rounded-2xl bg-white pr-3.5 py-4 pl-3.5"
+                    style={{
+                      borderWidth: 1,
+                      borderColor: '#E4E7EC',
+                      borderLeftWidth: 4,
+                      borderLeftColor: '#2970FF',
+                      shadowColor: '#101828',
+                      shadowOffset: { width: 0, height: 1 },
+                      shadowOpacity: 0.06,
+                      shadowRadius: 6,
+                      elevation: 2,
+                    }}>
+                    <View className="flex-row gap-3">
+                      <View
+                        className="mt-0.5 h-9 w-9 items-center justify-center rounded-xl"
+                        style={{ backgroundColor: 'rgba(41, 112, 255, 0.12)' }}>
+                        <Ionicons name="information-circle-outline" size={22} color="#2970FF" />
+                      </View>
+                      <View className="min-w-0 flex-1">
+                        <Text className="text-[13px] font-bold leading-5 tracking-wide text-[#1F2024]">
+                          How cases are classified
+                        </Text>
+                        <Text className="mt-2 text-[12px] leading-[18px] text-[#475467]">
+                          <Text style={{ fontWeight: '600', color: '#344054' }}>Minor</Text>
+                          {' cases use lighter outcomes. '}
+                          <Text style={{ fontWeight: '600', color: '#344054' }}>Three minor cases</Text>
+                          {' together are escalated and reviewed as '}
+                          <Text style={{ fontWeight: '600', color: '#344054' }}>one major case</Text>
+                          {' for sanctions.'}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
                   {MOCK_CASES.map((item) => (
                     <DisciplineCaseProgressCard
                       key={item.id}
                       title={item.title}
                       description={item.description}
+                      severity={item.severity}
                       progressPercent={item.progressPercent}
                       completedSummary={item.completedSummary}
                       percentLabel={item.percentLabel}
@@ -162,6 +187,7 @@ export default function DisciplineOfficeScreen() {
                       status={item.status}
                       title={item.title}
                       description={item.description}
+                      caseTypeLabel={item.caseTypeLabel}
                       dueDateLabel={item.dueDateLabel}
                       progress={item.progress}
                       reviewDaysMin={item.reviewDaysMin}

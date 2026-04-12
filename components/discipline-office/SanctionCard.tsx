@@ -42,6 +42,8 @@ export type SanctionCardProps = {
   status: SanctionStatus;
   title: string;
   description: string;
+  /** Underlying discipline case category (e.g. academic dishonesty). */
+  caseTypeLabel?: string;
   dueDateLabel: string;
   /** When set, shows the progress row + bar (Figma “Community Service” card). */
   progress?: SanctionProgress;
@@ -109,6 +111,7 @@ export function SanctionCard({
   status,
   title,
   description,
+  caseTypeLabel,
   dueDateLabel,
   progress,
   reviewDaysMin,
@@ -154,6 +157,13 @@ export function SanctionCard({
               style={{ color: TEXT_DESC }}>
               {description}
             </Text>
+            {caseTypeLabel ? (
+              <Text
+                className="text-xs leading-4 tracking-[0.12px]"
+                style={{ color: TEXT_MUTED }}>
+                Case type: {caseTypeLabel}
+              </Text>
+            ) : null}
           </View>
 
           {status === 'in_review' &&

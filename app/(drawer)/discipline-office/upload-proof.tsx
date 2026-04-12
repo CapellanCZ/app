@@ -1,8 +1,18 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
+import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  InteractionManager,
+  Keyboard,
+  Pressable,
+  ScrollView,
+  Text,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useToast } from 'heroui-native';
 
@@ -16,9 +26,28 @@ const SUBMIT_BRAND = '#2970FF';
 /** Simulated network delay before success (ms) */
 const MOCK_SUBMIT_MS = 1400;
 
+function proofThumbnail(fileName: string, mimeType?: string | null) {
+  const mime = mimeType?.toLowerCase() ?? '';
+  if (mime.startsWith('image/')) {
+    return <Ionicons name="image-outline" size={28} color="#2970FF" />;
+  }
+  if (mime.startsWith('video/')) {
+    return <Ionicons name="videocam-outline" size={28} color="#2970FF" />;
+  }
+  const lower = fileName.toLowerCase();
+  if (/\.(png|jpe?g|gif|webp|heic|heif|bmp|tiff?)$/i.test(lower)) {
+    return <Ionicons name="image-outline" size={28} color="#2970FF" />;
+  }
+  if (/\.(mp4|mov|m4v|webm|mkv|avi|3gp|mpeg|mpg)$/i.test(lower)) {
+    return <Ionicons name="videocam-outline" size={28} color="#2970FF" />;
+  }
+  return <IconPdfIcon size={28} />;
+}
+
 type UploadFileRow = {
   id: string;
   fileName: string;
+  mimeType?: string | null;
   dateLabel: string;
   timeLabel: string;
   sizeLabel: string;
@@ -46,12 +75,15 @@ export default function UploadProofScreen() {
   const tickers = useRef<Record<string, ReturnType<typeof setInterval>>>({});
   /** Synchronous guard — blocks double-taps before `isSubmitting` re-renders */
   const submitLockedRef = useRef(false);
+  /** Avoids native `PickingInProgressException` when the document picker is invoked twice quickly. */
+  const documentPickerBusyRef = useRef(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [files, setFiles] = useState<UploadFileRow[]>([
     {
       id: 'demo-1',
       fileName: 'Name of document.pdf',
+      mimeType: 'application/pdf',
       dateLabel: '11 Feb, 2026',
       timeLabel: '12:24 pm',
       sizeLabel: '13 MB',
@@ -73,47 +105,125 @@ export default function UploadProofScreen() {
     };
   }, [clearTicker]);
 
-  const pickFiles = useCallback(async () => {
+  const addProofItemsWithProgress = useCallback(
+    (items: { fileName: string; size?: number; mimeType?: string | null }[]) => {
+      if (items.length === 0) return;
+      const now = new Date();
+      const { dateLabel, timeLabel } = formatPickMeta(now);
+
+      for (const item of items) {
+        const id = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+        const sizeLabel = formatSize(item.size);
+
+        setFiles((prev) => [
+          ...prev,
+          {
+            id,
+            fileName: item.fileName,
+            mimeType: item.mimeType ?? null,
+            dateLabel,
+            timeLabel,
+            sizeLabel,
+            progress: 0,
+          },
+        ]);
+
+        tickers.current[id] = setInterval(() => {
+          setFiles((prev) =>
+            prev.map((f) => {
+              if (f.id !== id) return f;
+              const next = Math.min(100, f.progress + 8);
+              if (next >= 100) clearTicker(id);
+              return { ...f, progress: next };
+            }),
+          );
+        }, 220);
+      }
+    },
+    [clearTicker],
+  );
+
+  const pickMediaFromLibrary = useCallback(async () => {
     if (isSubmitting) return;
-    const result = await DocumentPicker.getDocumentAsync({
-      type: ['application/pdf', 'image/*'],
-      copyToCacheDirectory: true,
-      multiple: true,
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert(
+        'Photo access needed',
+        'Allow photo library access so you can attach photos or videos. You can change this in Settings.',
+      );
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images', 'videos'],
+      allowsMultipleSelection: true,
+      quality: 1,
     });
+
     if (result.canceled || !result.assets?.length) return;
 
-    const now = new Date();
-    const { dateLabel, timeLabel } = formatPickMeta(now);
-
-    for (const asset of result.assets) {
-      const id = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-      const fileName = asset.name ?? 'document';
-      const sizeLabel = formatSize(asset.size);
-
-      setFiles((prev) => [
-        ...prev,
-        {
-          id,
+    addProofItemsWithProgress(
+      result.assets.map((asset) => {
+        const isVideo = asset.type === 'video';
+        const fileName =
+          (asset.fileName && asset.fileName.trim()) ||
+          (isVideo ? 'Video.mp4' : 'Photo.jpg');
+        return {
           fileName,
-          dateLabel,
-          timeLabel,
-          sizeLabel,
-          progress: 0,
-        },
-      ]);
+          size: asset.fileSize,
+          mimeType: asset.mimeType ?? (isVideo ? 'video/mp4' : 'image/jpeg'),
+        };
+      }),
+    );
+  }, [addProofItemsWithProgress, isSubmitting]);
 
-      tickers.current[id] = setInterval(() => {
-        setFiles((prev) =>
-          prev.map((f) => {
-            if (f.id !== id) return f;
-            const next = Math.min(100, f.progress + 8);
-            if (next >= 100) clearTicker(id);
-            return { ...f, progress: next };
-          }),
-        );
-      }, 220);
+  const pickFiles = useCallback(async () => {
+    if (isSubmitting || documentPickerBusyRef.current) return;
+    documentPickerBusyRef.current = true;
+    Keyboard.dismiss();
+
+    const openPicker = (multiple: boolean) =>
+      DocumentPicker.getDocumentAsync({
+        type: '*/*',
+        copyToCacheDirectory: true,
+        multiple,
+      });
+
+    try {
+      // Defer until the active screen has a window (avoids iOS MissingViewController / Android activity timing issues with Expo Router).
+      await new Promise<void>((resolve) => {
+        InteractionManager.runAfterInteractions(() => {
+          requestAnimationFrame(() => setTimeout(resolve, 120));
+        });
+      });
+
+      let result: Awaited<ReturnType<typeof DocumentPicker.getDocumentAsync>>;
+      try {
+        result = await openPicker(true);
+      } catch {
+        result = await openPicker(false);
+      }
+
+      if (result.canceled || !result.assets?.length) return;
+
+      addProofItemsWithProgress(
+        result.assets.map((asset) => ({
+          fileName: asset.name ?? 'document',
+          size: asset.size,
+          mimeType: asset.mimeType ?? null,
+        })),
+      );
+    } catch (e) {
+      const message =
+        e instanceof Error ? e.message : typeof e === 'string' ? e : 'Unknown error';
+      Alert.alert(
+        'Could not open files',
+        `${message}\n\nYou can use “Tap to upload” for photos and videos from your library.`,
+      );
+    } finally {
+      documentPickerBusyRef.current = false;
     }
-  }, [clearTicker, isSubmitting]);
+  }, [addProofItemsWithProgress, isSubmitting]);
 
   const allUploadsComplete = useMemo(
     () => files.length > 0 && files.every((f) => f.progress >= 100),
@@ -159,14 +269,16 @@ export default function UploadProofScreen() {
 
   return (
     <View className="flex-1 bg-[#FAFAFA]">
-      <ScreenNavbar title="Upload Proof" showMenu={false} />
+      <ScreenNavbar title="Proof of Compliance" showMenu={false} />
       <ScrollView
         className="flex-1"
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}>
         <View className="px-5 pb-4 pt-4">
         <FileUploadDropzoneCard
+          onPickMedia={pickMediaFromLibrary}
           onPickFiles={pickFiles}
+          hintText="Tap above for photos & videos from your library, or Upload Files for PDFs and documents."
           className={isSubmitting ? 'opacity-50' : undefined}
         />
 
@@ -191,7 +303,7 @@ export default function UploadProofScreen() {
                 timeLabel={f.timeLabel}
                 sizeLabel={f.sizeLabel}
                 progress={f.progress}
-                fileThumbnail={<IconPdfIcon size={28} />}
+                fileThumbnail={proofThumbnail(f.fileName, f.mimeType)}
                 onRemove={isSubmitting ? undefined : () => removeFile(f.id)}
               />
             ))}
@@ -206,7 +318,7 @@ export default function UploadProofScreen() {
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={
-            isSubmitting ? 'Submitting proof to server' : 'Submit proof of compliance'
+            isSubmitting ? 'Uploading your proof of compliance' : 'Submit proof of compliance'
           }
           accessibilityState={{ disabled: submitDisabled, busy: isSubmitting }}
           disabled={submitDisabled}
@@ -225,7 +337,7 @@ export default function UploadProofScreen() {
               <Text className="text-sm font-semibold text-white">Submitting...</Text>
             </>
           ) : (
-            <Text className="text-sm font-semibold text-white">Submit Proof of Compliance</Text>
+            <Text className="text-sm font-semibold text-white">Submit my proof of compliance</Text>
           )}
         </Pressable>
       </View>

@@ -4,23 +4,27 @@ import DateTimePicker, {
 import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
+import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  BackHandler,
+  InteractionManager,
   Keyboard,
-  KeyboardAvoidingView,
   Platform,
   Pressable,
   ScrollView,
   Text,
   View,
 } from 'react-native';
+import { KeyboardAwareScrollView, KeyboardStickyView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   BottomSheet,
   Button,
+  Dialog,
   InputGroup,
   TextArea,
   TextField,
@@ -42,6 +46,29 @@ const SUBMIT_BRAND = '#2970FF';
 const MOCK_SUBMIT_MS = 1400;
 const ICON_SUFFIX = '#717680';
 
+/** Home tab (Quick Actions / main student dashboard). */
+const HOME_TABS_ROUTE = '/(drawer)/(tabs)';
+
+/** Narrative limits: ~5 medium paragraphs ≈ 650 words cap. */
+const WHAT_MIN_WORDS = 60;
+const WHAT_MAX_PARAGRAPHS = 5;
+const WHAT_MAX_WORDS = 650;
+
+function countWords(text: string) {
+  return text.trim().split(/\s+/).filter(Boolean).length;
+}
+
+/** Paragraphs separated by a blank line (Enter twice). */
+function countParagraphs(text: string) {
+  const t = text.trim();
+  if (!t) return 0;
+  return t.split(/\n\s*\n/).filter((p) => p.trim().length > 0).length;
+}
+
+function normalizePhoneDigits(value: string) {
+  return value.replace(/\D/g, '');
+}
+
 const INCIDENT_TYPES = [
   'Academic dishonesty',
   'Harassment or discrimination',
@@ -52,18 +79,6 @@ const INCIDENT_TYPES = [
 ] as const;
 
 const INCIDENT_TYPE_OTHER = 'Other';
-
-/** PDFs, images, and videos for evidence (expo-document-picker MIME list). */
-const EVIDENCE_DOCUMENT_TYPES = [
-  'application/pdf',
-  'image/*',
-  'video/*',
-  'video/mp4',
-  'video/quicktime',
-  'video/x-m4v',
-  'video/webm',
-  'video/3gpp',
-] as const;
 
 function evidenceThumbnail(fileName: string, mimeType?: string | null) {
   const mime = mimeType?.toLowerCase() ?? '';
@@ -133,6 +148,7 @@ export default function IncidentReportScreen() {
   const insets = useSafeAreaInsets();
   const { toast } = useToast();
   const submitLockedRef = useRef(false);
+  const documentPickerBusyRef = useRef(false);
 
   const [incidentTypeOpen, setIncidentTypeOpen] = useState(false);
   const [incidentType, setIncidentType] = useState('');
@@ -150,9 +166,11 @@ export default function IncidentReportScreen() {
   });
   const [location, setLocation] = useState('');
   const [personsInvolved, setPersonsInvolved] = useState('');
+  const [reporterPhone, setReporterPhone] = useState('');
   const [whatHappened, setWhatHappened] = useState('');
   const [files, setFiles] = useState<UploadFileRow[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [discardDialogOpen, setDiscardDialogOpen] = useState(false);
 
   /** Mirrors draft pickers so we can persist when the sheet closes without tapping Done. */
   const draftDateRef = useRef(draftDate);
@@ -217,21 +235,50 @@ export default function IncidentReportScreen() {
   }, [ingestEvidenceItems, isSubmitting]);
 
   const pickFiles = useCallback(async () => {
-    if (isSubmitting) return;
-    const result = await DocumentPicker.getDocumentAsync({
-      type: [...EVIDENCE_DOCUMENT_TYPES],
-      copyToCacheDirectory: true,
-      multiple: true,
-    });
-    if (result.canceled || !result.assets?.length) return;
+    if (isSubmitting || documentPickerBusyRef.current) return;
+    documentPickerBusyRef.current = true;
+    Keyboard.dismiss();
 
-    ingestEvidenceItems(
-      result.assets.map((asset) => ({
-        fileName: asset.name ?? 'document',
-        size: asset.size,
-        mimeType: asset.mimeType ?? null,
-      })),
-    );
+    const openPicker = (multiple: boolean) =>
+      DocumentPicker.getDocumentAsync({
+        type: '*/*',
+        copyToCacheDirectory: true,
+        multiple,
+      });
+
+    try {
+      await new Promise<void>((resolve) => {
+        InteractionManager.runAfterInteractions(() => {
+          requestAnimationFrame(() => setTimeout(resolve, 120));
+        });
+      });
+
+      let result: Awaited<ReturnType<typeof DocumentPicker.getDocumentAsync>>;
+      try {
+        result = await openPicker(true);
+      } catch {
+        result = await openPicker(false);
+      }
+
+      if (result.canceled || !result.assets?.length) return;
+
+      ingestEvidenceItems(
+        result.assets.map((asset) => ({
+          fileName: asset.name ?? 'document',
+          size: asset.size,
+          mimeType: asset.mimeType ?? null,
+        })),
+      );
+    } catch (e) {
+      const message =
+        e instanceof Error ? e.message : typeof e === 'string' ? e : 'Unknown error';
+      Alert.alert(
+        'Could not open files',
+        `${message}\n\nYou can use “Tap to upload” for photos and videos from your library.`,
+      );
+    } finally {
+      documentPickerBusyRef.current = false;
+    }
   }, [ingestEvidenceItems, isSubmitting]);
 
   const removeFile = useCallback(
@@ -316,13 +363,84 @@ export default function IncidentReportScreen() {
     incidentType.length > 0 &&
     (incidentType !== INCIDENT_TYPE_OTHER || incidentTypeOther.trim().length > 0);
 
+  const whatWordCount = countWords(whatHappened);
+  const whatParagraphCount = countParagraphs(whatHappened);
+  const whatHappenedValid =
+    whatWordCount >= WHAT_MIN_WORDS &&
+    whatParagraphCount >= 1 &&
+    whatParagraphCount <= WHAT_MAX_PARAGRAPHS &&
+    whatWordCount <= WHAT_MAX_WORDS;
+
+  const phoneDigits = normalizePhoneDigits(reporterPhone);
+  const phoneValid = phoneDigits.length >= 10 && phoneDigits.length <= 15;
+
+  const hasUnsavedChanges = useMemo(
+    () =>
+      incidentType.length > 0 ||
+      incidentTypeOther.trim().length > 0 ||
+      incidentDate != null ||
+      incidentTime != null ||
+      location.trim().length > 0 ||
+      personsInvolved.trim().length > 0 ||
+      reporterPhone.trim().length > 0 ||
+      whatHappened.trim().length > 0 ||
+      files.length > 0,
+    [
+      incidentType,
+      incidentTypeOther,
+      incidentDate,
+      incidentTime,
+      location,
+      personsInvolved,
+      reporterPhone,
+      whatHappened,
+      files.length,
+    ],
+  );
+
+  const goHome = useCallback(() => {
+    // `dismissTo` often does nothing here because tabs were never pushed above this screen in
+    // the same stack (quick action uses `push` straight to incident-report). `replace` reliably
+    // switches the drawer to home. Stale nested stack is cleared when opening Discipline Office
+    // from the drawer (`withAnchor: true` in `(drawer)/_layout.tsx`).
+    router.replace(HOME_TABS_ROUTE);
+  }, [router]);
+
+  const requestLeave = useCallback(() => {
+    if (hasUnsavedChanges) {
+      setDiscardDialogOpen(true);
+    } else {
+      goHome();
+    }
+  }, [goHome, hasUnsavedChanges]);
+
+  const confirmDiscardAndLeave = useCallback(() => {
+    setDiscardDialogOpen(false);
+    goHome();
+  }, [goHome]);
+
+  useFocusEffect(
+    useCallback(() => {
+      const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+        if (hasUnsavedChanges) {
+          setDiscardDialogOpen(true);
+          return true;
+        }
+        goHome();
+        return true;
+      });
+      return () => sub.remove();
+    }, [goHome, hasUnsavedChanges]),
+  );
+
   // Supporting evidence is optional — do not require files.
   const canSubmit =
     incidentTypeComplete &&
     incidentDate != null &&
     incidentTime != null &&
     location.trim().length > 0 &&
-    whatHappened.trim().length > 0 &&
+    phoneValid &&
+    whatHappenedValid &&
     !isSubmitting;
 
   const submitDisabled = !canSubmit || isSubmitting;
@@ -346,7 +464,7 @@ export default function IncidentReportScreen() {
           </View>
         ),
       });
-      router.back();
+      router.replace(HOME_TABS_ROUTE);
     } catch {
       submitLockedRef.current = false;
       setIsSubmitting(false);
@@ -355,27 +473,28 @@ export default function IncidentReportScreen() {
 
   return (
     <View className="flex-1 bg-[#FAFAFA]">
-      <ScreenNavbar title="Incident Report" showMenu={false} />
+      <ScreenNavbar title="Incident Report" showMenu={false} onBackPress={requestLeave} />
 
-      <KeyboardAvoidingView
-        className="flex-1"
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={0}>
-        <ScrollView
+      <View className="flex-1">
+        <KeyboardAwareScrollView
           className="flex-1"
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
+          keyboardDismissMode="on-drag"
+          bottomOffset={100}
+          extraKeyboardSpace={24}
           contentContainerStyle={{
             paddingHorizontal: 20,
             paddingTop: 8,
-            paddingBottom: 24,
+            paddingBottom: Math.max(insets.bottom, 20) + 16,
+            flexGrow: 1,
           }}>
-        <View className="gap-4">
+        <View className="gap-5">
           <View className="gap-2">
             <Text className="text-xs font-semibold leading-4 text-[#494A50]">Type of Incident</Text>
+            <View className="w-full shrink-0">
             <BottomSheet
-              className="w-full"
+              className="w-full shrink-0"
               isOpen={incidentTypeOpen}
               onOpenChange={setIncidentTypeOpen}>
               <BottomSheet.Trigger className="w-full" accessibilityLabel="Select type of incident">
@@ -420,6 +539,7 @@ export default function IncidentReportScreen() {
                 </BottomSheet.Content>
               </BottomSheet.Portal>
             </BottomSheet>
+            </View>
             {incidentType === INCIDENT_TYPE_OTHER ? (
               <View className="gap-2 pt-1">
                 <Text className="text-xs font-semibold leading-4 text-[#494A50]">
@@ -439,11 +559,12 @@ export default function IncidentReportScreen() {
             ) : null}
           </View>
 
-          <View className="flex-row gap-3">
+          <View className="w-full shrink-0 flex-row gap-3">
             <View className="min-w-0 flex-1 gap-2">
               <Text className="text-xs font-semibold leading-4 text-[#494A50]">Date</Text>
+              <View className="w-full shrink-0">
               <BottomSheet
-                className="w-full"
+                className="w-full shrink-0"
                 isOpen={dateSheetOpen}
                 onOpenChange={onDateSheetOpenChange}>
                 <BottomSheet.Trigger className="w-full" accessibilityLabel="Choose incident date">
@@ -493,11 +614,13 @@ export default function IncidentReportScreen() {
                   </BottomSheet.Content>
                 </BottomSheet.Portal>
               </BottomSheet>
+              </View>
             </View>
             <View className="min-w-0 flex-1 gap-2">
               <Text className="text-xs font-semibold leading-4 text-[#494A50]">Time</Text>
+              <View className="w-full shrink-0">
               <BottomSheet
-                className="w-full"
+                className="w-full shrink-0"
                 isOpen={timeSheetOpen}
                 onOpenChange={onTimeSheetOpenChange}>
                 <BottomSheet.Trigger className="w-full" accessibilityLabel="Choose incident time">
@@ -543,6 +666,7 @@ export default function IncidentReportScreen() {
                   </BottomSheet.Content>
                 </BottomSheet.Portal>
               </BottomSheet>
+              </View>
             </View>
           </View>
 
@@ -560,6 +684,29 @@ export default function IncidentReportScreen() {
                 <IconsaxLocationIcon size={18} color={ICON_SUFFIX} />
               </InputGroup.Suffix>
             </InputGroup>
+          </View>
+
+          <View className="gap-2">
+            <Text className="text-xs font-semibold leading-4 text-[#494A50]">
+              Your phone number
+            </Text>
+            <InputGroup className="relative w-full">
+              <InputGroup.Input
+                variant="primary"
+                editable={!isSubmitting}
+                keyboardType="phone-pad"
+                placeholder="e.g. 09XX XXX XXXX"
+                placeholderColorClassName="text-[#8F9098]"
+                value={reporterPhone}
+                onChangeText={setReporterPhone}
+              />
+              <InputGroup.Suffix isDecorative>
+                <Ionicons name="call-outline" size={18} color={ICON_SUFFIX} />
+              </InputGroup.Suffix>
+            </InputGroup>
+            <Text className="text-[10px] leading-[14px] tracking-[0.15px] text-[#8F9098]">
+              Required so the discipline office can reach you about this report.
+            </Text>
           </View>
 
           <View className="gap-2">
@@ -585,25 +732,25 @@ export default function IncidentReportScreen() {
             <Text className="text-xs font-semibold leading-4 text-[#494A50]">What happened?</Text>
             <TextArea
               variant="primary"
-              className="min-h-[120px]"
-              placeholder="Provide a detailed description of the incident. Include what you witnessed, who was involved, and any other relevant details."
+              className="min-h-[180px] w-full"
+              placeholder="Write at least 60 words. Start a new paragraph with a blank line (up to 5 paragraphs, about 650 words max)."
               placeholderColorClassName="text-[#8F9098]"
               value={whatHappened}
               onChangeText={setWhatHappened}
               textAlignVertical="top"
+              editable={!isSubmitting}
             />
             <Text className="text-[10px] leading-[14px] tracking-[0.15px] text-[#8F9098]">
-              Required. Include what you saw and any details that help the office review your report.
+              {whatWordCount} / {WHAT_MIN_WORDS} words (min) · {whatParagraphCount} / {WHAT_MAX_PARAGRAPHS}{' '}
+              paragraphs · max {WHAT_MAX_WORDS} words. Use a blank line between paragraphs.
             </Text>
           </TextField>
 
-          <View className="gap-2">
-            <View className="gap-1">
-              <Text className="text-xs font-semibold text-[#2F3036]">Supporting evidence</Text>
-              <Text className="text-xs leading-4 tracking-[0.12px] text-[#8F9098]">
-                Photos, screenshots, videos, or documents that support your report. Optional.
-              </Text>
-            </View>
+          <View className="w-full shrink-0 gap-2 mt-12">
+            <Text className="text-xs font-semibold leading-4 text-[#494A50]">Supporting evidence</Text>
+            <Text className="text-[10px] leading-[14px] tracking-[0.15px] text-[#8F9098]">
+              Photos, screenshots, videos, or documents that support your report. Optional.
+            </Text>
             <FileUploadDropzoneCard
               onPickMedia={pickMediaFromLibrary}
               onPickFiles={pickFiles}
@@ -611,7 +758,7 @@ export default function IncidentReportScreen() {
               className={isSubmitting ? 'opacity-50' : undefined}
             />
             {files.length > 0 ? (
-              <View className="gap-3 pt-2">
+              <View className="gap-3 pt-1">
                 <View className="flex-row items-center gap-2">
                   <Text className="text-base font-semibold tracking-wide text-[#1F2024]">
                     Uploaded files
@@ -638,11 +785,12 @@ export default function IncidentReportScreen() {
             ) : null}
           </View>
         </View>
-        </ScrollView>
+        </KeyboardAwareScrollView>
 
-        <View
+        <KeyboardStickyView
           className="border-t border-[#F0F2F5] bg-[#FAFAFA] px-5 pt-3"
-          style={{ paddingBottom: Math.max(insets.bottom, 16) }}>
+          style={{ paddingBottom: Math.max(insets.bottom, 12) }}
+          offset={{ closed: 0, opened: 4 }}>
           <Text className="mb-2 px-0.5 text-center text-[11px] leading-[15px] text-[#8F9098]">
             You can submit without attachments. Evidence is optional.
           </Text>
@@ -669,8 +817,37 @@ export default function IncidentReportScreen() {
               <Text className="text-sm font-semibold text-white">Submit Report</Text>
             )}
           </Pressable>
-        </View>
-      </KeyboardAvoidingView>
+        </KeyboardStickyView>
+      </View>
+
+      <Dialog isOpen={discardDialogOpen} onOpenChange={setDiscardDialogOpen}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="bg-black/50" isCloseOnPress={false} />
+          <Dialog.Content
+            isSwipeable={false}
+            className="mx-6 w-full max-w-sm self-center rounded-3xl bg-white px-6 pb-7 pt-7">
+            <Dialog.Title className="text-center text-lg font-bold text-[#181D27]">
+              Leave this report?
+            </Dialog.Title>
+            <Dialog.Description className="mt-3 text-center text-sm leading-5 text-[#535862]">
+              You have information on this screen that has not been submitted. If you go back now, your
+              answers will be cleared and the discipline office will not receive this report.
+            </Dialog.Description>
+            <View className="mt-6 flex-row gap-3">
+              <Button
+                variant="outline"
+                size="md"
+                className="h-11 flex-1 border-[1.5px] border-[#D0D5DD] bg-white"
+                onPress={() => setDiscardDialogOpen(false)}>
+                <Button.Label className="text-sm font-semibold text-[#344054]">Keep editing</Button.Label>
+              </Button>
+              <Button variant="danger" size="md" className="h-11 flex-1" onPress={confirmDiscardAndLeave}>
+                <Button.Label className="text-sm font-bold text-white">Leave without saving</Button.Label>
+              </Button>
+            </View>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog>
     </View>
   );
 }
