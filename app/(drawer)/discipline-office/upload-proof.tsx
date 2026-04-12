@@ -1,12 +1,20 @@
+import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { useRouter } from 'expo-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useToast } from 'heroui-native';
 
 import { FileUploadDropzoneCard } from '@/components/FileUploadDropzoneCard';
+import { IconPdfIcon } from '@/components/icons/IconPdfIcon';
 import { ScreenNavbar } from '@/components/ScreenNavbar';
 import { UploadedFileListRow } from '@/components/UploadedFileListRow';
+
+const TOAST_SUCCESS_ICON = '#079455';
+const SUBMIT_BRAND = '#2970FF';
+/** Simulated network delay before success (ms) */
+const MOCK_SUBMIT_MS = 1400;
 
 type UploadFileRow = {
   id: string;
@@ -34,8 +42,11 @@ function formatSize(bytes: number | undefined) {
 export default function UploadProofScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { sanctionId } = useLocalSearchParams<{ sanctionId?: string }>();
+  const { toast } = useToast();
   const tickers = useRef<Record<string, ReturnType<typeof setInterval>>>({});
+  /** Synchronous guard — blocks double-taps before `isSubmitting` re-renders */
+  const submitLockedRef = useRef(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [files, setFiles] = useState<UploadFileRow[]>([
     {
@@ -63,6 +74,7 @@ export default function UploadProofScreen() {
   }, [clearTicker]);
 
   const pickFiles = useCallback(async () => {
+    if (isSubmitting) return;
     const result = await DocumentPicker.getDocumentAsync({
       type: ['application/pdf', 'image/*'],
       copyToCacheDirectory: true,
@@ -101,25 +113,49 @@ export default function UploadProofScreen() {
         );
       }, 220);
     }
-  }, [clearTicker]);
+  }, [clearTicker, isSubmitting]);
+
+  const allUploadsComplete = useMemo(
+    () => files.length > 0 && files.every((f) => f.progress >= 100),
+    [files],
+  );
 
   const removeFile = useCallback(
     (id: string) => {
+      if (isSubmitting) return;
       clearTicker(id);
       setFiles((prev) => prev.filter((f) => f.id !== id));
     },
-    [clearTicker],
+    [clearTicker, isSubmitting],
   );
 
-  const onSubmit = useCallback(() => {
-    Alert.alert(
-      'Proof submitted',
-      sanctionId
-        ? `We recorded your upload for sanction “${sanctionId}”. Connect this to your API when ready.`
-        : 'Connect this action to your compliance API when ready.',
-      [{ text: 'OK', onPress: () => router.back() }],
-    );
-  }, [router, sanctionId]);
+  const onSubmit = useCallback(async () => {
+    if (!allUploadsComplete || submitLockedRef.current) return;
+    submitLockedRef.current = true;
+    setIsSubmitting(true);
+    try {
+      await new Promise<void>((resolve) => setTimeout(resolve, MOCK_SUBMIT_MS));
+      toast.show({
+        variant: 'success',
+        placement: 'top',
+        duration: 4200,
+        label: 'Proof received',
+        description:
+          "Your upload is with our team. Reviews usually finish in 1-3 business days. We'll notify you in the app.",
+        icon: (
+          <View className="shrink-0 pt-0.5">
+            <Ionicons name="checkmark-circle" size={26} color={TOAST_SUCCESS_ICON} />
+          </View>
+        ),
+      });
+      router.back();
+    } catch {
+      submitLockedRef.current = false;
+      setIsSubmitting(false);
+    }
+  }, [allUploadsComplete, router, toast]);
+
+  const submitDisabled = !allUploadsComplete || isSubmitting;
 
   return (
     <View className="flex-1 bg-[#FAFAFA]">
@@ -129,7 +165,10 @@ export default function UploadProofScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}>
         <View className="px-5 pb-4 pt-4">
-        <FileUploadDropzoneCard onPickFiles={pickFiles} />
+        <FileUploadDropzoneCard
+          onPickFiles={pickFiles}
+          className={isSubmitting ? 'opacity-50' : undefined}
+        />
 
         <View className="mt-8 w-full gap-4">
           <View className="flex-row items-center gap-2">
@@ -152,7 +191,8 @@ export default function UploadProofScreen() {
                 timeLabel={f.timeLabel}
                 sizeLabel={f.sizeLabel}
                 progress={f.progress}
-                onRemove={() => removeFile(f.id)}
+                fileThumbnail={<IconPdfIcon size={28} />}
+                onRemove={isSubmitting ? undefined : () => removeFile(f.id)}
               />
             ))}
           </View>
@@ -165,15 +205,28 @@ export default function UploadProofScreen() {
         style={{ paddingBottom: Math.max(insets.bottom, 16) }}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Submit proof of compliance"
+          accessibilityLabel={
+            isSubmitting ? 'Submitting proof to server' : 'Submit proof of compliance'
+          }
+          accessibilityState={{ disabled: submitDisabled, busy: isSubmitting }}
+          disabled={submitDisabled}
+          pointerEvents={submitDisabled ? 'none' : 'auto'}
           onPress={onSubmit}
-          className="w-full items-center justify-center rounded-full py-3 active:opacity-90"
-          style={{
-            backgroundColor: '#2970FF',
+          style={({ pressed }) => ({
+            opacity: submitDisabled ? 1 : pressed ? 0.9 : 1,
+            backgroundColor: submitDisabled && !isSubmitting ? '#A8C4FF' : SUBMIT_BRAND,
             borderWidth: 1,
             borderColor: 'rgba(0,0,0,0.1)',
-          }}>
-          <Text className="text-sm font-semibold text-white">Submit Proof of Compliance</Text>
+          })}
+          className="w-full flex-row items-center justify-center gap-2 rounded-full py-3">
+          {isSubmitting ? (
+            <>
+              <ActivityIndicator color="#FFFFFF" size="small" />
+              <Text className="text-sm font-semibold text-white">Submitting...</Text>
+            </>
+          ) : (
+            <Text className="text-sm font-semibold text-white">Submit Proof of Compliance</Text>
+          )}
         </Pressable>
       </View>
     </View>

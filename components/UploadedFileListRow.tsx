@@ -1,6 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, Text, View } from 'react-native';
 
+import type { ReactNode } from 'react';
+
 import { CircularProgressRing } from '@/components/CircularProgressRing';
 
 export type UploadedFileListRowProps = {
@@ -10,6 +12,8 @@ export type UploadedFileListRowProps = {
   sizeLabel: string;
   /** 0–100 upload progress */
   progress: number;
+  /** Left thumbnail (e.g. PDF icon from `assets/icons/icon-pdf.svg`). */
+  fileThumbnail: ReactNode;
   onRemove?: () => void;
   className?: string;
 };
@@ -23,6 +27,7 @@ export function UploadedFileListRow({
   timeLabel,
   sizeLabel,
   progress,
+  fileThumbnail,
   onRemove,
   className,
 }: UploadedFileListRowProps) {
@@ -30,9 +35,7 @@ export function UploadedFileListRow({
     <View
       className={`w-full flex-row items-end rounded-xl bg-white p-3 ${className ?? ''}`}>
       <View className="min-w-0 flex-1 flex-row items-center gap-2">
-        <View className="h-7 w-7 items-center justify-center rounded-md bg-[#E53935]">
-          <Text className="text-[7px] font-bold text-white">PDF</Text>
-        </View>
+        <View className="h-7 w-7 shrink-0 items-center justify-center">{fileThumbnail}</View>
         <View className="min-w-0 flex-1 gap-1.5">
           <Text className="text-sm font-semibold text-[#1F2024]" numberOfLines={1}>
             {fileName}

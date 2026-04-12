@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
@@ -25,6 +26,8 @@ const BADGE_IN_PROGRESS_BG = '#D1E0FF';
 const BADGE_IN_PROGRESS_TEXT = '#00359E';
 const BADGE_PENDING_BG = '#FEF0C7';
 const BADGE_PENDING_TEXT = '#DC6803';
+/** Matches in-review badge accent — “proof submitted” check in footer */
+const SUBMITTED_CHECK = '#079455';
 
 export type SanctionProgress = {
   current: number;
@@ -42,6 +45,11 @@ export type SanctionCardProps = {
   dueDateLabel: string;
   /** When set, shows the progress row + bar (Figma “Community Service” card). */
   progress?: SanctionProgress;
+  /** When `status === 'in_review'`, typical review window (calendar days). */
+  reviewDaysMin?: number;
+  reviewDaysMax?: number;
+  /** When `status === 'in_review'`, human-readable status (e.g. proof received, under review). */
+  reviewStatusLabel?: string;
   defaultExpanded?: boolean;
   onUploadProof?: () => void;
 };
@@ -49,6 +57,17 @@ export type SanctionCardProps = {
 function clampPercent(current: number, total: number) {
   if (total <= 0) return 0;
   return Math.min(100, Math.max(0, (current / total) * 100));
+}
+
+function formatDaysUntilReview(minDays: number, maxDays: number): string {
+  const lo = Math.min(minDays, maxDays);
+  const hi = Math.max(minDays, maxDays);
+  if (lo === hi) {
+    if (lo <= 0) return 'Review expected today';
+    if (lo === 1) return 'About 1 day until review';
+    return `About ${lo} days until review`;
+  }
+  return `About ${lo}–${hi} days until review`;
 }
 
 function StatusBadge({ status }: { status: SanctionStatus }) {
@@ -92,6 +111,9 @@ export function SanctionCard({
   description,
   dueDateLabel,
   progress,
+  reviewDaysMin,
+  reviewDaysMax,
+  reviewStatusLabel,
   defaultExpanded = true,
   onUploadProof,
 }: SanctionCardProps) {
@@ -134,6 +156,34 @@ export function SanctionCard({
             </Text>
           </View>
 
+          {status === 'in_review' &&
+          reviewDaysMin != null &&
+          reviewDaysMax != null ? (
+            <View
+              className="w-full flex-col gap-2 rounded-lg p-3"
+              style={{ backgroundColor: '#FAFAFA' }}>
+              <View className="flex-row items-start gap-2">
+                <View className="pt-0.5">
+                  <IconsaxClockIcon size={18} color={TEXT_MUTED} />
+                </View>
+                <View className="min-w-0 flex-1 flex-col gap-1">
+                  <Text
+                    className="text-xs font-semibold leading-4 tracking-[0.12px]"
+                    style={{ color: TEXT_BODY }}>
+                    {formatDaysUntilReview(reviewDaysMin, reviewDaysMax)}
+                  </Text>
+                  {reviewStatusLabel ? (
+                    <Text
+                      className="text-xs leading-4 tracking-[0.12px]"
+                      style={{ color: TEXT_MUTED }}>
+                      {reviewStatusLabel}
+                    </Text>
+                  ) : null}
+                </View>
+              </View>
+            </View>
+          ) : null}
+
           {progress ? (
             <View
               className="w-full flex-col gap-1 rounded-lg p-2"
@@ -162,27 +212,40 @@ export function SanctionCard({
           <View className="h-px w-full" style={{ backgroundColor: DIVIDER }} />
 
           <View className="w-full flex-row items-center justify-between">
-            <View className="flex-row items-center gap-1">
-              <IconsaxClockIcon size={20} color={TEXT_MUTED} />
-              <Text
-                className="text-xs leading-4 tracking-[0.12px]"
-                style={{ color: TEXT_MUTED }}>
-                {dueDateLabel}
-              </Text>
-            </View>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Upload proof"
-              hitSlop={10}
-              onPress={() => onUploadProof?.()}
-              className="-mr-1 flex-row items-center gap-1 py-1 active:opacity-70">
-              <IconsaxImportCircleIcon size={20} color={LINK} />
-              <Text
-                className="text-xs font-normal leading-4 tracking-[0.12px]"
-                style={{ color: LINK }}>
-                Upload Proof
-              </Text>
-            </Pressable>
+            {status === 'in_review' ? (
+              <View className="min-w-0 flex-1 flex-row items-center gap-1.5 pr-2">
+                <Ionicons name="checkmark-circle" size={20} color={SUBMITTED_CHECK} />
+                <Text
+                  className="min-w-0 flex-1 text-xs leading-4 tracking-[0.12px]"
+                  style={{ color: TEXT_MUTED }}>
+                  {dueDateLabel}
+                </Text>
+              </View>
+            ) : (
+              <View className="min-w-0 flex-1 flex-row items-center gap-1 pr-2">
+                <IconsaxClockIcon size={20} color={TEXT_MUTED} />
+                <Text
+                  className="flex-1 text-xs leading-4 tracking-[0.12px]"
+                  style={{ color: TEXT_MUTED }}>
+                  {dueDateLabel}
+                </Text>
+              </View>
+            )}
+            {status !== 'in_review' && onUploadProof ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Upload proof"
+                hitSlop={10}
+                onPress={() => onUploadProof()}
+                className="-mr-1 flex-row items-center gap-1 py-1 active:opacity-70">
+                <IconsaxImportCircleIcon size={20} color={LINK} />
+                <Text
+                  className="text-xs font-normal leading-4 tracking-[0.12px]"
+                  style={{ color: LINK }}>
+                  Upload Proof
+                </Text>
+              </Pressable>
+            ) : null}
           </View>
         </View>
       ) : null}

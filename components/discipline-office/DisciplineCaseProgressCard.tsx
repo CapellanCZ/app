@@ -1,7 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Accordion } from 'heroui-native';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { LayoutChangeEvent, Text, View } from 'react-native';
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+} from 'react-native-reanimated';
 import Svg, { Line } from 'react-native-svg';
 
 import { IconsaxArrowDownIcon } from '@/components/icons/IconsaxArrowDownIcon';
@@ -17,6 +24,9 @@ const TEXT_PRIMARY = '#181D27';
 const TEXT_MUTED = '#717680';
 const ROW_H = 72;
 const DOT = 24;
+/** Outer ring pulse: min opacity & half-cycle length (reverse mirrors for one full breath). */
+const CURRENT_RING_OPACITY_MIN = 0.42;
+const CURRENT_RING_PULSE_MS = 1300;
 const GUTTER_W = 24;
 const LINE_LEFT = (GUTTER_W - 2) / 2;
 const ICON_COLOR = '#1F2024';
@@ -82,6 +92,45 @@ function clampPercent(n: number) {
   return Math.min(100, Math.max(0, n));
 }
 
+/** Blink on the in-progress step’s outer soft ring only; inner blue core stays solid. */
+function CurrentStepDot() {
+  const blink = useSharedValue(1);
+
+  useEffect(() => {
+    blink.value = withRepeat(
+      withTiming(CURRENT_RING_OPACITY_MIN, {
+        duration: CURRENT_RING_PULSE_MS,
+        easing: Easing.inOut(Easing.sin),
+      }),
+      -1,
+      true,
+    );
+  }, [blink]);
+
+  const ringStyle = useAnimatedStyle(() => ({
+    opacity: blink.value,
+  }));
+
+  return (
+    <View className="items-center justify-center" style={{ width: DOT, height: DOT }}>
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          {
+            position: 'absolute',
+            width: DOT,
+            height: DOT,
+            borderRadius: DOT / 2,
+            backgroundColor: BRAND_SOFT,
+          },
+          ringStyle,
+        ]}
+      />
+      <View className="rounded-[5px]" style={{ width: 10, height: 10, backgroundColor: BRAND }} />
+    </View>
+  );
+}
+
 function StepDot({
   state,
 }: {
@@ -97,13 +146,7 @@ function StepDot({
     );
   }
   if (state === 'current') {
-    return (
-      <View
-        className="items-center justify-center rounded-full"
-        style={{ width: DOT, height: DOT, backgroundColor: BRAND_SOFT }}>
-        <View className="rounded-[5px]" style={{ width: 10, height: 10, backgroundColor: BRAND }} />
-      </View>
-    );
+    return <CurrentStepDot />;
   }
   return (
     <View className="items-center justify-center" style={{ width: DOT, height: DOT }}>
