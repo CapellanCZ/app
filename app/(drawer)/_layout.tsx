@@ -76,6 +76,13 @@ const DrawerLayout = () => {
           }}
         />
         <Drawer.Screen
+          name="my-scholarship"
+          options={{
+            headerShown: false,
+            drawerItemStyle: HIDDEN_DRAWER_ITEM,
+          }}
+        />
+        <Drawer.Screen
           name="health-service"
           options={{
             title: 'Health Service Office',
