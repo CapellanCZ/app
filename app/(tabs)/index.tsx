@@ -6,7 +6,6 @@ import Animated, { FadeIn } from 'react-native-reanimated';
 
 import { HomeDateStripCalendar } from '@/components/home/HomeDateStripCalendar';
 import { HomeHeroCarousel, type HomeHeroSlide } from '@/components/home/HomeHeroCarousel';
-import { HomeScreenHeader } from '@/components/home/HomeScreenHeader';
 import {
   UpcomingAppointmentsList,
   type UpcomingAppointmentListItem,
@@ -15,7 +14,7 @@ import { TextLinkButton } from '@/components/TextLinkButton';
 import { QuickActionPill } from '@/components/home/QuickActionPill';
 import { router } from 'expo-router';
 
-const APPOINTMENTS_ROUTE = '/(drawer)/(tabs)/appointments';
+const APPOINTMENTS_ROUTE = '/(tabs)/appointments';
 
 /**
  * Soft screen backdrop: powder blue at the **bottom** → white at the **top**.
@@ -169,8 +168,8 @@ export default function Home() {
         badge: 'hospital',
         title: 'Need a check-up or health records?',
         description:
-            'HSO handles medical care, clearances, and campus health programs when you need them.',
-          ctaLabel: "Book Appointment",
+          'HSO handles medical care, clearances, and campus health programs when you need them.',
+        ctaLabel: 'Book Appointment',
         onCtaPress: () => router.push('/health-service'),
       },
       {
@@ -209,13 +208,34 @@ export default function Home() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
           flexGrow: 1,
+          paddingTop: insets.top + 8,
           paddingHorizontal: HOME_SCROLL_PADDING_H,
           paddingBottom: Math.max(insets.bottom, 12) + 24,
         }}>
         <View className="gap-4">
-          <HomeScreenHeader title="Home" />
-
           <HomeHeroCarousel slides={heroSlides} />
+
+          <View className="mt-1">
+            <View className="w-full flex-row items-center justify-between">
+              <Text className="text-lg font-semibold text-[#1F2024]">Upcoming Appointments</Text>
+              <TextLinkButton
+                accessibilityLabel="See all upcoming appointments"
+                href={APPOINTMENTS_ROUTE}
+                label="See All"
+              />
+            </View>
+
+            <View className="mt-2 gap-3">
+              <HomeDateStripCalendar
+                appointmentCountForDay={appointmentCountForDay}
+                selectedDate={selectedDate}
+                onSelectDate={setSelectedDate}
+              />
+              <Animated.View key={dateKey(selectedDate)} entering={FadeIn.duration(200)}>
+                <UpcomingAppointmentsList items={listItems} />
+              </Animated.View>
+            </View>
+          </View>
 
           <View>
             <Text className="text-lg font-semibold text-[#1F2024]">Quick Actions</Text>
@@ -238,15 +258,7 @@ export default function Home() {
               </View>
               <View className="w-full flex-row gap-2.5">
                 <QuickActionPill
-                  className="min-w-0 flex-2 basis-0"
-                  icon="medal"
-                  label="My Scholarship"
-                  onPress={() => {
-                    router.push('/my-scholarship');
-                  }}
-                />
-                <QuickActionPill
-                  className="min-w-0 flex-2 basis-0"
+                  className="min-w-0 flex-1 basis-0"
                   icon="medal"
                   label="My Scholarship"
                   onPress={() => {
@@ -257,28 +269,6 @@ export default function Home() {
               </View>
             </View>
           </View>
-
-          <View className="mt-1">
-            <View className="w-full flex-row items-center justify-between">
-              <Text className="text-lg font-semibold text-[#1F2024]">Upcoming Appointments</Text>
-              <TextLinkButton
-                accessibilityLabel="See all upcoming appointments"
-                href={APPOINTMENTS_ROUTE}
-                label="See All"
-              />
-            </View>
-
-            <View className="mt-2 gap-3">
-              <HomeDateStripCalendar
-                appointmentCountForDay={appointmentCountForDay}
-                selectedDate={selectedDate}
-                onSelectDate={setSelectedDate}
-              />
-              <Animated.View key={dateKey(selectedDate)} entering={FadeIn.duration(200)}>
-                <UpcomingAppointmentsList items={listItems} />
-              </Animated.View>
-            </View>
-          </View>  
         </View>
       </ScrollView>
     </LinearGradient>

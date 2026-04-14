@@ -43,7 +43,7 @@ const STACK_LIFT_DEEP_END = 6;
  * - **STACK_PEEK_BOTTOM_BUFFER** — extra `minHeight` under the front card when `stack.length > 1`
  *   so back cards are not clipped. Smaller = tighter deck, less empty space under the cards.
  * - **`className` on `<AppointmentCardStack />`** — e.g. `mb-2` / `pb-1` for margin outside this component.
- * - **Home layout** — `app/(drawer)/(tabs)/index.tsx`: `gap-2` between calendar and stack; root `gap-3`
+ * - **Home layout** — `app/(tabs)/index.tsx`: spacing between calendar and stack.
  *   between the “Upcoming Appointments” block and “Quick Actions”.
  *
  * While the hint is visible, gap under the cards is the hint’s **`mt-3`** on its wrapper (search “swipeHintStyle”).

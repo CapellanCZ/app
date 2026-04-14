@@ -98,7 +98,7 @@ export default function StudentDevelopmentAffairsScreen() {
         title="Student Development & Activities"
         titleNumberOfLines={2}
         menuIconSize={32}
-        onBackPress={() => router.replace('/(drawer)/(tabs)')}
+        onBackPress={() => router.replace('/(tabs)')}
       />
       <View className="mt-2 min-h-0 flex-1 px-0">
         <View className="gap-3 px-4 pb-5 pt-1">

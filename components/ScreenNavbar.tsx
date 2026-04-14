@@ -1,4 +1,3 @@
-import { DrawerActions } from '@react-navigation/native';
 import { useNavigation, useRouter } from 'expo-router';
 import { Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -14,8 +13,9 @@ export type ScreenNavbarProps = {
   title: string;
   /** Override back behavior; default: `router.back()` or replace to tabs if nothing to pop. */
   onBackPress?: () => void;
-  /** Override menu behavior; default: open drawer. */
+  /** Override menu behavior when `showMenu` is true. */
   onMenuPress?: () => void;
+  /** @default false — no global drawer; set true with `onMenuPress` for a custom menu. */
   showMenu?: boolean;
   className?: string;
   /** Icon size in px for both sides; default 24 (Figma). */
@@ -36,7 +36,7 @@ export function ScreenNavbar({
   title,
   onBackPress,
   onMenuPress,
-  showMenu = true,
+  showMenu = false,
   className,
   iconSize = DEFAULT_ICON_SIZE,
   backIconSize,
@@ -58,15 +58,13 @@ export function ScreenNavbar({
     if (navigation.canGoBack()) {
       navigation.goBack();
     } else {
-      router.replace('/(drawer)/(tabs)');
+      router.replace('/(tabs)');
     }
   };
 
   const handleMenu = () => {
     if (onMenuPress) {
       onMenuPress();
-    } else {
-      navigation.dispatch(DrawerActions.openDrawer());
     }
   };
 

@@ -105,7 +105,7 @@ export default function DisciplineOfficeScreen() {
       <ScreenNavbar
         title="Discipline Office"
         menuIconSize={32}
-        onBackPress={() => router.replace('/(drawer)/(tabs)')}
+        onBackPress={() => router.replace('/(tabs)')}
       />
       <View className="mt-2 flex-1 px-4">
         <UnderlineTabs

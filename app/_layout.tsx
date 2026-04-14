@@ -13,7 +13,7 @@ import { tamaguiConfig } from '../tamagui.config';
 
 export const unstable_settings = {
   // Ensure that reloading on `/modal` keeps a back button present.
-  initialRouteName: '(drawer)',
+  initialRouteName: 'index',
 };
 
 export default function RootLayout() {
@@ -36,10 +36,26 @@ export default function RootLayout() {
           <SafeAreaProvider>
             <KeyboardProvider>
               <UniwindInsetSync />
-              <Stack screenOptions={{ contentStyle: { flex: 1 } }}>
-                <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-                <Stack.Screen name="(drawer)" options={{ headerShown: false }} />
-                <Stack.Screen name="modal" options={{ title: 'Modal', presentation: 'modal' }} />
+              <Stack
+                screenOptions={{
+                  contentStyle: { flex: 1 },
+                  headerShown: false,
+                  /** Avoid iOS back labels derived from route segment names like `(tabs)`. */
+                  headerBackTitleVisible: false,
+                }}>
+                <Stack.Screen name="index" />
+                <Stack.Screen name="(auth)" />
+                <Stack.Screen name="(tabs)" />
+                <Stack.Screen name="student-development-affairs" />
+                <Stack.Screen name="discipline-office" />
+                <Stack.Screen name="health-service" />
+                <Stack.Screen name="referrals" />
+                <Stack.Screen name="my-scholarship" />
+                <Stack.Screen name="logout" />
+                <Stack.Screen
+                  name="modal"
+                  options={{ headerShown: true, title: 'Modal', presentation: 'modal' }}
+                />
               </Stack>
             </KeyboardProvider>
           </SafeAreaProvider>

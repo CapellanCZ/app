@@ -1,5 +1,4 @@
-import { DrawerActions } from '@react-navigation/native';
-import { useNavigation } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { Image, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Avatar, Text, XStack, YStack } from 'tamagui';
@@ -23,10 +22,10 @@ export function TopNavigationBar({
   welcomeLabel = 'Welcome back,',
   userName = 'Nationalian',
   avatarUrl,
-  showMenuButton = true,
+  showMenuButton = false,
 }: TopNavigationBarProps) {
   const insets = useSafeAreaInsets();
-  const navigation = useNavigation();
+  const router = useRouter();
 
   return (
     <XStack
@@ -66,7 +65,7 @@ export function TopNavigationBar({
         <Pressable
           accessibilityLabel="Open menu"
           hitSlop={12}
-          onPress={() => navigation.dispatch(DrawerActions.openDrawer())}>
+          onPress={() => router.push('/(tabs)')}>
           <IconsaxMenuIcon color={TITLE_COLOR} size={36} />
         </Pressable>
       ) : (

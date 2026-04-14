@@ -6,6 +6,7 @@ export default function StudentDevelopmentAffairsLayout() {
     <Stack
       screenOptions={{
         headerShown: false,
+        headerBackTitleVisible: false,
         animation: 'slide_from_right',
       }}
     />

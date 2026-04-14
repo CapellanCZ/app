@@ -99,7 +99,7 @@ export function HomeHeroCarousel({ slides, className }: HomeHeroCarouselProps) {
           }}>
           <View className="min-h-[190px] justify-between">
             <View className="gap-3">
-              <View className="self-start rounded-2xl bg-white px-2.5 py-2.5">
+              <View className="self-start rounded-2xl bg-white px-2.5 py-2.5 opacity-85">
                 <HeroBadgeIcon type={item.badge} size={24} />
               </View>
               <Text className="text-2xl font-bold leading-8 text-white" numberOfLines={3}>

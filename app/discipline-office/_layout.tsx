@@ -10,9 +10,10 @@ export default function DisciplineOfficeLayout() {
       initialRouteName="index"
       screenOptions={{
         headerShown: false,
+        headerBackTitleVisible: false,
         animation: 'slide_from_right',
       }}>
-      {/* Main hub: no stack slide on drawer open (avoids drawer + stack double animation). */}
+      {/* Main hub: no stack slide when returning to this root from nested screens. */}
       <Stack.Screen name="index" options={{ animation: 'none' }} />
     </Stack>
   );

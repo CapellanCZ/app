@@ -4,7 +4,7 @@ import { ScreenContent } from '@/components/ScreenContent';
 export default function ReferralsScreen() {
   return (
     <Container>
-      <ScreenContent path="app/(drawer)/referrals/index.tsx" title="Referrals" />
+      <ScreenContent path="app/referrals/index.tsx" title="Referrals" />
     </Container>
   );
 }

@@ -27,7 +27,7 @@ export default function MyScholarshipScreen() {
       <ScreenNavbar
         title="My Scholarship"
         showMenu={false}
-        onBackPress={() => router.replace('/(drawer)/(tabs)')}
+        onBackPress={() => router.replace('/(tabs)')}
       />
 
       <ScrollView

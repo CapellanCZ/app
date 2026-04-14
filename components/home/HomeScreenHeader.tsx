@@ -31,14 +31,14 @@ export function HomeScreenHeader({ title = 'Home' }: HomeScreenHeaderProps) {
           accessibilityRole="button"
           hitSlop={10}
           className="size-11 items-center justify-center rounded-full bg-white border border-black/5"
-          onPress={() => router.push('/(drawer)/(tabs)/notification')}>
+          onPress={() => router.push('/(tabs)/notification')}>
           <Ionicons name="notifications-outline" size={22} color={ICON_MUTED} />
         </Pressable>
         <Pressable
           accessibilityLabel="Profile"
           accessibilityRole="button"
           hitSlop={10}
-          onPress={() => router.push('/(drawer)/(tabs)/two')}
+          onPress={() => router.push('/(tabs)/two')}
           className="size-11 overflow-hidden rounded-full border border-black/5 bg-white">
           <Image
             source={profileCirclePlaceholder}

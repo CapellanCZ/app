@@ -8,7 +8,7 @@
       "name": "expo-router",
       "type": "navigation",
       "options": {
-        "type": "drawer + tabs"
+        "type": "native tabs + stack"
       }
     },
     {

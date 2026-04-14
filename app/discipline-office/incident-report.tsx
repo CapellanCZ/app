@@ -47,7 +47,7 @@ const MOCK_SUBMIT_MS = 1400;
 const ICON_SUFFIX = '#717680';
 
 /** Home tab (Quick Actions / main student dashboard). */
-const HOME_TABS_ROUTE = '/(drawer)/(tabs)';
+const HOME_TABS_ROUTE = '/(tabs)';
 
 function normalizePhoneDigits(value: string) {
   return value.replace(/\D/g, '');
@@ -377,10 +377,9 @@ export default function IncidentReportScreen() {
   );
 
   const goHome = useCallback(() => {
-    // `dismissTo` often does nothing here because tabs were never pushed above this screen in
-    // the same stack (quick action uses `push` straight to incident-report). `replace` reliably
-    // switches the drawer to home. Stale nested stack is cleared when opening Discipline Office
-    // from the drawer (`withAnchor: true` in `(drawer)/_layout.tsx`).
+    // `dismissTo` often does nothing here because tabs were never pushed above this screen in the
+    // same stack (quick action uses `push` straight to incident-report). `replace` reliably
+    // returns to the main tab shell.
     router.replace(HOME_TABS_ROUTE);
   }, [router]);
 

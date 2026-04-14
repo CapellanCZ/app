@@ -3,7 +3,7 @@ import { useEffect } from 'react';
 
 import { supabase } from '@/utils/supabase';
 
-/** Fallback when opened by URL; drawer tap uses `drawerItemPress` in `(drawer)/_layout`. */
+/** Fallback when opened by URL (e.g. deep link to `/logout`). */
 export default function LogoutScreen() {
   const router = useRouter();
 
@@ -14,5 +14,5 @@ export default function LogoutScreen() {
     })();
   }, [router]);
 
-  return <Stack.Screen options={{ title: 'Logout' }} />;
+  return <Stack.Screen options={{ headerShown: false, title: 'Logout' }} />;
 }

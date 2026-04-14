@@ -6,10 +6,10 @@ import { ScreenContent } from '@/components/ScreenContent';
 export default function NotificationScreen() {
   return (
     <>
-      <Stack.Screen options={{ title: 'Notification' }} />
+      <Stack.Screen options={{ headerShown: false, title: 'Notification' }} />
       <Container>
         <ScreenContent
-          path="app/(drawer)/(tabs)/notification.tsx"
+          path="app/(tabs)/notification.tsx"
           title="Notification"
         />
       </Container>
