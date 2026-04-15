@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Accordion } from 'heroui-native';
-import { useEffect, useState } from 'react';
-import { LayoutChangeEvent, Text, View } from 'react-native';
+import { useEffect } from 'react';
+import { Text, View } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -9,62 +9,33 @@ import Animated, {
   withRepeat,
   withTiming,
 } from 'react-native-reanimated';
-import Svg, { Line } from 'react-native-svg';
 
 import { IconsaxArrowDownIcon } from '@/components/icons/IconsaxArrowDownIcon';
 import { IconsaxArrowUpIcon } from '@/components/icons/IconsaxArrowUpIcon';
+import { SCHEDULE_PARTNER } from '@/lib/health-service/bookingScheduleTheme';
 
-const BRAND = '#2970FF';
-const BRAND_SOFT = 'rgba(41, 112, 255, 0.1)';
-const TRACK = '#E8E9F1';
-const FILL = '#006FFD';
-const DOT_PENDING = '#ABB7C2';
-const TEXT_TITLE = '#1F2024';
-const TEXT_PRIMARY = '#181D27';
-const TEXT_MUTED = '#717680';
-const ROW_H = 72;
-const DOT = 24;
-/** Outer ring pulse: min opacity & half-cycle length (reverse mirrors for one full breath). */
-const CURRENT_RING_OPACITY_MIN = 0.42;
+const BRAND = SCHEDULE_PARTNER.brand;
+const BRAND_SOFT = 'rgba(41, 112, 255, 0.12)';
+const TRACK = SCHEDULE_PARTNER.segmentTrackBg;
+const FILL = BRAND;
+const DOT_PENDING = SCHEDULE_PARTNER.textDisabled;
+const ROW_H = 68;
+const DOT = 22;
+const CURRENT_RING_OPACITY_MIN = 0.45;
 const CURRENT_RING_PULSE_MS = 1300;
-const GUTTER_W = 24;
+const GUTTER_W = 22;
 const LINE_LEFT = (GUTTER_W - 2) / 2;
-const ICON_COLOR = '#1F2024';
-const SEPARATOR_STROKE = '#D4D6DD';
 const TAG_MINOR_BG = '#ECFDF3';
 const TAG_MINOR_TEXT = '#027A48';
-const TAG_MAJOR_BG = '#FEE4E2';
+const TAG_MAJOR_BG = '#FEF3F2';
 const TAG_MAJOR_TEXT = '#B42318';
 
-/** Dashed rule with long gaps and shorter dashes (fewer segments than CSS `border-dashed`). */
-function WideGapDashedSeparator({ className }: { className?: string }) {
-  const [width, setWidth] = useState(0);
-  const onLayout = (e: LayoutChangeEvent) => {
-    const w = e.nativeEvent.layout.width;
-    if (w > 0) setWidth(Math.round(w));
-  };
-  return (
-    <View className={className} style={{ height: 2 }} onLayout={onLayout}>
-      {width > 0 ? (
-        <Svg width={width} height={2}>
-          <Line
-            x1={0}
-            y1={1}
-            x2={width}
-            y2={1}
-            stroke={SEPARATOR_STROKE}
-            strokeWidth={1}
-            strokeDasharray="18 16 "
-          />
-        </Svg>
-      ) : null}
-    </View>
-  );
+function HairlineRule() {
+  return <View style={{ height: 1, width: '100%', backgroundColor: SCHEDULE_PARTNER.divider }} />;
 }
 
 export type DisciplineCaseStep = {
   label: string;
-  /** Omit for steps like “Case Closed” with no scheduled date */
   date?: string;
 };
 
@@ -73,26 +44,18 @@ export type CaseSeverity = 'minor' | 'major';
 export type DisciplineCaseProgressCardProps = {
   title: string;
   description: string;
-  /** Discipline classification shown as a pill on the card header. */
   severity?: CaseSeverity;
-  /** 0–100; drives the blue fill width */
   progressPercent: number;
-  /** e.g. “2 of 5 Completed” */
   completedSummary: string;
-  /** Large percent label next to summary, e.g. “25%” */
   percentLabel: string;
-  /**
-   * Index of the in-progress step (0-based).
-   * Steps with a lower index are completed; higher indices are pending.
-   */
   currentStepIndex: number;
   steps: DisciplineCaseStep[];
-  /** Uncontrolled default; ignored when `accordionControlled` is true */
   defaultExpanded?: boolean;
-  /** When true, use `accordionValue` / `onAccordionValueChange` (closed = `undefined`, open = `'case'`) */
   accordionControlled?: boolean;
   accordionValue?: string | undefined;
   onAccordionValueChange?: (value: string | undefined) => void;
+  /** `nested` — soft tile on a tinted list panel. `default` — outlined card. */
+  variant?: 'default' | 'nested';
 };
 
 function clampPercent(n: number) {
@@ -100,7 +63,6 @@ function clampPercent(n: number) {
   return Math.min(100, Math.max(0, n));
 }
 
-/** Blink on the in-progress step’s outer soft ring only; inner blue core stays solid. */
 function CurrentStepDot() {
   const blink = useSharedValue(1);
 
@@ -134,22 +96,18 @@ function CurrentStepDot() {
           ringStyle,
         ]}
       />
-      <View className="rounded-[5px]" style={{ width: 10, height: 10, backgroundColor: BRAND }} />
+      <View className="rounded-full" style={{ width: 9, height: 9, backgroundColor: BRAND }} />
     </View>
   );
 }
 
-function StepDot({
-  state,
-}: {
-  state: 'completed' | 'current' | 'pending';
-}) {
+function StepDot({ state }: { state: 'completed' | 'current' | 'pending' }) {
   if (state === 'completed') {
     return (
       <View
         className="items-center justify-center rounded-full"
         style={{ width: DOT, height: DOT, backgroundColor: BRAND }}>
-        <Ionicons name="checkmark" size={14} color="#FFFFFF" />
+        <Ionicons name="checkmark" size={13} color="#FFFFFF" />
       </View>
     );
   }
@@ -158,7 +116,7 @@ function StepDot({
   }
   return (
     <View className="items-center justify-center" style={{ width: DOT, height: DOT }}>
-      <View className="rounded-full" style={{ width: 10, height: 10, backgroundColor: DOT_PENDING }} />
+      <View className="rounded-full" style={{ width: 8, height: 8, backgroundColor: DOT_PENDING }} />
     </View>
   );
 }
@@ -176,11 +134,11 @@ function CaseTimeline({
         const isLast = i === steps.length - 1;
         const state: 'completed' | 'current' | 'pending' =
           i < currentStepIndex ? 'completed' : i === currentStepIndex ? 'current' : 'pending';
-        const titleColor = state === 'pending' ? TEXT_MUTED : TEXT_PRIMARY;
-        const segmentColor = i < currentStepIndex ? BRAND : '#CFD6DC';
+        const titleColor = state === 'pending' ? SCHEDULE_PARTNER.textMuted : SCHEDULE_PARTNER.textPrimary;
+        const segmentColor = i < currentStepIndex ? BRAND : SCHEDULE_PARTNER.borderCell;
 
         return (
-          <View key={`${step.label}-${i}`} className="min-h-[72px] flex-row gap-6">
+          <View key={`${step.label}-${i}`} className="min-h-[68px] flex-row gap-4">
             <View className="relative items-center" style={{ width: GUTTER_W }}>
               {!isLast && (
                 <View
@@ -192,6 +150,7 @@ function CaseTimeline({
                     width: 2,
                     height: ROW_H - DOT,
                     backgroundColor: segmentColor,
+                    borderRadius: 1,
                   }}
                 />
               )}
@@ -199,14 +158,16 @@ function CaseTimeline({
                 <StepDot state={state} />
               </View>
             </View>
-            <View className="min-w-0 flex-1 justify-center py-4 pr-0">
-              <Text
-                className="text-[14px] font-medium leading-5"
-                style={{ color: titleColor }}>
-                {step.label}
-              </Text>
+            <View className="min-w-0 flex-1 justify-center py-3 pr-0">
+              <Text style={{ fontSize: 14, fontWeight: '600', lineHeight: 20, color: titleColor }}>{step.label}</Text>
               {step.date ? (
-                <Text className="mt-0.5 text-[12px] leading-5" style={{ color: TEXT_MUTED }}>
+                <Text
+                  style={{
+                    marginTop: 2,
+                    fontSize: 12,
+                    lineHeight: 17,
+                    color: SCHEDULE_PARTNER.textMuted,
+                  }}>
                   {step.date}
                 </Text>
               ) : null}
@@ -218,19 +179,14 @@ function CaseTimeline({
   );
 }
 
-/**
- * Expandable case card: summary, overall progress, and vertical status timeline (Figma node 736:3318).
- */
 function SeverityTag({ severity }: { severity: CaseSeverity }) {
   const isMinor = severity === 'minor';
   return (
     <View
       className="self-start rounded-full px-2.5 py-1"
       style={{ backgroundColor: isMinor ? TAG_MINOR_BG : TAG_MAJOR_BG }}>
-      <Text
-        className="text-[11px] font-semibold uppercase tracking-wide"
-        style={{ color: isMinor ? TAG_MINOR_TEXT : TAG_MAJOR_TEXT }}>
-        {isMinor ? 'Minor case' : 'Major case'}
+      <Text style={{ fontSize: 11, fontWeight: '600', color: isMinor ? TAG_MINOR_TEXT : TAG_MAJOR_TEXT }}>
+        {isMinor ? 'Minor' : 'Major'}
       </Text>
     </View>
   );
@@ -249,14 +205,34 @@ export function DisciplineCaseProgressCard({
   accordionControlled = false,
   accordionValue,
   onAccordionValueChange,
+  variant = 'default',
 }: DisciplineCaseProgressCardProps) {
   const p = clampPercent(progressPercent);
+  const nested = variant === 'nested';
 
   return (
     <Accordion
       hideSeparator
       variant="surface"
-      className="overflow-hidden rounded-[12px] border border-[#EEF0F6] bg-[#F8F9FE] px-4 py-5 shadow-none"
+      className={`overflow-hidden rounded-2xl bg-transparent px-0 py-0 ${nested ? 'border-0 shadow-none' : 'border shadow-none'}`}
+      style={
+        nested
+          ? {
+              backgroundColor: SCHEDULE_PARTNER.surface,
+              borderRadius: 14,
+              borderWidth: 0,
+              shadowColor: '#0F172A',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.06,
+              shadowRadius: 10,
+              elevation: 2,
+            }
+          : {
+              borderColor: SCHEDULE_PARTNER.cardBorder,
+              backgroundColor: SCHEDULE_PARTNER.surface,
+              borderWidth: 1,
+            }
+      }
       {...(accordionControlled
         ? { value: accordionValue, onValueChange: onAccordionValueChange }
         : { defaultValue: defaultExpanded ? 'case' : undefined, onValueChange: onAccordionValueChange })}
@@ -264,64 +240,68 @@ export function DisciplineCaseProgressCard({
       <Accordion.Item value="case">
         {({ isExpanded }) => (
           <>
-            <Accordion.Trigger className="items-start bg-transparent px-0 py-0">
-              <View className="w-full flex-row items-start justify-between">
-                <View className="min-w-0 flex-1 flex-col gap-2 pr-3">
+            <Accordion.Trigger
+              className={`items-start bg-transparent px-4 pt-4 ${isExpanded ? 'pb-0' : 'pb-4'}`}>
+              <View className="w-full flex-row items-start justify-between gap-3">
+                <View className="min-w-0 flex-1 flex-col gap-2">
                   <Text
-                    className="text-[20px] font-bold leading-[22px] tracking-[0.09px]"
-                    style={{ color: TEXT_TITLE }}>
+                    style={{
+                      fontSize: 17,
+                      fontWeight: '700',
+                      letterSpacing: -0.2,
+                      color: SCHEDULE_PARTNER.textPrimary,
+                      lineHeight: 22,
+                    }}>
                     {title}
                   </Text>
                   <Text
-                    className="text-sm leading-5"
-                    style={{ color: TEXT_PRIMARY }}>
+                    style={{
+                      fontSize: 14,
+                      fontWeight: '400',
+                      lineHeight: 20,
+                      color: SCHEDULE_PARTNER.textMuted,
+                    }}>
                     {description}
                   </Text>
                   {severity ? <SeverityTag severity={severity} /> : null}
                 </View>
-                <View className="h-7 w-7 shrink-0 items-center justify-center self-start pt-0.5">
+                <View className="h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#F8FAFC]">
                   <Accordion.Indicator isAnimatedStyleActive={false}>
                     {isExpanded ? (
-                      <IconsaxArrowUpIcon size={24} color={ICON_COLOR} />
+                      <IconsaxArrowUpIcon size={20} color={SCHEDULE_PARTNER.textMuted} />
                     ) : (
-                      <IconsaxArrowDownIcon size={24} color={ICON_COLOR} />
+                      <IconsaxArrowDownIcon size={20} color={SCHEDULE_PARTNER.textMuted} />
                     )}
                   </Accordion.Indicator>
                 </View>
               </View>
             </Accordion.Trigger>
-            <Accordion.Content className="bg-transparent px-0 pb-0 pt-5">
-              <WideGapDashedSeparator className="mb-4 w-full" />
-              <View className="mb-5 w-full flex-col gap-1.5">
-                <View className="flex-row items-baseline justify-between gap-2">
-                  <Text
-                    className="text-[12px] leading-4 tracking-[0.12px]"
-                    style={{ color: TEXT_PRIMARY }}>
-                    Overall Progress
+            <Accordion.Content className="bg-transparent px-4 pb-4 pt-4">
+              <HairlineRule />
+              <View style={{ marginTop: 16, marginBottom: 16, gap: 10 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                  <Text style={{ fontSize: 12, fontWeight: '600', color: SCHEDULE_PARTNER.textPrimary }}>
+                    Progress
                   </Text>
-                  <View className="max-w-[58%] flex-row flex-wrap items-baseline justify-end gap-1.5">
-                    <Text
-                      className="text-right text-[12px] leading-4 tracking-[0.12px]"
-                      style={{ color: TEXT_MUTED }}>
-                      {completedSummary}
-                    </Text>
-                    <Text
-                      className="text-[14px] font-medium leading-5 font-semibold"
-                      style={{ color: TEXT_PRIMARY }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6, flexShrink: 1, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                    <Text style={{ fontSize: 12, color: SCHEDULE_PARTNER.textMuted }}>{completedSummary}</Text>
+                    <Text style={{ fontSize: 14, fontWeight: '700', color: SCHEDULE_PARTNER.textPrimary }}>
                       {percentLabel}
                     </Text>
                   </View>
                 </View>
                 <View
-                  className="h-3 w-full overflow-hidden rounded-[4px]"
-                  style={{ backgroundColor: TRACK }}>
-                  <View
-                    className="h-full rounded-[4px]"
-                    style={{ width: `${p}%`, backgroundColor: FILL }}
-                  />
+                  style={{
+                    height: 6,
+                    width: '100%',
+                    overflow: 'hidden',
+                    borderRadius: 999,
+                    backgroundColor: TRACK,
+                  }}>
+                  <View style={{ height: '100%', width: `${p}%`, borderRadius: 999, backgroundColor: FILL }} />
                 </View>
               </View>
-              <View className="pl-2">
+              <View style={{ paddingLeft: 4 }}>
                 <CaseTimeline steps={steps} currentStepIndex={currentStepIndex} />
               </View>
             </Accordion.Content>

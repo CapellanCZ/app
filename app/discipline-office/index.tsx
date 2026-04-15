@@ -1,22 +1,30 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Tabs } from 'heroui-native';
 
 import { DisciplineTabEmptyState } from '@/components/discipline/DisciplineTabEmptyState';
 import {
   DisciplineCaseProgressCard,
+  DisciplineOfficeNoticeCard,
+  DisciplineOfficeScreenShell,
   SanctionCard,
   type DisciplineCaseStep,
 } from '@/components/discipline-office';
 import { ScreenNavbar } from '@/components/ScreenNavbar';
 import { UnderlineTabs } from '@/components/UnderlineTabs';
+import { SCHEDULE_PARTNER } from '@/lib/health-service/bookingScheduleTheme';
+import { HOME_SCROLL_PADDING_H } from '@/lib/ui/screenGradients';
 
 const DISCIPLINE_TABS = [
   { value: 'my-case', label: 'My Case' },
   { value: 'my-sanctions', label: 'My Sanctions' },
 ] as const;
+
+const SECTION = 28;
+const CTA_H = 52;
 
 const MOCK_CASE_STEPS_PRIMARY = [
   { label: 'Reported', date: 'Jan. 15, 2026' },
@@ -34,7 +42,6 @@ const MOCK_CASE_STEPS_SECONDARY = [
   { label: 'Case Closed' },
 ] as const;
 
-/** Empty array shows the case empty state. */
 const MOCK_CASES = [
   {
     id: 'case-1',
@@ -59,7 +66,7 @@ const MOCK_CASES = [
     steps: [...MOCK_CASE_STEPS_SECONDARY] as DisciplineCaseStep[],
   },
 ];
-/** Set `false` when there are no sanctions — empty state shows instead. */
+
 const MOCK_HAS_SANCTIONS = true;
 
 const MOCK_SANCTIONS = [
@@ -96,33 +103,206 @@ const MOCK_SANCTIONS = [
   },
 ];
 
-export default function DisciplineOfficeScreen() {
-  const router = useRouter();
-  const [activeTab, setActiveTab] = useState<string>(DISCIPLINE_TABS[0].value);
+function SnapshotStrip({
+  openCases,
+  sanctions,
+  awaitingAction,
+  embedded = false,
+}: {
+  openCases: number;
+  sanctions: number;
+  awaitingAction: number;
+  embedded?: boolean;
+}) {
+  const cells = [
+    { value: String(openCases), label: 'Open cases' },
+    { value: String(sanctions), label: 'Sanctions' },
+    { value: String(awaitingAction), label: 'Needs action' },
+  ];
 
   return (
-    <View className="flex-1 bg-[#FAFAFA]">
-      <ScreenNavbar
-        title="Discipline Office"
-        menuIconSize={32}
-        onBackPress={() => router.replace('/(tabs)')}
-      />
-      <View className="mt-2 flex-1 px-4">
-        <UnderlineTabs
-          className="flex-1"
-          tabs={[...DISCIPLINE_TABS]}
-          value={activeTab}
-          onValueChange={setActiveTab}>
-          <Tabs.Content className="mt-4 flex-1" value="my-case">
-            {MOCK_CASES.length > 0 ? (
-              <ScrollView
-                className="flex-1"
-                showsVerticalScrollIndicator={false}
-                keyboardShouldPersistTaps="handled">
-                <View className="gap-4 pb-10">
+    <View
+      style={
+        embedded
+          ? {
+              flexDirection: 'row',
+              borderTopWidth: 1,
+              borderTopColor: SCHEDULE_PARTNER.divider,
+              backgroundColor: SCHEDULE_PARTNER.segmentTrackBg,
+              overflow: 'hidden',
+            }
+          : {
+              flexDirection: 'row',
+              borderRadius: 16,
+              borderWidth: 1,
+              borderColor: SCHEDULE_PARTNER.cardBorder,
+              backgroundColor: SCHEDULE_PARTNER.surface,
+              overflow: 'hidden',
+            }
+      }>
+      {cells.map((cell, i) => (
+        <View
+          key={cell.label}
+          style={{
+            flex: 1,
+            paddingVertical: 14,
+            paddingHorizontal: 6,
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderLeftWidth: i > 0 ? 1 : 0,
+            borderLeftColor: SCHEDULE_PARTNER.divider,
+          }}>
+          <Text
+            style={{
+              fontSize: 22,
+              fontWeight: '700',
+              letterSpacing: -0.3,
+              color: SCHEDULE_PARTNER.textPrimary,
+            }}>
+            {cell.value}
+          </Text>
+          <Text
+            style={{
+              marginTop: 4,
+              fontSize: 11,
+              fontWeight: '500',
+              lineHeight: 14,
+              textAlign: 'center',
+              color: SCHEDULE_PARTNER.textMuted,
+            }}
+            numberOfLines={2}>
+            {cell.label}
+          </Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function ActionPill({
+  label,
+  onPress,
+  accessibilityLabel,
+}: {
+  label: string;
+  onPress: () => void;
+  accessibilityLabel: string;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      onPress={onPress}
+      style={{
+        minHeight: CTA_H,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 18,
+        borderRadius: 999,
+        borderWidth: 1,
+        borderColor: SCHEDULE_PARTNER.cardBorder,
+        backgroundColor: SCHEDULE_PARTNER.surface,
+      }}
+      className="active:opacity-88">
+      <Text
+        style={{
+          flex: 1,
+          fontSize: 15,
+          fontWeight: '600',
+          letterSpacing: -0.1,
+          color: SCHEDULE_PARTNER.textPrimary,
+        }}>
+        {label}
+      </Text>
+      <Ionicons name="chevron-forward" size={20} color={SCHEDULE_PARTNER.textMuted} />
+    </Pressable>
+  );
+}
+
+export default function DisciplineOfficeScreen() {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const [activeTab, setActiveTab] = useState<string>(DISCIPLINE_TABS[0].value);
+
+  const openCaseCount = MOCK_CASES.length;
+  const sanctionCount = MOCK_HAS_SANCTIONS ? MOCK_SANCTIONS.length : 0;
+  const sanctionsNeedingAction = MOCK_HAS_SANCTIONS
+    ? MOCK_SANCTIONS.filter((s) => s.status !== 'in_review').length
+    : 0;
+
+  return (
+    <DisciplineOfficeScreenShell>
+      <ScreenNavbar title="Discipline Office" onBackPress={() => router.replace('/(tabs)')} />
+
+      <ScrollView
+        className="flex-1 bg-transparent"
+        keyboardDismissMode="on-drag"
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        nestedScrollEnabled
+        contentContainerStyle={{
+          paddingHorizontal: HOME_SCROLL_PADDING_H,
+          paddingTop: 10,
+          paddingBottom: Math.max(insets.bottom, 16) + 28,
+        }}>
+        {/* —— Overview: conduct copy → file report → counters (one card) —— */}
+        <View
+          style={{
+            borderRadius: 16,
+            borderWidth: 1,
+            borderColor: SCHEDULE_PARTNER.cardBorder,
+            backgroundColor: SCHEDULE_PARTNER.surface,
+            overflow: 'hidden',
+          }}>
+          <DisciplineOfficeNoticeCard embedded />
+          <View
+            style={{
+              borderTopWidth: 1,
+              borderTopColor: SCHEDULE_PARTNER.divider,
+              paddingHorizontal: 16,
+              paddingTop: 14,
+              paddingBottom: 14,
+            }}>
+            <ActionPill
+              label="File incident report"
+              accessibilityLabel="Open incident report form"
+              onPress={() => router.push('/discipline-office/incident-report')}
+            />
+          </View>
+          <SnapshotStrip
+            embedded
+            openCases={openCaseCount}
+            sanctions={sanctionCount}
+            awaitingAction={sanctionsNeedingAction}
+          />
+        </View>
+
+        {/* —— Records: tabs + lists in one card —— */}
+        <View
+          style={{
+            marginTop: SECTION,
+            borderRadius: 16,
+            borderWidth: 1,
+            borderColor: SCHEDULE_PARTNER.segmentTrackBorder,
+            backgroundColor: SCHEDULE_PARTNER.segmentTrackBg,
+            overflow: 'hidden',
+            paddingHorizontal: 12,
+            paddingTop: 10,
+            paddingBottom: 14,
+          }}>
+          <UnderlineTabs
+            className="w-full"
+            tabs={[...DISCIPLINE_TABS]}
+            value={activeTab}
+            onValueChange={setActiveTab}>
+            <Tabs.Content className="mt-3 w-full pb-0" value="my-case">
+              {MOCK_CASES.length > 0 ? (
+                <View style={{ gap: 12 }}>
                   {MOCK_CASES.map((item) => (
                     <DisciplineCaseProgressCard
                       key={item.id}
+                      variant="nested"
                       title={item.title}
                       description={item.description}
                       severity={item.severity}
@@ -135,21 +315,17 @@ export default function DisciplineOfficeScreen() {
                     />
                   ))}
                 </View>
-              </ScrollView>
-            ) : (
-              <DisciplineTabEmptyState variant="case" />
-            )}
-          </Tabs.Content>
-          <Tabs.Content className="mt-4 flex-1" value="my-sanctions">
-            {MOCK_HAS_SANCTIONS ? (
-              <ScrollView
-                className="flex-1"
-                showsVerticalScrollIndicator={false}
-                keyboardShouldPersistTaps="handled">
-                <View className="gap-8 pb-10">
+              ) : (
+                <DisciplineTabEmptyState variant="case" />
+              )}
+            </Tabs.Content>
+            <Tabs.Content className="mt-3 w-full pb-0" value="my-sanctions">
+              {MOCK_HAS_SANCTIONS ? (
+                <View style={{ gap: 12 }}>
                   {MOCK_SANCTIONS.map((item) => (
                     <SanctionCard
                       key={item.id}
+                      variant="nested"
                       status={item.status}
                       title={item.title}
                       description={item.description}
@@ -168,13 +344,13 @@ export default function DisciplineOfficeScreen() {
                     />
                   ))}
                 </View>
-              </ScrollView>
-            ) : (
-              <DisciplineTabEmptyState variant="sanctions" />
-            )}
-          </Tabs.Content>
-        </UnderlineTabs>
-      </View>
-    </View>
+              ) : (
+                <DisciplineTabEmptyState variant="sanctions" />
+              )}
+            </Tabs.Content>
+          </UnderlineTabs>
+        </View>
+      </ScrollView>
+    </DisciplineOfficeScreenShell>
   );
 }

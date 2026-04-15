@@ -31,6 +31,7 @@ import {
   useToast,
 } from 'heroui-native';
 
+import { DisciplineOfficeScreenShell } from '@/components/discipline-office';
 import { FileUploadDropzoneCard } from '@/components/FileUploadDropzoneCard';
 import { IconPdfIcon } from '@/components/icons/IconPdfIcon';
 import { IconsaxArrowDownIcon } from '@/components/icons/IconsaxArrowDownIcon';
@@ -377,9 +378,10 @@ export default function IncidentReportScreen() {
   );
 
   const goHome = useCallback(() => {
-    // `dismissTo` often does nothing here because tabs were never pushed above this screen in the
-    // same stack (quick action uses `push` straight to incident-report). `replace` reliably
-    // returns to the main tab shell.
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
     router.replace(HOME_TABS_ROUTE);
   }, [router]);
 
@@ -442,7 +444,7 @@ export default function IncidentReportScreen() {
         ),
       });
       await new Promise<void>((resolve) => setTimeout(resolve, 400));
-      router.replace(HOME_TABS_ROUTE);
+      router.replace('/discipline-office');
     } catch {
       submitLockedRef.current = false;
       setIsSubmitting(false);
@@ -450,10 +452,10 @@ export default function IncidentReportScreen() {
   }, [canSubmit, router, toast]);
 
   return (
-    <View className="flex-1 bg-[#FAFAFA]">
+    <DisciplineOfficeScreenShell>
       <ScreenNavbar title="Incident Report" showMenu={false} onBackPress={requestLeave} />
 
-      <View className="flex-1">
+      <View className="flex-1 bg-transparent">
         <KeyboardAwareScrollView
           className="flex-1"
           keyboardShouldPersistTaps="handled"
@@ -765,7 +767,7 @@ export default function IncidentReportScreen() {
         </KeyboardAwareScrollView>
 
         <KeyboardStickyView
-          className="border-t border-[#F0F2F5] bg-[#FAFAFA] px-5 pt-3"
+          className="border-t border-[#E8EFFF] bg-white/95 px-5 pt-3"
           style={{ paddingBottom: Math.max(insets.bottom, 12) }}
           offset={{ closed: 0, opened: 4 }}>
           <Text className="mb-2 px-0.5 text-center text-[11px] leading-[15px] text-[#8F9098]">
@@ -825,6 +827,6 @@ export default function IncidentReportScreen() {
           </Dialog.Content>
         </Dialog.Portal>
       </Dialog>
-    </View>
+    </DisciplineOfficeScreenShell>
   );
 }

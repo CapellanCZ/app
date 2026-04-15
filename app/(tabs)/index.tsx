@@ -257,7 +257,7 @@ export default function Home() {
                 <QuickActionGridTile
                   Icon={IconsaxStickynoteIcon}
                   label="Case Report"
-                  onPress={() => router.push('/discipline-office/incident-report')}
+                  onPress={() => router.push('/discipline-office')}
                 />
                 <QuickActionGridTile
                   Icon={IconsaxHierarchyIcon}

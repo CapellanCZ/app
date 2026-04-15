@@ -1,38 +1,23 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { type ReactNode, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
+
+import { Button } from 'heroui-native';
 
 import { IconsaxArrowDownIcon } from '@/components/icons/IconsaxArrowDownIcon';
 import { IconsaxArrowUpIcon } from '@/components/icons/IconsaxArrowUpIcon';
 import { IconsaxClockIcon } from '@/components/icons/IconsaxClockIcon';
-import { IconsaxDangerIcon } from '@/components/icons/IconsaxDangerIcon';
-import { IconsaxImportCircleIcon } from '@/components/icons/IconsaxImportCircleIcon';
-import { IconsaxMultiloadIcon } from '@/components/icons/IconsaxMultiloadIcon';
 
-import { SanctionInReviewBadge } from './SanctionInReviewBadge';
+import { SCHEDULE_PARTNER } from '@/lib/health-service/bookingScheduleTheme';
 
-const TEXT_TITLE = '#1F2024';
-const TEXT_BODY = '#1F2024';
-const TEXT_DESC = '#1F2024';
-const TEXT_MUTED = '#717680';
-/** Figma link / “Upload Proof” (text button, not filled). */
-const LINK = '#004EEB';
-const TRACK = '#E8E9F1';
-const FILL = '#006FFD';
-/** Subtle rule under progress / above footer */
-const DIVIDER = 'rgba(212, 214, 221, 0.45)';
-
-const BADGE_IN_PROGRESS_BG = '#D1E0FF';
-const BADGE_IN_PROGRESS_TEXT = '#00359E';
-const BADGE_PENDING_BG = '#FEF0C7';
-const BADGE_PENDING_TEXT = '#DC6803';
-/** Matches in-review badge accent — “proof submitted” check in footer */
+const BRAND = SCHEDULE_PARTNER.brand;
+const TRACK = SCHEDULE_PARTNER.segmentTrackBg;
+const FILL = BRAND;
 const SUBMITTED_CHECK = '#079455';
 
 export type SanctionProgress = {
   current: number;
   total: number;
-  /** e.g. `"hours"` → label `8 / 24 hours` */
   unit: string;
 };
 
@@ -42,18 +27,16 @@ export type SanctionCardProps = {
   status: SanctionStatus;
   title: string;
   description: string;
-  /** Underlying discipline case category (e.g. academic dishonesty). */
   caseTypeLabel?: string;
   dueDateLabel: string;
-  /** When set, shows the progress row + bar (Figma “Community Service” card). */
   progress?: SanctionProgress;
-  /** When `status === 'in_review'`, typical review window (calendar days). */
   reviewDaysMin?: number;
   reviewDaysMax?: number;
-  /** When `status === 'in_review'`, human-readable status (e.g. proof received, under review). */
   reviewStatusLabel?: string;
   defaultExpanded?: boolean;
   onUploadProof?: () => void;
+  /** `nested` — soft tile on a tinted list panel. `default` — outlined card. */
+  variant?: 'default' | 'nested';
 };
 
 function clampPercent(current: number, total: number) {
@@ -72,40 +55,35 @@ function formatDaysUntilReview(minDays: number, maxDays: number): string {
   return `About ${lo}–${hi} days until review`;
 }
 
-function StatusBadge({ status }: { status: SanctionStatus }) {
-  if (status === 'in_progress') {
-    return (
-      <View
-        className="flex-row items-center gap-1.5 rounded-full px-2 py-1.5"
-        style={{ backgroundColor: BADGE_IN_PROGRESS_BG }}>
-        <View className="h-5 w-[18px] items-center justify-center">
-          <IconsaxMultiloadIcon width={18} height={20} color={BADGE_IN_PROGRESS_TEXT} />
-        </View>
-        <Text
-          className="text-xs font-semibold leading-5"
-          style={{ color: BADGE_IN_PROGRESS_TEXT }}>
-          In progress
-        </Text>
-      </View>
-    );
-  }
-  if (status === 'in_review') {
-    return <SanctionInReviewBadge />;
-  }
+function statusAsLabel(status: SanctionStatus): string {
+  if (status === 'in_progress') return 'In progress';
+  if (status === 'in_review') return 'In review';
+  return 'Pending';
+}
+
+/** Text-only status line — distinct hue per state (no pill). */
+function statusLabelColor(status: SanctionStatus): string {
+  if (status === 'in_progress') return BRAND;
+  if (status === 'in_review') return '#027A48';
+  return '#B45309';
+}
+
+function MetaPanel({ children }: { children: ReactNode }) {
   return (
     <View
-      className="flex-row items-center gap-1.5 rounded-full px-2 py-1.5"
-      style={{ backgroundColor: BADGE_PENDING_BG }}>
-      <IconsaxDangerIcon size={18} color={BADGE_PENDING_TEXT} />
-      <Text className="text-xs font-semibold leading-5" style={{ color: BADGE_PENDING_TEXT }}>
-        Pending
-      </Text>
+      style={{
+        borderRadius: 12,
+        backgroundColor: SCHEDULE_PARTNER.segmentTrackBg,
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+      }}>
+      {children}
     </View>
   );
 }
 
 /**
- * Expandable sanction card (Figma node 703:33550 — My Sanctions list).
+ * Sanction item: title-led layout; status is plain text (no top pills).
  */
 export function SanctionCard({
   status,
@@ -117,146 +95,160 @@ export function SanctionCard({
   reviewDaysMin,
   reviewDaysMax,
   reviewStatusLabel,
-  defaultExpanded = true,
+  defaultExpanded = false,
   onUploadProof,
+  variant = 'default',
 }: SanctionCardProps) {
   const [expanded, setExpanded] = useState(defaultExpanded);
   const pct = progress ? clampPercent(progress.current, progress.total) : 0;
-  const progressLabel = progress
-    ? `${progress.current} / ${progress.total} ${progress.unit}`
-    : '';
+  const progressLabel = progress ? `${progress.current} / ${progress.total} ${progress.unit}` : '';
+  const nested = variant === 'nested';
 
   return (
-    <View className="w-full gap-3">
-      <View className="w-full flex-row items-center justify-between">
-        <StatusBadge status={status} />
+    <View
+      style={
+        nested
+          ? {
+              width: '100%',
+              borderRadius: 14,
+              borderWidth: 0,
+              backgroundColor: SCHEDULE_PARTNER.surface,
+              paddingHorizontal: 16,
+              paddingTop: 14,
+              paddingBottom: 16,
+              shadowColor: '#0F172A',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.06,
+              shadowRadius: 10,
+              elevation: 2,
+            }
+          : {
+              width: '100%',
+              borderRadius: 16,
+              borderWidth: 1,
+              borderColor: SCHEDULE_PARTNER.cardBorder,
+              backgroundColor: SCHEDULE_PARTNER.surface,
+              paddingHorizontal: 16,
+              paddingTop: 14,
+              paddingBottom: 16,
+            }
+      }>
+      <View className="w-full flex-row items-start justify-between gap-3">
+        <View className="min-w-0 flex-1">
+          <Text
+            style={{
+              fontSize: 17,
+              fontWeight: '700',
+              letterSpacing: -0.2,
+              color: SCHEDULE_PARTNER.textPrimary,
+              lineHeight: 22,
+            }}>
+            {title}
+          </Text>
+          <Text
+            style={{
+              marginTop: 4,
+              fontSize: 12,
+              fontWeight: '600',
+              letterSpacing: 0.2,
+              color: statusLabelColor(status),
+            }}>
+            {statusAsLabel(status)}
+          </Text>
+        </View>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={expanded ? 'Collapse sanction' : 'Expand sanction'}
+          accessibilityLabel={expanded ? 'Show less' : 'Show more'}
           hitSlop={8}
           onPress={() => setExpanded((e) => !e)}
-          className="h-8 w-8 items-center justify-center">
+          style={{
+            width: 36,
+            height: 36,
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderRadius: 999,
+            backgroundColor: SCHEDULE_PARTNER.segmentTrackBg,
+          }}
+          className="active:opacity-75">
           {expanded ? (
-            <IconsaxArrowUpIcon size={20} color={TEXT_TITLE} />
+            <IconsaxArrowUpIcon size={18} color={SCHEDULE_PARTNER.textMuted} />
           ) : (
-            <IconsaxArrowDownIcon size={20} color={TEXT_TITLE} />
+            <IconsaxArrowDownIcon size={18} color={SCHEDULE_PARTNER.textMuted} />
           )}
         </Pressable>
       </View>
 
-      {expanded ? (
-        <View className="w-full flex-col gap-3 rounded-xl bg-white px-4 py-5">
-          <View className="flex-col gap-1.5">
-            <Text
-              className="text-[18px] font-bold leading-normal tracking-[0.09px]"
-              style={{ color: TEXT_BODY }}>
-              {title}
-            </Text>
-            <Text
-              className="text-sm leading-4 tracking-[0.12px]"
-              style={{ color: TEXT_DESC }}>
-              {description}
-            </Text>
-            {caseTypeLabel ? (
-              <Text
-                className="text-xs leading-4 tracking-[0.12px]"
-                style={{ color: TEXT_MUTED }}>
-                Case type: {caseTypeLabel}
-              </Text>
-            ) : null}
-          </View>
+      <Text
+        numberOfLines={expanded ? undefined : 2}
+        style={{
+          marginTop: 10,
+          fontSize: 14,
+          lineHeight: 20,
+          color: SCHEDULE_PARTNER.textMuted,
+        }}>
+        {description}
+      </Text>
 
-          {status === 'in_review' &&
-          reviewDaysMin != null &&
-          reviewDaysMax != null ? (
-            <View
-              className="w-full flex-col gap-2 rounded-lg p-3"
-              style={{ backgroundColor: '#FAFAFA' }}>
+      <View className="mt-3 flex-row items-center gap-1.5">
+        {status === 'in_review' ? (
+          <Ionicons name="checkmark-circle" size={18} color={SUBMITTED_CHECK} />
+        ) : (
+          <IconsaxClockIcon size={18} color={SCHEDULE_PARTNER.textMuted} />
+        )}
+        <Text style={{ flex: 1, fontSize: 13, lineHeight: 18, color: SCHEDULE_PARTNER.textMuted }}>{dueDateLabel}</Text>
+      </View>
+
+      {expanded ? (
+        <View style={{ marginTop: 14, gap: 12 }}>
+          {caseTypeLabel ? (
+            <Text style={{ fontSize: 12, lineHeight: 17, color: SCHEDULE_PARTNER.textDisabled }}>
+              Case type · {caseTypeLabel}
+            </Text>
+          ) : null}
+
+          {status === 'in_review' && reviewDaysMin != null && reviewDaysMax != null ? (
+            <MetaPanel>
               <View className="flex-row items-start gap-2">
                 <View className="pt-0.5">
-                  <IconsaxClockIcon size={18} color={TEXT_MUTED} />
+                  <IconsaxClockIcon size={18} color={SCHEDULE_PARTNER.textMuted} />
                 </View>
-                <View className="min-w-0 flex-1 flex-col gap-1">
-                  <Text
-                    className="text-xs font-semibold leading-4 tracking-[0.12px]"
-                    style={{ color: TEXT_BODY }}>
+                <View className="min-w-0 flex-1" style={{ gap: 4 }}>
+                  <Text style={{ fontSize: 13, fontWeight: '600', color: SCHEDULE_PARTNER.textPrimary }}>
                     {formatDaysUntilReview(reviewDaysMin, reviewDaysMax)}
                   </Text>
                   {reviewStatusLabel ? (
-                    <Text
-                      className="text-xs leading-4 tracking-[0.12px]"
-                      style={{ color: TEXT_MUTED }}>
+                    <Text style={{ fontSize: 12, lineHeight: 17, color: SCHEDULE_PARTNER.textMuted }}>
                       {reviewStatusLabel}
                     </Text>
                   ) : null}
                 </View>
               </View>
-            </View>
+            </MetaPanel>
           ) : null}
 
           {progress ? (
-            <View
-              className="w-full flex-col gap-1 rounded-lg p-2"
-              style={{ backgroundColor: '#FAFAFA' }}>
-              <View className="w-full flex-row items-end justify-between gap-4">
-                <Text
-                  className="flex-1 text-[10px] leading-[14px] tracking-[0.15px]"
-                  style={{ color: '#535862' }}>
-                  Progress
-                </Text>
-                <Text
-                  className="min-w-[72px] text-right text-[10px] font-semibold leading-none"
-                  style={{ color: '#535862' }}>
-                  {progressLabel}
-                </Text>
+            <MetaPanel>
+              <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 8 }}>
+                <Text style={{ fontSize: 11, fontWeight: '600', color: SCHEDULE_PARTNER.textMuted }}>Progress</Text>
+                <Text style={{ fontSize: 12, fontWeight: '600', color: SCHEDULE_PARTNER.textPrimary }}>{progressLabel}</Text>
               </View>
-              <View className="h-2 w-full overflow-hidden rounded" style={{ backgroundColor: TRACK }}>
-                <View
-                  className="h-full rounded-[4px]"
-                  style={{ width: `${pct}%`, backgroundColor: FILL }}
-                />
+              <View style={{ marginTop: 8, height: 6, borderRadius: 999, overflow: 'hidden', backgroundColor: TRACK }}>
+                <View style={{ height: '100%', width: `${pct}%`, borderRadius: 999, backgroundColor: FILL }} />
               </View>
-            </View>
+            </MetaPanel>
           ) : null}
 
-          <View className="h-px w-full" style={{ backgroundColor: DIVIDER }} />
-
-          <View className="w-full flex-row items-center justify-between">
-            {status === 'in_review' ? (
-              <View className="min-w-0 flex-1 flex-row items-center gap-1.5 pr-2">
-                <Ionicons name="checkmark-circle" size={20} color={SUBMITTED_CHECK} />
-                <Text
-                  className="min-w-0 flex-1 text-xs leading-4 tracking-[0.12px]"
-                  style={{ color: TEXT_MUTED }}>
-                  {dueDateLabel}
-                </Text>
-              </View>
-            ) : (
-              <View className="min-w-0 flex-1 flex-row items-center gap-1 pr-2">
-                <IconsaxClockIcon size={20} color={TEXT_MUTED} />
-                <Text
-                  className="flex-1 text-xs leading-4 tracking-[0.12px]"
-                  style={{ color: TEXT_MUTED }}>
-                  {dueDateLabel}
-                </Text>
-              </View>
-            )}
-            {status !== 'in_review' && onUploadProof ? (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Upload proof"
-                hitSlop={10}
-                onPress={() => onUploadProof()}
-                className="-mr-1 flex-row items-center gap-1 py-1 active:opacity-70">
-                <IconsaxImportCircleIcon size={20} color={LINK} />
-                <Text
-                  className="text-xs font-normal leading-4 tracking-[0.12px]"
-                  style={{ color: LINK }}>
-                  Upload Proof
-                </Text>
-              </Pressable>
-            ) : null}
-          </View>
+          {status !== 'in_review' && onUploadProof ? (
+            <Button
+              variant="primary"
+              size="md"
+              className="mt-3 h-11 w-full flex-row items-center justify-center gap-2 rounded-full border border-[#001229]/10 bg-[#2970FF]"
+              onPress={() => onUploadProof()}
+              accessibilityLabel="Upload proof of compliance">
+              <Ionicons name="cloud-upload-outline" size={20} color="#FFFFFF" />
+              <Button.Label className="text-sm font-semibold text-white">Upload proof</Button.Label>
+            </Button>
+          ) : null}
         </View>
       ) : null}
     </View>

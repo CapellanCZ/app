@@ -1,3 +1,5 @@
+export { DisciplineOfficeNoticeCard, type DisciplineOfficeNoticeCardProps } from './DisciplineOfficeNoticeCard';
+export { DisciplineOfficeScreenShell } from './DisciplineOfficeScreenShell';
 export {
   DisciplineCaseProgressCard,
   type CaseSeverity,

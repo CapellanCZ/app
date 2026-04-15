@@ -16,6 +16,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useToast } from 'heroui-native';
 
+import { DisciplineOfficeScreenShell } from '@/components/discipline-office';
 import { FileUploadDropzoneCard } from '@/components/FileUploadDropzoneCard';
 import { IconPdfIcon } from '@/components/icons/IconPdfIcon';
 import { ScreenNavbar } from '@/components/ScreenNavbar';
@@ -268,7 +269,7 @@ export default function UploadProofScreen() {
   const submitDisabled = !allUploadsComplete || isSubmitting;
 
   return (
-    <View className="flex-1 bg-[#FAFAFA]">
+    <DisciplineOfficeScreenShell>
       <ScreenNavbar title="Proof of Compliance" showMenu={false} />
       <ScrollView
         className="flex-1"
@@ -313,7 +314,7 @@ export default function UploadProofScreen() {
       </ScrollView>
 
       <View
-        className="border-t border-[#F0F2F5] bg-[#FAFAFA] px-5 pt-3"
+        className="border-t border-[#E8EFFF] bg-white/95 px-5 pt-3"
         style={{ paddingBottom: Math.max(insets.bottom, 16) }}>
         <Pressable
           accessibilityRole="button"
@@ -341,6 +342,6 @@ export default function UploadProofScreen() {
           )}
         </Pressable>
       </View>
-    </View>
+    </DisciplineOfficeScreenShell>
   );
 }
