@@ -240,8 +240,8 @@ export default function Home() {
 
           <View>
             <Text className="text-lg font-semibold text-[#1F2024]">Quick Actions</Text>
-            <View className="mt-2 w-full gap-3">
-              <View className="w-full flex-row gap-3">
+            <View className="mt-2 w-full gap-2.5">
+              <View className="w-full flex-row gap-2.5">
                 <QuickActionGridTile
                   Icon={IconsaxMedalIcon}
                   label="Scholarships"
@@ -249,14 +249,14 @@ export default function Home() {
                 />
                 <QuickActionGridTile
                   Icon={IconsaxSearchFavoriteIcon}
-                  label="Health Service"
+                  label="Student health"
                   onPress={() => router.push('/health-service')}
                 />
               </View>
-              <View className="w-full flex-row gap-3">
+              <View className="w-full flex-row gap-2.5">
                 <QuickActionGridTile
                   Icon={IconsaxStickynoteIcon}
-                  label="Case Report"
+                  label="Discipline"
                   onPress={() => router.push('/discipline-office')}
                 />
                 <QuickActionGridTile
