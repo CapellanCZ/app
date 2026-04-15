@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 
-const SELECTED_MAGENTA = '#2970FF';
+const SELECTED_BLUE = '#2970FF';
 const PRESS_SPRING = { damping: 18, stiffness: 420, mass: 0.35 } as const;
 const PRESS_SCALE = 0.94;
 const MAX_DOTS = 4;
@@ -17,7 +17,7 @@ function isSameDay(a: Date, b: Date): boolean {
   return startOfDay(a).getTime() === startOfDay(b).getTime();
 }
 
-/** Sunday → Saturday for the week that contains `anchor`. */
+/** Sunday → Saturday (7 days) for the week that contains `anchor`. */
 function getWeekDaysSundayFirst(anchor: Date): Date[] {
   const s = startOfDay(anchor);
   const dow = s.getDay();
@@ -72,14 +72,14 @@ function DateStripPill({ day, selected, displayDots, onSelect, accessibilityLabe
             alignItems: 'center',
             justifyContent: 'center',
             gap: 3,
-            backgroundColor: selected ? SELECTED_MAGENTA : '#FFFFFF',
-            borderWidth: selected ? 0 : 1,
-            borderColor: 'rgba(0,0,0,0.06)',
+            backgroundColor: selected ? SELECTED_BLUE : '#FFFFFF',
+            borderWidth: 1,
+            borderColor: selected ? SELECTED_BLUE : '#FFFFFF',
           },
         ]}>
         <Text
           className="text-[9px] font-semibold capitalize"
-          style={{ color: selected ? '#FFFFFF' : '#1F2024' }}
+          style={{ color: selected ? '#FFFFFF' : '#535862' }}
           numberOfLines={1}>
           {weekday}
         </Text>
@@ -101,10 +101,10 @@ function DateStripPill({ day, selected, displayDots, onSelect, accessibilityLabe
                   i < displayDots
                     ? selected
                       ? 'rgba(255,255,255,0.95)'
-                      : 'rgba(31,32,36,0.18)'
+                      : 'rgba(41,112,255,0.35)'
                     : selected
                       ? 'rgba(255,255,255,0.22)'
-                      : 'rgba(31,32,36,0.06)',
+                      : 'rgba(41,112,255,0.10)',
               }}
             />
           ))}
@@ -123,7 +123,8 @@ export type HomeDateStripCalendarProps = {
 
 /**
  * Full-width week row (Sun–Sat): seven equal cells, no horizontal scroll.
- * Magenta selected pill; inactive white pills; bottom dots = appointment load.
+ * Blue selected pill (`#2970FF`); inactive `#F5F8FF` pills with white border;
+ * weekday label above number; bottom dots = appointment load.
  */
 export function HomeDateStripCalendar({
   selectedDate,

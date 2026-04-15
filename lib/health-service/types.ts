@@ -44,6 +44,6 @@ export type Appointment = {
   dateKey: string;
   startLabel: string;
   status: AppointmentStatus;
-  /** Issued automatically when the provider confirms the appointment (arrival / queueing). */
+  /** Present only when `status` is `confirmed` — created when the provider confirms (no ticket while pending). */
   arrivalTicket?: QueueTicket;
 };

@@ -1,6 +1,33 @@
-import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { useCallback, useMemo, useRef, useState } from 'react';
+import { Pressable, Text, TextInput, View } from 'react-native';
+import Animated, {
+  FadeInLeft,
+  FadeInRight,
+  FadeOutLeft,
+  FadeOutRight,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated';
+
+import { SCHEDULE_PARTNER } from '../../lib/health-service/bookingScheduleTheme';
+import { IconsaxArrowLeftIcon } from '../icons/IconsaxArrowLeftIcon';
+import { IconsaxArrowRightIcon } from '../icons/IconsaxArrowRightIcon';
+
+// ─── Shared constants ────────────────────────────────────────────────────────
+
+const BRAND = SCHEDULE_PARTNER.brand;
+const SURFACE = SCHEDULE_PARTNER.surface;
+const BORDER_CELL = SCHEDULE_PARTNER.borderCell;
+const TEXT_PRIMARY = SCHEDULE_PARTNER.textPrimary;
+const TEXT_MUTED = SCHEDULE_PARTNER.textMuted;
+const TEXT_DISABLED = SCHEDULE_PARTNER.textDisabled;
+const PRESS_SPRING = { damping: 18, stiffness: 420, mass: 0.35 } as const;
+const PRESS_SCALE = 0.94;
+/** Mon–Sat are available; Sunday is always closed. */
+const CLINIC_DAYS: Set<number> = new Set([1, 2, 3, 4, 5, 6]); // 0=Sun … 6=Sat
+
+// ─── Date helpers ─────────────────────────────────────────────────────────────
 
 function startOfDay(d: Date): Date {
   const x = new Date(d);
@@ -8,161 +35,268 @@ function startOfDay(d: Date): Date {
   return x;
 }
 
-function startOfMonth(d: Date): Date {
-  return new Date(d.getFullYear(), d.getMonth(), 1);
-}
-
 function isSameDay(a: Date, b: Date): boolean {
   return startOfDay(a).getTime() === startOfDay(b).getTime();
 }
 
-function daysInMonth(year: number, monthIndex: number): number {
-  return new Date(year, monthIndex + 1, 0).getDate();
+/** Mon–Sat (6 days) for the week containing `anchor`. Sunday is never included. */
+function weekDaysMondayFirst(anchor: Date): Date[] {
+  const s = startOfDay(anchor);
+  const dow = s.getDay(); // 0=Sun … 6=Sat
+  const daysToMonday = dow === 0 ? -6 : 1 - dow;
+  s.setDate(s.getDate() + daysToMonday);
+  return Array.from({ length: 6 }, (_, i) => {
+    const x = new Date(s);
+    x.setDate(s.getDate() + i);
+    return startOfDay(x);
+  });
 }
 
-function monthDayList(year: number, monthIndex: number): Date[] {
-  const n = daysInMonth(year, monthIndex);
-  return Array.from({ length: n }, (_, i) => startOfDay(new Date(year, monthIndex, i + 1)));
+function addWeeks(anchor: Date, delta: number): Date {
+  const x = startOfDay(anchor);
+  x.setDate(x.getDate() + delta * 7);
+  return x;
 }
 
-const INACTIVE_BG = '#F3F4F6';
-const INACTIVE_TEXT = '#9CA3AF';
-const BLACK = '#111111';
+// ─── Individual day pill ──────────────────────────────────────────────────────
 
-type CalendarDayPillProps = {
+type DayPillProps = {
   day: Date;
   selected: boolean;
+  disabled: boolean;
+  isCurrentMonth: boolean;
   onSelect: () => void;
 };
 
-function CalendarDayPill({ day, selected, onSelect }: CalendarDayPillProps) {
+function DayPill({ day, selected, disabled, isCurrentMonth, onSelect }: DayPillProps) {
+  const scale = useSharedValue(1);
+  const animStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+
+  const a11yLabel = day.toLocaleDateString(undefined, {
+    weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
+  });
   const weekday = day.toLocaleDateString(undefined, { weekday: 'short' });
-  const dayNum = day.getDate();
-  const accessibilityLabel = `${weekday} ${day.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}`;
+  const num = day.getDate();
+
+  const muted = disabled || !isCurrentMonth;
+  const bg = selected ? BRAND : muted ? '#F1F5F9' : SURFACE;
+  const borderColor = selected ? BRAND : muted ? 'transparent' : BORDER_CELL;
+  const labelColor = selected ? 'rgba(255,255,255,0.92)' : muted ? TEXT_DISABLED : TEXT_MUTED;
+  const numColor = selected ? '#FFFFFF' : muted ? TEXT_DISABLED : TEXT_PRIMARY;
 
   return (
     <Pressable
-      accessibilityLabel={accessibilityLabel}
       accessibilityRole="button"
-      accessibilityState={{ selected }}
+      accessibilityLabel={a11yLabel}
+      accessibilityState={{ selected, disabled }}
+      disabled={disabled}
       onPress={onSelect}
-      className="mr-2">
-      <View
-        style={{
-          minWidth: 48,
-          paddingVertical: 10,
-          paddingHorizontal: 10,
-          borderRadius: 999,
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 4,
-          backgroundColor: selected ? BLACK : INACTIVE_BG,
-        }}>
-        <Text
-          className="text-[10px] font-semibold uppercase"
-          style={{ color: selected ? '#FFFFFF' : INACTIVE_TEXT }}
-          numberOfLines={1}>
-          {weekday}
-        </Text>
-        <View
-          style={{
-            minWidth: 28,
+      onPressIn={() => { scale.value = withSpring(PRESS_SCALE, PRESS_SPRING); }}
+      onPressOut={() => { scale.value = withSpring(1, PRESS_SPRING); }}
+      style={{ flex: 1, minWidth: 0 }}>
+      <Animated.View
+        style={[
+          animStyle,
+          {
+            width: '100%',
+            minHeight: 72,
+            borderRadius: 14,
+            paddingVertical: 8,
+            paddingHorizontal: 2,
             alignItems: 'center',
             justifyContent: 'center',
+            gap: 4,
+            backgroundColor: bg,
+            borderWidth: selected ? 0 : muted ? 0 : 1,
+            borderColor,
+          },
+        ]}>
+        <Text
+          numberOfLines={1}
+          style={{
+            fontSize: 10,
+            fontWeight: '600',
+            letterSpacing: 0.2,
+            textTransform: 'capitalize',
+            color: labelColor,
           }}>
-          <Text
-            className="text-[15px] font-bold leading-none"
-            style={{ color: selected ? '#FFFFFF' : '#6B7280' }}
-            numberOfLines={1}>
-            {dayNum}
-          </Text>
-        </View>
-      </View>
+          {weekday}
+        </Text>
+        <Text
+          numberOfLines={1}
+          style={{
+            fontSize: 16,
+            fontWeight: '700',
+            letterSpacing: -0.3,
+            lineHeight: 18,
+            color: numColor,
+          }}>
+          {num}
+        </Text>
+      </Animated.View>
     </Pressable>
   );
 }
 
+// ─── Strip (7-day week row with navigation) ───────────────────────────────────
+
 export type HealthBookingDateStripProps = {
   selectedDay: Date;
   onSelectDay: (d: Date) => void;
+  /** Dates to mark as unavailable regardless of weekday (e.g. holidays). */
+  holidays?: Date[];
+  /** When true, no outer card — render inside a parent “partner” schedule shell. */
+  embedded?: boolean;
 };
 
 /**
- * Month header + chevrons + horizontal calendar row (reference-style black selected pill).
+ * Week strip in a light card: month + week nav, Mon–Sat day cells (Sun excluded), holiday mute.
  */
-export function HealthBookingDateStrip({ selectedDay, onSelectDay }: HealthBookingDateStripProps) {
-  const [viewMonth, setViewMonth] = useState(() => startOfMonth(selectedDay));
+export function HealthBookingDateStrip({
+  selectedDay,
+  onSelectDay,
+  holidays = [],
+  embedded = false,
+}: HealthBookingDateStripProps) {
+  const [weekAnchor, setWeekAnchor] = useState(() => startOfDay(selectedDay));
+  const directionRef = useRef<'forward' | 'back'>('forward');
+  const [slideKey, setSlideKey] = useState(0);
 
-  const year = viewMonth.getFullYear();
-  const monthIndex = viewMonth.getMonth();
-  const days = useMemo(() => monthDayList(year, monthIndex), [year, monthIndex]);
+  const days = useMemo(() => weekDaysMondayFirst(weekAnchor), [weekAnchor]);
 
-  const monthTitle = useMemo(
-    () =>
-      new Date(year, monthIndex, 1).toLocaleDateString(undefined, {
-        month: 'long',
-        year: 'numeric',
-      }),
-    [year, monthIndex],
-  );
+  const monthLabel = useMemo(() => {
+    // Use the month that has the most days in this week
+    const counts: Record<string, number> = {};
+    for (const d of days) {
+      const k = `${d.getFullYear()}-${d.getMonth()}`;
+      counts[k] = (counts[k] ?? 0) + 1;
+    }
+    const [y, m] = Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0].split('-').map(Number);
+    return new Date(y, m, 1).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+  }, [days]);
 
-  const goPrevMonth = () => {
-    setViewMonth(new Date(year, monthIndex - 1, 1));
-  };
+  const navigate = useCallback((delta: number) => {
+    directionRef.current = delta > 0 ? 'forward' : 'back';
+    setSlideKey((k) => k + 1);
+    setWeekAnchor((prev) => addWeeks(prev, delta));
+  }, []);
 
-  const goNextMonth = () => {
-    setViewMonth(new Date(year, monthIndex + 1, 1));
-  };
+  const isDisabled = useCallback((d: Date) => {
+    if (!CLINIC_DAYS.has(d.getDay())) return true;
+    return holidays.some((h) => isSameDay(h, d));
+  }, [holidays]);
 
-  return (
-    <View
-      className="overflow-hidden rounded-2xl border border-black/5 bg-white px-3 pb-3 pt-3"
-      style={{
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.06,
-        shadowRadius: 10,
-        elevation: 2,
-      }}>
-      <View className="mb-3 flex-row items-center justify-between px-1">
-        <Text className="text-base font-bold text-[#1F2024]">{monthTitle}</Text>
-        <View className="flex-row items-center gap-1">
+  const entering = directionRef.current === 'forward' ? FadeInRight.duration(180) : FadeInLeft.duration(180);
+  const exiting = directionRef.current === 'forward' ? FadeOutLeft.duration(140) : FadeOutRight.duration(140);
+
+  const shell = embedded
+    ? {
+        paddingHorizontal: 16,
+        paddingTop: 16,
+        paddingBottom: 12,
+        backgroundColor: 'transparent' as const,
+      }
+    : {
+        borderRadius: SCHEDULE_PARTNER.radius,
+        backgroundColor: SURFACE,
+        borderWidth: 1,
+        borderColor: SCHEDULE_PARTNER.cardBorder,
+        paddingHorizontal: 16,
+        paddingTop: 16,
+        paddingBottom: 14,
+        overflow: 'hidden' as const,
+      };
+
+  const body = (
+    <>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, padding: 4}}>
+        <View style={{ marginBottom: 0 }}>
+          <Text
+            style={{
+              fontSize: 20,
+              fontWeight: '700',
+              color: TEXT_PRIMARY,
+              letterSpacing: -0.2,
+            }}>
+            {monthLabel}
+          </Text>
+          <Text style={{ marginTop: 3, fontSize: 12, fontWeight: '500', color: TEXT_MUTED }}>
+            Available depending on School Calendar
+            {holidays.length > 0 ? ' · Holiday dates muted below' : ''}
+          </Text>
+        </View>
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            borderRadius: 999,
+            padding: 3,
+            gap: 2,
+            backgroundColor: SCHEDULE_PARTNER.segmentTrackBg,
+            borderWidth: 1,
+            borderColor: SCHEDULE_PARTNER.segmentTrackBorder,
+          }}>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Previous month"
+            accessibilityLabel="Previous week"
             hitSlop={10}
-            onPress={goPrevMonth}
-            className="h-9 w-9 items-center justify-center rounded-full active:bg-black/5">
-            <Ionicons name="chevron-back" size={22} color={BLACK} />
+            onPress={() => navigate(-1)}
+            style={({ pressed }) => ({
+              width: 36,
+              height: 36,
+              borderRadius: 18,
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: pressed ? SURFACE : 'transparent',
+            })}>
+            <IconsaxArrowLeftIcon size={22} color={BRAND} />
           </Pressable>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Next month"
+            accessibilityLabel="Next week"
             hitSlop={10}
-            onPress={goNextMonth}
-            className="h-9 w-9 items-center justify-center rounded-full active:bg-black/5">
-            <Ionicons name="chevron-forward" size={22} color={BLACK} />
+            onPress={() => navigate(1)}
+            style={({ pressed }) => ({
+              width: 36,
+              height: 36,
+              borderRadius: 18,
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: pressed ? SURFACE : 'transparent',
+            })}>
+            <IconsaxArrowRightIcon size={22} color={BRAND} />
           </Pressable>
         </View>
       </View>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ flexDirection: 'row', paddingRight: 8, paddingLeft: 2 }}>
-        {days.map((d) => (
-          <CalendarDayPill
-            key={d.getTime()}
-            day={d}
-            selected={isSameDay(d, selectedDay)}
-            onSelect={() => onSelectDay(d)}
-          />
-        ))}
-      </ScrollView>
-    </View>
+
+      <Animated.View
+        key={slideKey}
+        entering={entering}
+        exiting={exiting}
+        style={{ width: '100%', flexDirection: 'row', gap: 6 }}>
+        {days.map((d) => {
+          const anchorMonth = days[2].getMonth();
+          return (
+            <DayPill
+              key={d.getTime()}
+              day={d}
+              selected={isSameDay(d, selectedDay)}
+              disabled={isDisabled(d)}
+              isCurrentMonth={d.getMonth() === anchorMonth}
+              onSelect={() => {
+                if (!isDisabled(d)) onSelectDay(d);
+              }}
+            />
+          );
+        })}
+      </Animated.View>
+    </>
   );
+
+  return <View style={shell}>{body}</View>;
 }
 
-// --- Visit reason / symptoms (booking flow) ---
+// ─── Feeling / symptoms group ─────────────────────────────────────────────────
 
 export type HealthBookingFeelingOption = {
   id: string;
@@ -186,7 +320,7 @@ export type HealthBookingFeelingGroupProps = {
 };
 
 /**
- * Multi-select chips for how the student has been feeling + multiline comments (booking screen).
+ * Multi-select chips for how the student has been feeling + multiline comments.
  */
 export function HealthBookingFeelingGroup({
   selectedIds,
@@ -195,16 +329,14 @@ export function HealthBookingFeelingGroup({
   onCommentsChange,
 }: HealthBookingFeelingGroupProps) {
   const toggle = (id: string) => {
-    if (selectedIds.includes(id)) {
-      onSelectedIdsChange(selectedIds.filter((x) => x !== id));
-    } else {
-      onSelectedIdsChange([...selectedIds, id]);
-    }
+    onSelectedIdsChange(
+      selectedIds.includes(id) ? selectedIds.filter((x) => x !== id) : [...selectedIds, id],
+    );
   };
 
   return (
     <View>
-      <Text className="text-lg font-semibold text-[#1F2024]">What have you been feeling?</Text>
+      <Text className="text-lg font-semibold text-[#1F2024]">{"What have you been feeling?"}</Text>
       <Text className="mt-1 text-xs text-[#8F9098]">Select any that apply (optional).</Text>
       <View className="mt-3 flex-row flex-wrap gap-2">
         {HEALTH_BOOKING_FEELING_OPTIONS.map((opt) => {
@@ -218,13 +350,12 @@ export function HealthBookingFeelingGroup({
               onPress={() => toggle(opt.id)}
               className="rounded-full border px-4 py-2.5 active:opacity-85"
               style={{
-                borderColor: on ? BLACK : 'rgba(0,0,0,0.08)',
-                backgroundColor: on ? BLACK : '#FFFFFF',
+                borderColor: on ? BRAND : 'rgba(0,0,0,0.08)',
+                backgroundColor: on ? BRAND : '#FFFFFF',
               }}>
               <Text
                 className="text-sm font-semibold"
-                style={{ color: on ? '#FFFFFF' : '#535862' }}
-                numberOfLines={2}>
+                style={{ color: on ? '#FFFFFF' : '#535862' }}>
                 {opt.label}
               </Text>
             </Pressable>

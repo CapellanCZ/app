@@ -11,6 +11,8 @@ const DEFAULT_ICON_SIZE = 24;
 export type ScreenNavbarProps = {
   /** Screen title (Figma: Heading/H2, 18px bold). */
   title: string;
+  /** Optional line under the title (e.g. user name). */
+  subtitle?: string;
   /** Override back behavior; default: `router.back()` or replace to tabs if nothing to pop. */
   onBackPress?: () => void;
   /** Override menu behavior when `showMenu` is true. */
@@ -34,6 +36,7 @@ export type ScreenNavbarProps = {
  */
 export function ScreenNavbar({
   title,
+  subtitle,
   onBackPress,
   onMenuPress,
   showMenu = false,
@@ -81,12 +84,26 @@ export function ScreenNavbar({
           <IconsaxArrowLeftIcon color={TITLE_COLOR} size={backSize} />
         </Pressable>
 
-        <Text
-          className="min-w-0 flex-1 text-xl font-bold text-[#181D27]"
-          numberOfLines={titleNumberOfLines}
-          style={{ letterSpacing: 0.09 }}>
-          {title}
-        </Text>
+        {subtitle ? (
+          <View className="min-w-0 flex-1">
+            <Text
+              className="text-lg font-bold text-[#181D27]"
+              numberOfLines={titleNumberOfLines}
+              style={{ letterSpacing: 0.09 }}>
+              {title}
+            </Text>
+            <Text className="mt-0.5 text-sm font-medium text-[#64748B]" numberOfLines={2}>
+              {subtitle}
+            </Text>
+          </View>
+        ) : (
+          <Text
+            className="min-w-0 flex-1 text-xl font-bold text-[#181D27]"
+            numberOfLines={titleNumberOfLines}
+            style={{ letterSpacing: 0.09 }}>
+            {title}
+          </Text>
+        )}
 
         {showMenu ? (
           <Pressable

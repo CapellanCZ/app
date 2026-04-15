@@ -36,6 +36,13 @@ export function buildDaySlots(staffId: string, dateKey: string, day: Date): Time
   return out;
 }
 
+/** Single-line typical clinic window for mock UI (all periods combined). */
+export function getClinicPublicHoursSummary(): string {
+  const first = PERIOD_WINDOWS.morning.start;
+  const last = PERIOD_WINDOWS.night.end;
+  return `${first} – ${last}`;
+}
+
 export function getSlotLabelsForPeriod(
   staffId: string,
   dateKey: string,

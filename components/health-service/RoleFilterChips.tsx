@@ -1,15 +1,14 @@
 import { Pressable, Text, View } from 'react-native';
 
 import type { StaffRole } from '../../lib/health-service/types';
+import { SCHEDULE_PARTNER } from '../../lib/health-service/bookingScheduleTheme';
 
 const ROLES: { id: StaffRole | 'all'; label: string }[] = [
   { id: 'all', label: 'All' },
   { id: 'doctor', label: 'Doctor' },
-  { id: 'nurse', label: 'Nurse' },
-  { id: 'dentist', label: 'Dentist' },
 ];
 
-const BRAND = '#2970FF';
+const BRAND = SCHEDULE_PARTNER.brand;
 
 export type RoleFilterChipsProps = {
   value: StaffRole | 'all';
@@ -18,7 +17,7 @@ export type RoleFilterChipsProps = {
 
 export function RoleFilterChips({ value, onChange }: RoleFilterChipsProps) {
   return (
-    <View className="flex-row flex-wrap gap-2">
+    <View style={{ gap: 10 }}>
       {ROLES.map((r) => {
         const selected = value === r.id;
         return (
@@ -28,14 +27,21 @@ export function RoleFilterChips({ value, onChange }: RoleFilterChipsProps) {
             accessibilityState={{ selected }}
             accessibilityLabel={`Filter providers: ${r.label}`}
             onPress={() => onChange(r.id)}
-            className="rounded-full border px-4 py-2 active:opacity-80"
             style={{
-              borderColor: selected ? BRAND : 'rgba(0,0,0,0.08)',
-              backgroundColor: selected ? BRAND : '#FFFFFF',
-            }}>
+              paddingVertical: 14,
+              paddingHorizontal: 16,
+              borderRadius: 14,
+              borderWidth: selected ? 2 : 1,
+              borderColor: selected ? BRAND : SCHEDULE_PARTNER.segmentTrackBorder,
+              backgroundColor: selected ? 'rgba(41, 112, 255, 0.06)' : '#F8FAFC',
+            }}
+            className="active:opacity-90">
             <Text
-              className="text-sm font-semibold"
-              style={{ color: selected ? '#FFFFFF' : '#535862' }}>
+              style={{
+                fontSize: 16,
+                fontWeight: selected ? '600' : '400',
+                color: selected ? SCHEDULE_PARTNER.textPrimary : SCHEDULE_PARTNER.textMuted,
+              }}>
               {r.label}
             </Text>
           </Pressable>

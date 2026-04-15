@@ -39,25 +39,36 @@ export function createArrivalTicketForAppointment(appointmentId: string): QueueT
   };
 }
 
+/** Pending / cancelled never carry a ticket; confirmed always has one (generated on confirm). */
+export function withConsistentArrivalTicket(a: Appointment): Appointment {
+  if (a.status === 'pending' || a.status === 'cancelled') {
+    return { ...a, arrivalTicket: undefined };
+  }
+  return {
+    ...a,
+    arrivalTicket: a.arrivalTicket ?? createArrivalTicketForAppointment(a.id),
+  };
+}
+
 const today = startOfDay(new Date());
 const tomorrow = addDays(today, 1);
 
 const seedAppointments: Appointment[] = [
-  {
+  withConsistentArrivalTicket({
     id: 'ap-1',
     staffId: 'hs-3',
     dateKey: dateKey(today),
     startLabel: '10:40 AM',
     status: 'pending',
-  },
-  {
+  }),
+  withConsistentArrivalTicket({
     id: 'ap-2',
-    staffId: 'hs-5',
+    staffId: 'hs-4',
     dateKey: dateKey(tomorrow),
     startLabel: '2:00 PM',
     status: 'confirmed',
     arrivalTicket: createArrivalTicketForAppointment('ap-2'),
-  },
+  }),
 ];
 
 type HealthServiceState = {
@@ -83,30 +94,35 @@ export const useHealthServiceStore = create<HealthServiceState>((set, get) => ({
       dateKey: dateKey(day),
       startLabel,
       status: 'pending',
+      arrivalTicket: undefined,
     };
-    set({ appointments: [...get().appointments, ap] });
+    set({ appointments: [...get().appointments, ap].map(withConsistentArrivalTicket) });
   },
 
   confirmAppointmentByProvider: (id) => {
     set({
-      appointments: get().appointments.map((a) => {
-        if (a.id !== id || a.status !== 'pending') return a;
-        return {
-          ...a,
-          status: 'confirmed' as const,
-          arrivalTicket: createArrivalTicketForAppointment(a.id),
-        };
-      }),
+      appointments: get()
+        .appointments.map((a) => {
+          if (a.id !== id || a.status !== 'pending') return a;
+          return {
+            ...a,
+            status: 'confirmed' as const,
+            arrivalTicket: createArrivalTicketForAppointment(a.id),
+          };
+        })
+        .map(withConsistentArrivalTicket),
     });
   },
 
   cancelAppointment: (id) => {
     set({
-      appointments: get().appointments.map((a) =>
-        a.id === id
-          ? { ...a, status: 'cancelled' as const, arrivalTicket: undefined }
-          : a,
-      ),
+      appointments: get()
+        .appointments.map((a) =>
+          a.id === id
+            ? { ...a, status: 'cancelled' as const, arrivalTicket: undefined }
+            : a,
+        )
+        .map(withConsistentArrivalTicket),
     });
   },
 }));
