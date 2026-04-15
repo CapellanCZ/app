@@ -9,14 +9,6 @@ import { InputGroup } from 'heroui-native';
 const SEARCH_INPUT_CLASS =
   'min-h-[36px] flex-1 rounded-none border-0 border-transparent bg-transparent py-0 text-[15px] font-normal leading-5 text-[#181D27] shadow-none ios:shadow-none android:shadow-none focus:border-transparent';
 
-const SEARCH_BAR_SHADOW = {
-  shadowColor: '#000',
-  shadowOffset: { width: 0, height: 2 },
-  shadowOpacity: 0.05,
-  shadowRadius: 3,
-  elevation: 2,
-};
-
 const ICON_MUTED = '#787777';
 
 export type ScholarshipSearchBarProps = Omit<TextInputProps, 'value' | 'defaultValue' | 'onChangeText'> & {
@@ -62,8 +54,7 @@ export const ScholarshipSearchBar = forwardRef<TextInput, ScholarshipSearchBarPr
 
     return (
       <View
-        className={`w-full flex-row items-center gap-3 rounded-[30px] bg-white px-3 py-2 ${className ?? ''}`}
-        style={SEARCH_BAR_SHADOW}>
+        className={`w-full flex-row items-center gap-3 rounded-[30px] border border-black/5 bg-white px-3 py-2 shadow-none ios:shadow-none android:shadow-none ${className ?? ''}`}>
         <InputGroup className="min-w-0 flex-1 flex-row items-center gap-3">
           <InputGroup.Prefix isDecorative className="justify-center">
             <IconsaxSearchIcon size={16} color={ICON_MUTED} />

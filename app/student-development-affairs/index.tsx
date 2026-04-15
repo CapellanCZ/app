@@ -1,6 +1,7 @@
 import { useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { BottomSheet } from 'heroui-native';
 
 import {
@@ -12,6 +13,9 @@ import { ScreenNavbar } from '@/components/ScreenNavbar';
 
 const SCHOLARSHIP_ANNOUNCEMENT_COPY =
   'Scholarship application for AY 2025 - 2026 3rd Term is only open from January 22, 2026 until March 14, 2026.';
+
+/** Matches home (`app/(tabs)/index.tsx`) powder blue → white backdrop. */
+const SCHOLARSHIP_BG_GRADIENT = ['#E8EFFF', '#F4F8FF', '#FFFFFF'] as const;
 
 const MOCK_SCHOLARSHIPS = [
   {
@@ -51,7 +55,7 @@ function normalize(s: string) {
   return s.trim().toLowerCase();
 }
 
-/** Figma 1263:2934 — #FAFAFA chrome, search band, white sheet 30 top radius. */
+/** Search band + white sheet on the same gradient shell as the home tab. */
 export default function StudentDevelopmentAffairsScreen() {
   const router = useRouter();
   const [query, setQuery] = useState('');
@@ -93,30 +97,30 @@ export default function StudentDevelopmentAffairsScreen() {
   }, []);
 
   return (
-    <View className="flex-1 bg-[#FAFAFA]">
+    <LinearGradient
+      colors={[...SCHOLARSHIP_BG_GRADIENT]}
+      locations={[0, 0.55, 1]}
+      start={{ x: 0.5, y: 1 }}
+      end={{ x: 0.5, y: 0 }}
+      style={{ flex: 1 }}>
       <ScreenNavbar
-        title="Student Development & Activities"
+        title="Scholarship List"
         titleNumberOfLines={2}
         menuIconSize={32}
         onBackPress={() => router.replace('/(tabs)')}
       />
-      <View className="mt-2 min-h-0 flex-1 px-0">
-        <View className="gap-3 px-4 pb-5 pt-1">
+      <View className="mt-2 min-h-0 flex-1 bg-transparent px-0">
+        <View className="gap-3 px-4 pt-1">
           <ScholarshipSearchBar
             value={query}
             onChangeText={setQuery}
             onSortPress={() => setSortSheetOpen(true)}
           />
-          <View className="mt-2">
-            <ScholarshipAnnouncementBanner variant="warning" message={SCHOLARSHIP_ANNOUNCEMENT_COPY} />
+          <View className="mb-2">
+            <ScholarshipAnnouncementBanner message={SCHOLARSHIP_ANNOUNCEMENT_COPY} />
           </View>
         </View>
-        <View className="min-h-0 flex-1 rounded-t-[30px] bg-white pb-8 pt-6">
-          <View className="mb-4 px-6">
-            <Text className="text-lg font-semibold leading-6 tracking-[0.08px] text-[#1F2024]">
-              Academic Scholarships
-            </Text>
-          </View>
+        <View className="min-h-0 flex-1 rounded-t-[30px] pb-12 pt-2 ">
           <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
             <View className="w-full gap-3 px-4 pb-4">
               {displayed.length === 0 ? (
@@ -203,6 +207,6 @@ export default function StudentDevelopmentAffairsScreen() {
           </BottomSheet.Portal>
         </BottomSheet>
       </View>
-    </View>
+    </LinearGradient>
   );
 }

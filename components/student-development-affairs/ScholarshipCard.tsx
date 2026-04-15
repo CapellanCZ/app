@@ -21,7 +21,7 @@ export function ScholarshipCard({
   onApplyPress,
 }: ScholarshipCardProps) {
   return (
-    <View className="w-full bg-[#F5F8FF] px-4 py-4 rounded-2xl">
+    <View className="w-full rounded-2xl border-2 border-white bg-[#F5F8FF] px-4 py-4">
       <View className="gap-3">
         <View>
           <ScholarshipCardHeader title={title} categoryLabel={categoryLabel} />

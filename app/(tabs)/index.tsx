@@ -11,18 +11,19 @@ import {
   type UpcomingAppointmentListItem,
 } from '@/components/home/UpcomingAppointmentsList';
 import { TextLinkButton } from '@/components/TextLinkButton';
-import { QuickActionPill } from '@/components/home/QuickActionPill';
+import { QuickActionGridTile } from '@/components/home/QuickActionGridTile';
+import {
+  HOME_BG_GRADIENT_COLORS,
+  HOME_BG_GRADIENT_LOCATIONS,
+  HOME_SCROLL_PADDING_H,
+} from '@/lib/ui/screenGradients';
+import { IconsaxHierarchyIcon } from '@/components/icons/IconsaxHierarchyIcon';
+import { IconsaxMedalIcon } from '@/components/icons/IconsaxMedalIcon';
+import { IconsaxSearchFavoriteIcon } from '@/components/icons/IconsaxSearchFavoriteIcon';
+import { IconsaxStickynoteIcon } from '@/components/icons/IconsaxStickynoteIcon';
 import { router } from 'expo-router';
 
 const APPOINTMENTS_ROUTE = '/(tabs)/appointments';
-
-/**
- * Soft screen backdrop: powder blue at the **bottom** → white at the **top**.
- * `colors[0]` sits on `start` (y:1); last color on `end` (y:0).
- */
-const HOME_BG_GRADIENT = ['#E8EFFF', '#F4F8FF', '#FFFFFF'] as const;
-
-const HOME_SCROLL_PADDING_H = 20;
 
 function startOfDay(d: Date): Date {
   const x = new Date(d);
@@ -196,8 +197,8 @@ export default function Home() {
 
   return (
     <LinearGradient
-      colors={[...HOME_BG_GRADIENT]}
-      locations={[0, 0.55, 1]}
+      colors={[...HOME_BG_GRADIENT_COLORS]}
+      locations={[...HOME_BG_GRADIENT_LOCATIONS]}
       start={{ x: 0.5, y: 1 }}
       end={{ x: 0.5, y: 0 }}
       style={{ flex: 1 }}>
@@ -239,33 +240,30 @@ export default function Home() {
 
           <View>
             <Text className="text-lg font-semibold text-[#1F2024]">Quick Actions</Text>
-            <View className="mt-2 w-full gap-2.5">
-              <View className="w-full flex-row gap-2.5">
-                <QuickActionPill
-                  className="min-w-0 flex-1 basis-0"
-                  icon="calendar"
-                  label="Book Appointment"
-                  onPress={() => router.push(APPOINTMENTS_ROUTE)}
+            <View className="mt-2 w-full gap-3">
+              <View className="w-full flex-row gap-3">
+                <QuickActionGridTile
+                  Icon={IconsaxMedalIcon}
+                  label="Scholarships"
+                  onPress={() => router.push('/student-development-affairs')}
                 />
-                <QuickActionPill
-                  className="min-w-0 flex-1 basis-0"
-                  icon="tag-user"
-                  label="Incident Report"
-                  onPress={() => {
-                    router.push('/discipline-office/incident-report');
-                  }}
+                <QuickActionGridTile
+                  Icon={IconsaxSearchFavoriteIcon}
+                  label="Health Service"
+                  onPress={() => router.push('/health-service')}
                 />
               </View>
-              <View className="w-full flex-row gap-2.5">
-                <QuickActionPill
-                  className="min-w-0 flex-1 basis-0"
-                  icon="medal"
-                  label="My Scholarship"
-                  onPress={() => {
-                    router.push('/my-scholarship');
-                  }}
+              <View className="w-full flex-row gap-3">
+                <QuickActionGridTile
+                  Icon={IconsaxStickynoteIcon}
+                  label="Case Report"
+                  onPress={() => router.push('/discipline-office/incident-report')}
                 />
-                <View className="min-w-0 flex-1 basis-0" />
+                <QuickActionGridTile
+                  Icon={IconsaxHierarchyIcon}
+                  label="Referrals"
+                  onPress={() => router.push('/referrals')}
+                />
               </View>
             </View>
           </View>
