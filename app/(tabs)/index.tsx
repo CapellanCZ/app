@@ -6,6 +6,7 @@ import Animated, { FadeIn } from 'react-native-reanimated';
 
 import { HomeDateStripCalendar } from '@/components/home/HomeDateStripCalendar';
 import { HomeHeroCarousel, type HomeHeroSlide } from '@/components/home/HomeHeroCarousel';
+import { HomeScreenHeader } from '@/components/home/HomeScreenHeader';
 import {
   UpcomingAppointmentsList,
   type UpcomingAppointmentListItem,
@@ -209,11 +210,11 @@ export default function Home() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
           flexGrow: 1,
-          paddingTop: insets.top + 8,
           paddingHorizontal: HOME_SCROLL_PADDING_H,
           paddingBottom: Math.max(insets.bottom, 12) + 24,
         }}>
         <View className="gap-4">
+          <HomeScreenHeader title="Home" />
           <HomeHeroCarousel slides={heroSlides} />
 
           <View className="mt-1">

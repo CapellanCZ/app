@@ -60,11 +60,6 @@ export function QuickActionGridTile({ label, Icon, onPress, className }: QuickAc
               backgroundColor: SCHEDULE_PARTNER.surface,
               borderWidth: 1,
               borderColor: SCHEDULE_PARTNER.cardBorder,
-              shadowColor: '#0F172A',
-              shadowOffset: { width: 0, height: 1 },
-              shadowOpacity: 0.04,
-              shadowRadius: 6,
-              elevation: 1,
             },
           ]}>
           <View

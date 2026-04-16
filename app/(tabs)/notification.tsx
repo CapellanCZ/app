@@ -16,42 +16,27 @@ const BRAND = SCHEDULE_PARTNER.brand;
 
 type ReadFilter = 'all' | 'unread';
 
-type ListBlock = { kind: 'section'; title: string } | { kind: 'item'; item: NotificationItem };
+type NotificationSection = 'today' | 'yesterday' | 'earlier';
 
-function buildGroupedList(today: NotificationItem[], earlier: NotificationItem[]): ListBlock[] {
-  const out: ListBlock[] = [];
-  if (today.length > 0) {
-    out.push({ kind: 'section', title: 'Today' });
-    today.forEach((item) => out.push({ kind: 'item', item }));
-  }
-  if (earlier.length > 0) {
-    out.push({ kind: 'section', title: 'Earlier' });
-    earlier.forEach((item) => out.push({ kind: 'item', item }));
-  }
-  return out;
+interface SectionHeaderProps {
+  title: string;
+  unreadCount: number;
+  onMarkAllRead: () => void;
 }
 
-function isLastNotificationRow(blocks: ListBlock[], index: number): boolean {
-  for (let j = index + 1; j < blocks.length; j++) {
-    if (blocks[j].kind === 'item') return false;
-  }
-  return true;
-}
-
-/** Section stripe inside grouped list (Figma-style inset table). */
-function NotificationSectionStripe({ title }: { title: string }) {
+function SectionHeader({ title, unreadCount, onMarkAllRead }: SectionHeaderProps) {
   return (
     <View
       style={{
-        paddingVertical: 8,
-        paddingHorizontal: 16,
-        backgroundColor: SCHEDULE_PARTNER.segmentTrackBg,
-        borderBottomWidth: 1,
-        borderBottomColor: SCHEDULE_PARTNER.divider,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginTop: 20,
+        marginBottom: 8,
       }}>
       <Text
         style={{
-          fontSize: 12,
+          fontSize: 13,
           fontWeight: '700',
           letterSpacing: 0.5,
           textTransform: 'uppercase',
@@ -59,6 +44,16 @@ function NotificationSectionStripe({ title }: { title: string }) {
         }}>
         {title}
       </Text>
+      {unreadCount > 0 ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Mark all ${title.toLowerCase()} notifications as read`}
+          onPress={onMarkAllRead}
+          hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+          className="active:opacity-75">
+          <Text style={{ fontSize: 12, fontWeight: '600', color: BRAND }}>Mark all as read</Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -75,24 +70,22 @@ export default function NotificationScreen() {
     return items;
   }, [items, readFilter]);
 
-  const { today, earlier } = useMemo(() => {
-    const t: NotificationItem[] = [];
-    const e: NotificationItem[] = [];
-    for (const n of filtered) {
-      if (n.section === 'today') t.push(n);
-      else e.push(n);
-    }
-    return { today: t, earlier: e };
+  // Group notifications by section
+  const { today, yesterday, earlier } = useMemo(() => {
+    const t = filtered.filter((n) => n.section === 'today');
+    const y = filtered.filter((n) => n.section === 'yesterday');
+    const e = filtered.filter((n) => n.section === 'earlier');
+    return { today: t, yesterday: y, earlier: e };
   }, [filtered]);
 
-  const listBlocks = useMemo(() => buildGroupedList(today, earlier), [today, earlier]);
-
-  const markRead = useCallback((id: string) => {
-    setItems((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+  const markAllReadInSection = useCallback((section: NotificationSection) => {
+    setItems((prev) =>
+      prev.map((n) => (n.section === section ? { ...n, read: true } : n))
+    );
   }, []);
 
-  const markAllRead = useCallback(() => {
-    setItems((prev) => prev.map((n) => ({ ...n, read: true })));
+  const archiveNotification = useCallback((id: string) => {
+    setItems((prev) => prev.filter((n) => n.id !== id));
   }, []);
 
   const segmentBtn = (selected: boolean) => ({
@@ -116,57 +109,25 @@ export default function NotificationScreen() {
         keyboardDismissMode="on-drag"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
-          paddingTop: insets.top + 12,
+          paddingTop: 12,
           paddingHorizontal: HOME_SCROLL_PADDING_H,
           paddingBottom: Math.max(insets.bottom, 16) + 28,
         }}>
         <Text
           style={{
-            fontSize: 22,
+            fontSize: 32,
             fontWeight: '700',
             letterSpacing: -0.35,
             color: SCHEDULE_PARTNER.textPrimary,
           }}>
           Notifications
         </Text>
-        <Text
-          style={{
-            marginTop: 6,
-            fontSize: 14,
-            lineHeight: 20,
-            color: SCHEDULE_PARTNER.textMuted,
-          }}>
-          {unreadCount > 0
-            ? `${unreadCount} unread ${unreadCount === 1 ? 'update' : 'updates'} across campus services.`
-            : "You're all caught up."}
-        </Text>
-        {unreadCount > 0 ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Mark all notifications as read"
-            onPress={markAllRead}
-            hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
-            className="mt-2 self-start active:opacity-75">
-            <Text style={{ fontSize: 14, fontWeight: '600', color: BRAND }}>Mark all as read</Text>
-          </Pressable>
-        ) : null}
 
-        <Text
-          style={{
-            marginTop: 22,
-            marginBottom: 8,
-            fontSize: 12,
-            fontWeight: '600',
-            letterSpacing: 0.4,
-            textTransform: 'uppercase',
-            color: SCHEDULE_PARTNER.textMuted,
-          }}>
-          Show
-        </Text>
         <View
           style={{
+            marginTop: 24,
             flexDirection: 'row',
-            borderRadius: 14,
+            borderRadius: 28,
             borderWidth: 1,
             borderColor: SCHEDULE_PARTNER.segmentTrackBorder,
             backgroundColor: SCHEDULE_PARTNER.segmentTrackBg,
@@ -198,7 +159,7 @@ export default function NotificationScreen() {
           })}
         </View>
 
-        {listBlocks.length === 0 ? (
+        {filtered.length === 0 ? (
           <View className="mt-8 items-center rounded-2xl border border-[#E8EEF4] bg-white px-5 py-10">
             <Text style={{ textAlign: 'center', fontSize: 15, lineHeight: 22, color: SCHEDULE_PARTNER.textMuted }}>
               {readFilter === 'unread'
@@ -207,26 +168,67 @@ export default function NotificationScreen() {
             </Text>
           </View>
         ) : (
-          <View
-            className="mt-5 overflow-hidden rounded-3xl border"
-            style={{
-              borderColor: SCHEDULE_PARTNER.cardBorder,
-              backgroundColor: SCHEDULE_PARTNER.surface,
-            }}>
-            {listBlocks.map((block, index) => {
-              if (block.kind === 'section') {
-                return <NotificationSectionStripe key={`h-${block.title}-${index}`} title={block.title} />;
-              }
-              return (
-                <NotificationListRow
-                  key={block.item.id}
-                  item={block.item}
-                  onMarkRead={markRead}
-                  isLast={isLastNotificationRow(listBlocks, index)}
+          <>
+            {today.length > 0 && (
+              <>
+                <SectionHeader
+                  title="Today"
+                  unreadCount={today.filter((n) => !n.read).length}
+                  onMarkAllRead={() => markAllReadInSection('today')}
                 />
-              );
-            })}
-          </View>
+                <View>
+                  {today.map((item, index) => (
+                    <NotificationListRow
+                      key={item.id}
+                      item={item}
+                      onArchive={archiveNotification}
+                      isLast={index === today.length - 1}
+                    />
+                  ))}
+                </View>
+              </>
+            )}
+
+            {yesterday.length > 0 && (
+              <>
+                <SectionHeader
+                  title="Yesterday"
+                  unreadCount={yesterday.filter((n) => !n.read).length}
+                  onMarkAllRead={() => markAllReadInSection('yesterday')}
+                />
+                <View>
+                  {yesterday.map((item, index) => (
+                    <NotificationListRow
+                      key={item.id}
+                      item={item}
+                      onArchive={archiveNotification}
+                      isLast={index === yesterday.length - 1}
+                    />
+                  ))}
+                </View>
+              </>
+            )}
+
+            {earlier.length > 0 && (
+              <>
+                <SectionHeader
+                  title="Earlier"
+                  unreadCount={earlier.filter((n) => !n.read).length}
+                  onMarkAllRead={() => markAllReadInSection('earlier')}
+                />
+                <View>
+                  {earlier.map((item, index) => (
+                    <NotificationListRow
+                      key={item.id}
+                      item={item}
+                      onArchive={archiveNotification}
+                      isLast={index === earlier.length - 1}
+                    />
+                  ))}
+                </View>
+              </>
+            )}
+          </>
         )}
       </ScrollView>
     </LinearGradient>

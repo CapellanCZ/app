@@ -22,8 +22,8 @@ export function HomeScreenHeader({ title = 'Home' }: HomeScreenHeaderProps) {
 
   return (
     <View
-      className="w-full flex-row items-center justify-between pb-2 pl-2"
-      style={{ paddingTop: Math.max(insets.top, 8) }}>
+      className="w-full flex-row items-center justify-between pb-2 pl-1"
+      style={{ paddingTop: Math.max(8) }}>
       <Text className="text-[32px] font-bold leading-9 text-[#1F2024]">{title}</Text>
       <View className="flex-row items-center gap-3">
         <Pressable

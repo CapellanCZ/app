@@ -10,7 +10,7 @@ export type WelfareNotificationCategory =
   | 'referrals'
   | 'campus';
 
-export type NotificationSection = 'today' | 'earlier';
+export type NotificationSection = 'today' | 'yesterday' | 'earlier';
 
 export type NotificationItem = {
   id: string;
@@ -72,7 +72,7 @@ export const MOCK_NOTIFICATIONS: NotificationItem[] = [
     timeLabel: 'Yesterday',
     read: true,
     href: '/referrals',
-    section: 'earlier',
+    section: 'yesterday',
   },
   {
     id: 'n5',
@@ -82,7 +82,7 @@ export const MOCK_NOTIFICATIONS: NotificationItem[] = [
     timeLabel: 'Yesterday',
     read: true,
     href: '/(tabs)',
-    section: 'earlier',
+    section: 'yesterday',
   },
   {
     id: 'n6',
