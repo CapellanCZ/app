@@ -1,5 +1,5 @@
-import { useCallback } from 'react';
-import { Linking, Pressable, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
+import { useRouter } from 'expo-router';
 
 type AuthLegalFooterProps = {
   /** Extra margin above legal copy (default: stacked below form). */
@@ -7,13 +7,10 @@ type AuthLegalFooterProps = {
 };
 
 export function AuthLegalFooter({ topSpacing = true }: AuthLegalFooterProps) {
-  const openTerms = useCallback(() => {
-    void Linking.openURL('https://example.com/terms');
-  }, []);
+  const router = useRouter();
 
-  const openPrivacy = useCallback(() => {
-    void Linking.openURL('https://example.com/privacy');
-  }, []);
+  const openTerms = () => router.push('/terms');
+  const openPrivacy = () => router.push('/privacy');
 
   return (
     <>

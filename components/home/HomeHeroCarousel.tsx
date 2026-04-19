@@ -9,6 +9,7 @@ import {
   View,
   type ViewToken,
 } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 
 import { IconsaxHospitalFilledIcon } from '@/components/icons/IconsaxHospitalFilledIcon';
 import { IconsaxJudgeFilledIcon } from '@/components/icons/IconsaxJudgeFilledIcon';
@@ -97,6 +98,43 @@ export function HomeHeroCarousel({ slides, className }: HomeHeroCarouselProps) {
             paddingTop: 20,
             paddingBottom: 20,
           }}>
+          {/* Decorative wave curves */}
+          <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
+            <Svg width="100%" height="100%" preserveAspectRatio="none" viewBox="0 0 400 300">
+              {/* Filled wave band — top */}
+              <Path
+                d="M0 0 L0 60 Q60 30 130 55 T260 35 T400 50 L400 0 Z"
+                fill="rgba(255,255,255,0.04)"
+              />
+              {/* Filled wave band — bottom */}
+              <Path
+                d="M0 300 L0 220 Q80 190 170 215 T340 195 L400 200 L400 300 Z"
+                fill="rgba(255,255,255,0.035)"
+              />
+              {/* Stroke wave — upper sweep */}
+              <Path
+                d="M-20 70 C60 20 140 90 220 55 S340 15 420 45"
+                stroke="rgba(255,255,255,0.12)"
+                strokeWidth={2}
+                fill="none"
+              />
+              {/* Stroke wave — mid flow */}
+              <Path
+                d="M-20 155 C70 110 150 175 240 140 S360 100 420 130"
+                stroke="rgba(255,255,255,0.09)"
+                strokeWidth={1.8}
+                fill="none"
+              />
+              {/* Stroke wave — lower gentle curve */}
+              <Path
+                d="M-20 230 C90 195 180 250 280 215 S380 185 420 205"
+                stroke="rgba(255,255,255,0.07)"
+                strokeWidth={1.5}
+                fill="none"
+              />
+            </Svg>
+          </View>
+
           <View className="min-h-[190px] justify-between">
             <View className="gap-3">
               <View className="self-start rounded-2xl bg-white px-2.5 py-2.5 opacity-85">

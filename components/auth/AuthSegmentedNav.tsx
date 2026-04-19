@@ -19,7 +19,7 @@ export function AuthSegmentedNav({ active, className }: AuthSegmentedNavProps) {
         accessibilityRole="tab"
         accessibilityState={{ selected: active === 'login' }}
         className={`flex-1 items-center justify-center rounded-[20px] px-2.5 py-0.5 ${
-          active === 'login' ? 'bg-white shadow-sm shadow-black/10' : ''
+          active === 'login' ? 'bg-white' : ''
         }`}
         onPress={() => router.replace('/login')}>
         <Text
@@ -33,7 +33,7 @@ export function AuthSegmentedNav({ active, className }: AuthSegmentedNavProps) {
         accessibilityRole="tab"
         accessibilityState={{ selected: active === 'signup' }}
         className={`flex-1 items-center justify-center rounded-[20px] px-2.5 py-0.5 ${
-          active === 'signup' ? 'bg-white shadow-sm shadow-black/10' : ''
+          active === 'signup' ? 'bg-white' : ''
         }`}
         onPress={() => router.replace('/signup')}>
         <Text

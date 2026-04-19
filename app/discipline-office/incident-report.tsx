@@ -471,7 +471,7 @@ export default function IncidentReportScreen() {
           }}>
         <View className="gap-5">
           <View className="gap-2">
-            <Text className="text-xs font-semibold leading-4 text-[#494A50]">Type of Incident</Text>
+            <Text className="text-sm font-semibold leading-5 text-[#2A2A2A]">Type of Incident</Text>
             <View className="w-full shrink-0">
             <BottomSheet
               className="w-full shrink-0"
@@ -489,7 +489,7 @@ export default function IncidentReportScreen() {
                     value={incidentType}
                   />
                   <InputGroup.Suffix isDecorative>
-                    <IconsaxArrowDownIcon size={18} color={ICON_SUFFIX} />
+                    <IconsaxArrowDownIcon size={20} color={ICON_SUFFIX} />
                   </InputGroup.Suffix>
                 </InputGroup>
               </BottomSheet.Trigger>
@@ -522,7 +522,7 @@ export default function IncidentReportScreen() {
             </View>
             {incidentType === INCIDENT_TYPE_OTHER ? (
               <View className="gap-2 pt-1">
-                <Text className="text-xs font-semibold leading-4 text-[#494A50]">
+                <Text className="text-sm font-semibold leading-5 text-[#2A2A2A]">
                   Describe the incident type
                 </Text>
                 <InputGroup className="relative w-full">
@@ -541,7 +541,7 @@ export default function IncidentReportScreen() {
 
           <View className="w-full shrink-0 flex-row gap-3">
             <View className="min-w-0 flex-1 gap-2">
-              <Text className="text-xs font-semibold leading-4 text-[#494A50]">Date</Text>
+              <Text className="text-sm font-semibold leading-5 text-[#2A2A2A]">Date</Text>
               <View className="w-full shrink-0">
               <BottomSheet
                 className="w-full shrink-0"
@@ -559,7 +559,7 @@ export default function IncidentReportScreen() {
                       value={dateDisplay}
                     />
                     <InputGroup.Suffix isDecorative>
-                      <IconsaxCalendarIcon size={18} color={ICON_SUFFIX} />
+                      <IconsaxCalendarIcon size={20} color={ICON_SUFFIX} />
                     </InputGroup.Suffix>
                   </InputGroup>
                 </BottomSheet.Trigger>
@@ -597,7 +597,7 @@ export default function IncidentReportScreen() {
               </View>
             </View>
             <View className="min-w-0 flex-1 gap-2">
-              <Text className="text-xs font-semibold leading-4 text-[#494A50]">Time</Text>
+              <Text className="text-sm font-semibold leading-5 text-[#2A2A2A]">Time</Text>
               <View className="w-full shrink-0">
               <BottomSheet
                 className="w-full shrink-0"
@@ -615,7 +615,7 @@ export default function IncidentReportScreen() {
                       value={timeDisplay}
                     />
                     <InputGroup.Suffix isDecorative>
-                      <IconsaxClockIcon size={18} color={ICON_SUFFIX} />
+                      <IconsaxClockIcon size={20} color={ICON_SUFFIX} />
                     </InputGroup.Suffix>
                   </InputGroup>
                 </BottomSheet.Trigger>
@@ -651,7 +651,7 @@ export default function IncidentReportScreen() {
           </View>
 
           <View className="gap-2">
-            <Text className="text-xs font-semibold leading-4 text-[#494A50]">Location</Text>
+            <Text className="text-sm font-semibold leading-5 text-[#2A2A2A]">Location</Text>
             <InputGroup className="relative w-full">
               <InputGroup.Input
                 variant="primary"
@@ -661,13 +661,13 @@ export default function IncidentReportScreen() {
                 onChangeText={setLocation}
               />
               <InputGroup.Suffix isDecorative>
-                <IconsaxLocationIcon size={18} color={ICON_SUFFIX} />
+                <IconsaxLocationIcon size={20} color={ICON_SUFFIX} />
               </InputGroup.Suffix>
             </InputGroup>
           </View>
 
           <View className="gap-2">
-            <Text className="text-xs font-semibold leading-4 text-[#494A50]">
+            <Text className="text-sm font-semibold leading-5 text-[#2A2A2A]">
               Your phone number
             </Text>
             <InputGroup className="relative w-full">
@@ -681,16 +681,16 @@ export default function IncidentReportScreen() {
                 onChangeText={setReporterPhone}
               />
               <InputGroup.Suffix isDecorative>
-                <Ionicons name="call-outline" size={18} color={ICON_SUFFIX} />
+                <Ionicons name="call-outline" size={20} color={ICON_SUFFIX} />
               </InputGroup.Suffix>
             </InputGroup>
-            <Text className="text-[10px] leading-[14px] tracking-[0.15px] text-[#8F9098]">
+            <Text className="text-xs leading-4 text-[#6B7280]">
               Required so the discipline office can reach you about this report.
             </Text>
           </View>
 
           <View className="gap-2">
-            <Text className="text-xs font-semibold leading-4 text-[#494A50]">Person(s) Involved</Text>
+            <Text className="text-sm font-semibold leading-5 text-[#2A2A2A]">Person(s) Involved</Text>
             <InputGroup className="relative w-full">
               <InputGroup.Input
                 variant="primary"
@@ -700,16 +700,16 @@ export default function IncidentReportScreen() {
                 onChangeText={setPersonsInvolved}
               />
               <InputGroup.Suffix isDecorative>
-                <IconsaxPeopleIcon size={18} color={ICON_SUFFIX} />
+                <IconsaxPeopleIcon size={20} color={ICON_SUFFIX} />
               </InputGroup.Suffix>
             </InputGroup>
-            <Text className="text-[10px] leading-[14px] tracking-[0.15px] text-[#8F9098]">
+            <Text className="text-xs leading-4 text-[#6B7280]">
               Leave blank if unknown or for an anonymous report
             </Text>
           </View>
 
           <TextField className="w-full gap-2">
-            <Text className="text-xs font-semibold leading-4 text-[#494A50]">What happened?</Text>
+            <Text className="text-base font-semibold leading-6 text-[#2A2A2A]">What happened?</Text>
             <TextArea
               variant="primary"
               className="min-h-[180px] w-full"
@@ -720,14 +720,14 @@ export default function IncidentReportScreen() {
               textAlignVertical="top"
               editable={!isSubmitting}
             />
-            <Text className="text-[10px] leading-[14px] tracking-[0.15px] text-[#8F9098]">
+            <Text className="text-xs leading-4 text-[#6B7280]">
               Include who, what, when, and where if you know them. You can use multiple paragraphs.
             </Text>
           </TextField>
 
           <View className="w-full shrink-0 gap-2 mt-12">
-            <Text className="text-xs font-semibold leading-4 text-[#494A50]">Supporting evidence</Text>
-            <Text className="text-[10px] leading-[14px] tracking-[0.15px] text-[#8F9098]">
+            <Text className="text-sm font-semibold leading-5 text-[#2A2A2A]">Supporting evidence</Text>
+            <Text className="text-xs leading-4 text-[#6B7280]">
               Photos, screenshots, videos, or documents that support your report. Optional.
             </Text>
             <FileUploadDropzoneCard
@@ -770,7 +770,7 @@ export default function IncidentReportScreen() {
           className="border-t border-[#E8EFFF] bg-white/95 px-5 pt-3"
           style={{ paddingBottom: Math.max(insets.bottom, 12) }}
           offset={{ closed: 0, opened: 4 }}>
-          <Text className="mb-2 px-0.5 text-center text-[11px] leading-[15px] text-[#8F9098]">
+          <Text className="mb-2 px-0.5 text-center text-xs leading-4 text-[#6B7280]">
             You can submit without attachments. Evidence is optional.
           </Text>
           <Pressable

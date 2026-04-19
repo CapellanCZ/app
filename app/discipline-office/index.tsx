@@ -284,18 +284,10 @@ export default function DisciplineOfficeScreen() {
             marginTop: SECTION,
             borderRadius: 16,
             borderWidth: 1,
-            borderColor: SCHEDULE_PARTNER.segmentTrackBorder,
+            borderColor: '#FFFFFF',
             backgroundColor: SCHEDULE_PARTNER.segmentTrackBg,
             overflow: 'hidden',
-            paddingHorizontal: 12,
-            paddingTop: 10,
-            paddingBottom: 14,
-          }}>
-          <UnderlineTabs
-            className="w-full"
-            tabs={[...DISCIPLINE_TABS]}
-            value={activeTab}
-            onValueChange={setActiveTab}>
+            paddingHorizontal: 12, 
             <Tabs.Content className="mt-3 w-full pb-0" value="my-case">
               {MOCK_CASES.length > 0 ? (
                 <View style={{ gap: 12 }}>

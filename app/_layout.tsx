@@ -9,6 +9,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { TamaguiProvider } from 'tamagui';
 
 import { UniwindInsetSync } from '@/components/UniwindInsetSync';
+import { AuthProvider } from '@/lib/auth/AuthProvider';
 import { tamaguiConfig } from '../tamagui.config';
 
 export const unstable_settings = {
@@ -35,6 +36,7 @@ export default function RootLayout() {
         <TamaguiProvider config={tamaguiConfig} defaultTheme={themeName}>
           <SafeAreaProvider>
             <KeyboardProvider>
+              <AuthProvider>
               <UniwindInsetSync />
               <Stack
                 screenOptions={{
@@ -64,6 +66,7 @@ export default function RootLayout() {
                   options={{ headerShown: true, title: 'Modal', presentation: 'modal' }}
                 />
               </Stack>
+              </AuthProvider>
             </KeyboardProvider>
           </SafeAreaProvider>
         </TamaguiProvider>
