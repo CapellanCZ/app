@@ -5,7 +5,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Tabs } from 'heroui-native';
 
-import { DisciplineTabEmptyState } from '@/components/discipline/DisciplineTabEmptyState';
+import { DisciplineTabEmptyState } from '@/components/discipline-office/DisciplineTabEmptyState';
 import {
   DisciplineCaseProgressCard,
   DisciplineOfficeNoticeCard,

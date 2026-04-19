@@ -207,16 +207,17 @@ export default function ProfileTab() {
               width: 52,
               height: 52,
               borderRadius: 26,
-              overflow: 'hidden',
               borderWidth: 2,
               borderColor: BRAND,
               flexShrink: 0,
             }}>
-            <Image
-              source={profileCirclePlaceholder}
-              style={{ width: '100%', height: '100%' }}
-              resizeMode="cover"
-            />
+            <View style={{ flex: 1, borderRadius: 24, overflow: 'hidden' }}>
+              <Image
+                source={profileCirclePlaceholder}
+                style={{ width: '100%', height: '100%' }}
+                resizeMode="cover"
+              />
+            </View>
           </View>
 
           <View style={{ flex: 1 }}>

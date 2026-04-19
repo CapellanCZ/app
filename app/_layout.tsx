@@ -54,13 +54,7 @@ export default function RootLayout() {
                 <Stack.Screen name="referrals" />
                 <Stack.Screen name="my-scholarship" />
                 <Stack.Screen name="logout" />
-                <Stack.Screen name="personal-info" />
-                <Stack.Screen name="security" />
-                <Stack.Screen name="terms" />
-                <Stack.Screen name="privacy" />
-                <Stack.Screen name="notification-settings" />
-                <Stack.Screen name="help-center" />
-                <Stack.Screen name="about" />
+                <Stack.Screen name="(settings)" />
                 <Stack.Screen
                   name="modal"
                   options={{ headerShown: true, title: 'Modal', presentation: 'modal' }}

@@ -1,11 +1,11 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { NotificationListRow } from '@/components/notifications/NotificationListRow';
 import { SCHEDULE_PARTNER } from '@/lib/health-service/bookingScheduleTheme';
-import { MOCK_NOTIFICATIONS, type NotificationItem } from '@/lib/notifications/mockNotifications';
+import { useNotificationStore } from '@/lib/notifications/notificationStore';
 import {
   HOME_BG_GRADIENT_COLORS,
   HOME_BG_GRADIENT_LOCATIONS,
@@ -60,7 +60,9 @@ function SectionHeader({ title, unreadCount, onMarkAllRead }: SectionHeaderProps
 
 export default function NotificationScreen() {
   const insets = useSafeAreaInsets();
-  const [items, setItems] = useState<NotificationItem[]>(() => [...MOCK_NOTIFICATIONS]);
+  const items = useNotificationStore((s) => s.items);
+  const markAllReadInSection = useNotificationStore((s) => s.markAllReadInSection);
+  const archiveNotification = useNotificationStore((s) => s.archive);
   const [readFilter, setReadFilter] = useState<ReadFilter>('all');
 
   const unreadCount = useMemo(() => items.filter((n) => !n.read).length, [items]);
@@ -77,16 +79,6 @@ export default function NotificationScreen() {
     const e = filtered.filter((n) => n.section === 'earlier');
     return { today: t, yesterday: y, earlier: e };
   }, [filtered]);
-
-  const markAllReadInSection = useCallback((section: NotificationSection) => {
-    setItems((prev) =>
-      prev.map((n) => (n.section === section ? { ...n, read: true } : n))
-    );
-  }, []);
-
-  const archiveNotification = useCallback((id: string) => {
-    setItems((prev) => prev.filter((n) => n.id !== id));
-  }, []);
 
   const segmentBtn = (selected: boolean) => ({
     flex: 1,
