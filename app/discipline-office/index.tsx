@@ -287,7 +287,9 @@ export default function DisciplineOfficeScreen() {
             borderColor: '#FFFFFF',
             backgroundColor: SCHEDULE_PARTNER.segmentTrackBg,
             overflow: 'hidden',
-            paddingHorizontal: 12, 
+            paddingHorizontal: 12,
+          }}>
+          <UnderlineTabs tabs={[...DISCIPLINE_TABS]} value={activeTab} onValueChange={setActiveTab}>
             <Tabs.Content className="mt-3 w-full pb-0" value="my-case">
               {MOCK_CASES.length > 0 ? (
                 <View style={{ gap: 12 }}>
