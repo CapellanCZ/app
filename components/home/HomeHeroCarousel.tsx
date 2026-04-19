@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   FlatList,
   type LayoutChangeEvent,
@@ -71,6 +71,21 @@ export function HomeHeroCarousel({ slides, className }: HomeHeroCarouselProps) {
   ).current;
 
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 55 }).current;
+  const flatListRef = useRef<FlatList<HomeHeroSlide>>(null);
+  const activeIndexRef = useRef(0);
+
+  useEffect(() => {
+    activeIndexRef.current = activeIndex;
+  }, [activeIndex]);
+
+  useEffect(() => {
+    if (slides.length <= 1 || width <= 0) return;
+    const timer = setInterval(() => {
+      const next = (activeIndexRef.current + 1) % slides.length;
+      flatListRef.current?.scrollToIndex({ index: next, animated: true });
+    }, 4000);
+    return () => clearInterval(timer);
+  }, [slides.length, width]);
 
   const onScrollMomentumEnd = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -171,6 +186,7 @@ export function HomeHeroCarousel({ slides, className }: HomeHeroCarouselProps) {
     <View className={`w-full items-center gap-3 ${className ?? ''}`} onLayout={onLayout}>
       {width > 0 ? (
         <FlatList
+          ref={flatListRef}
           style={{ width }}
           data={slides}
           keyExtractor={(item) => item.id}

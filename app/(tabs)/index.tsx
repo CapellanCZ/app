@@ -19,9 +19,9 @@ import {
   HOME_SCROLL_PADDING_H,
 } from '@/lib/ui/screenGradients';
 import { IconsaxHierarchyIcon } from '@/components/icons/IconsaxHierarchyIcon';
-import { IconsaxMedalIcon } from '@/components/icons/IconsaxMedalIcon';
-import { IconsaxSearchFavoriteIcon } from '@/components/icons/IconsaxSearchFavoriteIcon';
-import { IconsaxStickynoteIcon } from '@/components/icons/IconsaxStickynoteIcon';
+import { IconsaxMedalStarFilledIcon } from '@/components/icons/IconsaxMedalStarFilledIcon';
+import { IconsaxSyringeFilledIcon } from '@/components/icons/IconsaxSyringeFilledIcon';
+import { IconsaxTagUserFilledIcon } from '@/components/icons/IconsaxTagUserFilledIcon';
 import { router } from 'expo-router';
 
 const APPOINTMENTS_ROUTE = '/(tabs)/appointments';
@@ -262,19 +262,19 @@ export default function Home() {
             <View className="mt-2 w-full gap-2.5">
               <View className="w-full flex-row gap-2.5">
                 <QuickActionGridTile
-                  Icon={IconsaxMedalIcon}
+                  Icon={IconsaxMedalStarFilledIcon}
                   label="Scholarships"
                   onPress={() => router.push('/student-development-affairs')}
                 />
                 <QuickActionGridTile
-                  Icon={IconsaxSearchFavoriteIcon}
+                  Icon={IconsaxSyringeFilledIcon}
                   label="Student health"
                   onPress={() => router.push('/health-service')}
                 />
               </View>
               <View className="w-full flex-row gap-2.5">
                 <QuickActionGridTile
-                  Icon={IconsaxStickynoteIcon}
+                  Icon={IconsaxTagUserFilledIcon}
                   label="Discipline"
                   onPress={() => router.push('/discipline-office')}
                 />
