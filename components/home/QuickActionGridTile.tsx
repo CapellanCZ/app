@@ -3,7 +3,7 @@ import { Pressable, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 
-import { SCHEDULE_PARTNER } from '@/lib/health-service/bookingScheduleTheme';
+import { SCHEDULE_PARTNER } from '@/lib/ui/theme';
 
 const ICON_WELL = 'rgba(41, 112, 255, 0.12)';
 const ICON_COLOR = SCHEDULE_PARTNER.brand;

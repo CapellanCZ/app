@@ -11,7 +11,7 @@ import { AuthSuccessModal } from '@/components/auth/AuthSuccessModal';
 import { PLACEHOLDER_NU_EMAIL } from '@/components/auth/constants';
 import { IconsaxEnvelopeIcon } from '@/components/icons/IconsaxEnvelopeIcon';
 import { IconsaxStarFilledIcon } from '@/components/icons/IconsaxStarFilledIcon';
-import { supabase, isSupabaseConfigured } from '@/utils/supabase';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { Button, InputGroup } from 'heroui-native';
 
 const NU_DOMAIN = '@students.nu-dasma.edu.ph';

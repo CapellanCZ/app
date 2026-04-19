@@ -3,7 +3,7 @@ import { AppState } from 'react-native';
 import * as Linking from 'expo-linking';
 import type { Session } from '@supabase/supabase-js';
 
-import { supabase, isSupabaseConfigured } from '@/utils/supabase';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 
 /** Extract tokens from a Supabase magic-link redirect URL hash fragment. */
 function extractTokensFromUrl(url: string) {

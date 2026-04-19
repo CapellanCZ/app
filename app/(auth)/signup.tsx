@@ -11,7 +11,7 @@ import { IconsaxArrowDownIcon } from '@/components/icons/IconsaxArrowDownIcon';
 import { IconsaxEnvelopeIcon } from '@/components/icons/IconsaxEnvelopeIcon';
 import { PLACEHOLDER_NU_EMAIL, PROGRAM_OPTIONS } from '@/components/auth/constants';
 import { RegisterChrome } from '@/components/auth/RegisterChrome';
-import { supabase, isSupabaseConfigured } from '@/utils/supabase';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { BottomSheet, Button, InputGroup } from 'heroui-native';
 
 const NU_DOMAIN = '@students.nu-dasma.edu.ph';
