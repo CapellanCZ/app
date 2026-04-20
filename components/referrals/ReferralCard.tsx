@@ -1,5 +1,4 @@
 import { Pressable, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 
 import { SCHEDULE_PARTNER } from '@/lib/ui/theme';
 import { IconsaxLocationIcon } from '@/components/icons/IconsaxLocationIcon';
