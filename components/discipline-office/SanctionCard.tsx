@@ -65,7 +65,7 @@ function statusAsLabel(status: SanctionStatus): string {
 function statusLabelColor(status: SanctionStatus): string {
   if (status === 'in_progress') return BRAND;
   if (status === 'in_review') return '#027A48';
-  return '#B45309';
+  return '#EAB308';
 }
 
 function MetaPanel({ children }: { children: ReactNode }) {
@@ -145,16 +145,26 @@ export function SanctionCard({
             }}>
             {title}
           </Text>
-          <Text
+          <View
             style={{
-              marginTop: 4,
-              fontSize: 12,
-              fontWeight: '600',
-              letterSpacing: 0.2,
-              color: statusLabelColor(status),
+              marginTop: 6,
+              marginBottom: 4,
+              alignSelf: 'flex-start',
+              paddingHorizontal: 8,
+              paddingVertical: 4,
+              borderRadius: 999,
+              backgroundColor: `${statusLabelColor(status)}15`,
             }}>
-            {statusAsLabel(status)}
-          </Text>
+            <Text
+              style={{
+                fontSize: 11,
+                fontWeight: '600',
+                letterSpacing: 0.2,
+                color: statusLabelColor(status),
+              }}>
+              {statusAsLabel(status)}
+            </Text>
+          </View>
         </View>
         <Pressable
           accessibilityRole="button"

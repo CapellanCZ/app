@@ -287,10 +287,11 @@ export default function DisciplineOfficeScreen() {
             borderColor: '#FFFFFF',
             backgroundColor: SCHEDULE_PARTNER.segmentTrackBg,
             overflow: 'hidden',
-            paddingHorizontal: 12,
+            paddingHorizontal: 14,
+            paddingTop: 12,
           }}>
           <UnderlineTabs tabs={[...DISCIPLINE_TABS]} value={activeTab} onValueChange={setActiveTab}>
-            <Tabs.Content className="mt-3 w-full pb-0" value="my-case">
+            <Tabs.Content className="mt-5 w-full pb-4" value="my-case">
               {MOCK_CASES.length > 0 ? (
                 <View style={{ gap: 12 }}>
                   {MOCK_CASES.map((item) => (
@@ -315,7 +316,7 @@ export default function DisciplineOfficeScreen() {
             </Tabs.Content>
             <Tabs.Content className="mt-3 w-full pb-0" value="my-sanctions">
               {MOCK_HAS_SANCTIONS ? (
-                <View style={{ gap: 12 }}>
+                <View style={{ gap: 12, paddingBottom: 18 }}>
                   {MOCK_SANCTIONS.map((item) => (
                     <SanctionCard
                       key={item.id}
