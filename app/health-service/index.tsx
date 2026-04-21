@@ -122,7 +122,6 @@ export default function HealthServiceScreen() {
         title="How are you feeling today?"
         subtitle="Catherine Capellan"
         titleNumberOfLines={3}
-        onBackPress={() => router.replace('/(tabs)')}
       />
       <ScrollView
         className="flex-1 bg-transparent"

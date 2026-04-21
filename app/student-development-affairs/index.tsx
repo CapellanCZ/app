@@ -107,7 +107,6 @@ export default function StudentDevelopmentAffairsScreen() {
         title="Scholarship List"
         titleNumberOfLines={2}
         menuIconSize={32}
-        onBackPress={() => router.replace('/(tabs)')}
       />
       <View className="mt-2 min-h-0 flex-1 bg-transparent px-0">
         <View className="gap-3 px-4 pt-1">

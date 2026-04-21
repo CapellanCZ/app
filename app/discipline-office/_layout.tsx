@@ -7,16 +7,15 @@ import { Stack } from 'expo-router';
 export default function DisciplineOfficeLayout() {
   return (
     <Stack
-      initialRouteName="index"
       screenOptions={{
         headerShown: false,
         headerBackTitleVisible: false,
         animation: 'slide_from_right',
       }}>
-      {/* Main hub: no stack slide when returning to this root from nested screens. */}
-      <Stack.Screen name="index" options={{ animation: 'none' }} />
+      <Stack.Screen name="index" />
       <Stack.Screen name="incident-report" />
       <Stack.Screen name="upload-proof" />
+      <Stack.Screen name="nte-response" />
     </Stack>
   );
 }

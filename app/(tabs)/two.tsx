@@ -1,10 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, Image, Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
+import { useAuth } from '@/lib/auth/AuthProvider';
+import { fetchStudentProfile, pickAndUploadAvatar, type StudentProfile } from '@/lib/profile/profileApi';
 import { SCHEDULE_PARTNER } from '@/lib/health-service/bookingScheduleTheme';
 import {
   HOME_BG_GRADIENT_COLORS,
@@ -132,9 +134,25 @@ function maskEmail(email: string): string {
 export default function ProfileTab() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { session } = useAuth();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [profile, setProfile] = useState<StudentProfile | null>(null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
   const scrimOpacity = useRef(new Animated.Value(0)).current;
   const sheetTranslateY = useRef(new Animated.Value(400)).current;
+
+  useEffect(() => {
+    if (!session?.user?.id) return;
+    fetchStudentProfile(session.user.id).then(setProfile);
+  }, [session?.user?.id]);
+
+  const handleChangeAvatar = useCallback(async () => {
+    if (!session?.user?.id || avatarUploading) return;
+    setAvatarUploading(true);
+    const url = await pickAndUploadAvatar(session.user.id);
+    if (url) setProfile((p) => p ? { ...p, avatar_url: url } : p);
+    setAvatarUploading(false);
+  }, [session?.user?.id, avatarUploading]);
 
   useEffect(() => {
     if (showLogoutModal) {
@@ -157,8 +175,11 @@ export default function ProfileTab() {
     });
   };
 
-  const name = 'Juan Dela Cruz';
-  const email = maskEmail('j.delacruz@student.edu.ph');
+  const name = profile
+    ? `${profile.first_name} ${profile.last_name}`.trim() || 'Nationalian'
+    : 'Nationalian';
+  const email = profile?.email ? maskEmail(profile.email) : '—';
+  const avatarUrl = profile?.avatar_url ?? null;
 
   return (
     <LinearGradient
@@ -202,7 +223,9 @@ export default function ProfileTab() {
             alignItems: 'center',
             gap: 12,
           }}>
-          <View
+          <Pressable
+            onPress={handleChangeAvatar}
+            accessibilityLabel="Change profile picture"
             style={{
               width: 52,
               height: 52,
@@ -212,13 +235,30 @@ export default function ProfileTab() {
               flexShrink: 0,
             }}>
             <View style={{ flex: 1, borderRadius: 24, overflow: 'hidden' }}>
-              <Image
-                source={profileCirclePlaceholder}
-                style={{ width: '100%', height: '100%' }}
-                resizeMode="cover"
-              />
+              {avatarUrl ? (
+                <Image
+                  source={{ uri: avatarUrl }}
+                  style={{ width: '100%', height: '100%' }}
+                  resizeMode="cover"
+                />
+              ) : (
+                <Image
+                  source={profileCirclePlaceholder}
+                  style={{ width: '100%', height: '100%' }}
+                  resizeMode="cover"
+                />
+              )}
             </View>
-          </View>
+            {avatarUploading && (
+              <View style={{
+                position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+                borderRadius: 24, backgroundColor: 'rgba(0,0,0,0.35)',
+                alignItems: 'center', justifyContent: 'center',
+              }}>
+                <Ionicons name="cloud-upload-outline" size={20} color="#fff" />
+              </View>
+            )}
+          </Pressable>
 
           <View style={{ flex: 1 }}>
             <Text

@@ -37,6 +37,7 @@ function HairlineRule() {
 export type DisciplineCaseStep = {
   label: string;
   date?: string;
+  note?: string;
 };
 
 export type CaseSeverity = 'minor' | 'major';
@@ -160,7 +161,18 @@ function CaseTimeline({
             </View>
             <View className="min-w-0 flex-1 justify-center py-3 pr-0">
               <Text style={{ fontSize: 14, fontWeight: '600', lineHeight: 20, color: titleColor }}>{step.label}</Text>
-              {step.date ? (
+              {state === 'current' && step.note ? (
+                <Text
+                  style={{
+                    marginTop: 3,
+                    fontSize: 12,
+                    lineHeight: 17,
+                    color: SCHEDULE_PARTNER.textMuted,
+                    fontStyle: 'italic',
+                  }}>
+                  {step.note}
+                </Text>
+              ) : step.date && step.date !== 'Pending' ? (
                 <Text
                   style={{
                     marginTop: 2,

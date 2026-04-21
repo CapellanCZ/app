@@ -12,12 +12,13 @@ const ICON_MUTED = '#1F2024';
 export type HomeScreenHeaderProps = {
   /** Large title (reference UI uses a single word like “Lessons”). */
   title?: string;
+  avatarUrl?: string | null;
 };
 
 /**
  * Home top bar: bold title + notification + profile (reference lesson-app hero layout).
  */
-export function HomeScreenHeader({ title = 'Home' }: HomeScreenHeaderProps) {
+export function HomeScreenHeader({ title = 'Home', avatarUrl }: HomeScreenHeaderProps) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const unreadCount = useNotificationStore((s) => s.items.filter((n) => !n.read).length);
@@ -71,7 +72,7 @@ export function HomeScreenHeader({ title = 'Home' }: HomeScreenHeaderProps) {
           style={{ width: 44, height: 44, borderRadius: 24, borderWidth: 1, borderColor: '#FFFFFF' }}>
           <View style={{ flex: 1, borderRadius: 20, overflow: 'hidden' }}>
             <Image
-              source={profileCirclePlaceholder}
+              source={avatarUrl ? { uri: avatarUrl } : profileCirclePlaceholder}
               style={{ width: '100%', height: '100%' }}
               resizeMode="cover"
               accessibilityIgnoresInvertColors

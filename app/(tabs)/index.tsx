@@ -1,9 +1,11 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
+import { useAuth } from '@/lib/auth/AuthProvider';
+import { fetchStudentProfile } from '@/lib/profile/profileApi';
 import { HomeDateStripCalendar } from '@/components/home/HomeDateStripCalendar';
 import { HomeHeroCarousel, type HomeHeroSlide } from '@/components/home/HomeHeroCarousel';
 import { HomeScreenHeader } from '@/components/home/HomeScreenHeader';
@@ -160,7 +162,16 @@ const WEEK_DEMO_SCHEDULES: ScheduleRow[] = buildWeekDemoSchedules();
 
 export default function Home() {
   const insets = useSafeAreaInsets();
+  const { session } = useAuth();
   const [selectedDate, setSelectedDate] = useState(() => startOfDay(new Date()));
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!session?.user?.id) return;
+    fetchStudentProfile(session.user.id).then((p) => {
+      if (p?.avatar_url) setAvatarUrl(p.avatar_url);
+    });
+  }, [session?.user?.id]);
 
   const appointmentCountForDay = useMemo(() => {
     const counts = new Map<string, number>();
@@ -232,7 +243,7 @@ export default function Home() {
           paddingBottom: Math.max(insets.bottom, 12) + 24,
         }}>
         <View className="gap-4">
-          <HomeScreenHeader title="Home" />
+          <HomeScreenHeader title="Home" avatarUrl={avatarUrl} />
           <HomeHeroCarousel slides={heroSlides} />
 
           <View className="mt-1">
