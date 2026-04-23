@@ -13,11 +13,30 @@ export default function AuthLayout() {
     <Stack
       screenOptions={{
         headerShown: false,
-        animation: 'fade',
-        // Without flex:1 the scene can collapse to zero height → blank screen.
-        // Scene color fills the home-indicator / gesture strip behind the auth UI.
         contentStyle: { flex: 1, backgroundColor: sceneBackground },
-      }}
-    />
+      }}>
+      {/* Get Started — full screen card */}
+      <Stack.Screen
+        name="index"
+        options={{ animation: 'fade' }}
+      />
+      {/* Login & Signup — transparent route so custom BottomSheetModal can animate in */}
+      <Stack.Screen
+        name="login"
+        options={{
+          presentation: 'transparentModal',
+          animation: 'none',
+          contentStyle: { backgroundColor: 'transparent' },
+        }}
+      />
+      <Stack.Screen
+        name="signup"
+        options={{
+          presentation: 'transparentModal',
+          animation: 'none',
+          contentStyle: { backgroundColor: 'transparent' },
+        }}
+      />
+    </Stack>
   );
 }

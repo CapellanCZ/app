@@ -1,77 +1,101 @@
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
 
-import { AuthLegalFooter } from '@/components/auth/AuthLegalFooter';
-import { AuthSegmentedNav } from '@/components/auth/AuthSegmentedNav';
+import { AuthErrorBanner } from '@/components/auth/AuthErrorBanner';
 import { AuthSuccessModal } from '@/components/auth/AuthSuccessModal';
-import { IconsaxArrowDownIcon } from '@/components/icons/IconsaxArrowDownIcon';
+import { AppButton } from '@/components/ui/AppButton';
+import { AppInput } from '@/components/ui/AppInput';
+import { BottomSheetModal } from '@/components/ui/BottomSheetModal';
+import { InlineSelect } from '@/components/ui/InlineSelect';
+import { ProgressBar } from '@/components/ui/ProgressBar';
 import { IconsaxEnvelopeIcon } from '@/components/icons/IconsaxEnvelopeIcon';
-import { PLACEHOLDER_NU_EMAIL, PROGRAM_OPTIONS } from '@/components/auth/constants';
-import { RegisterChrome } from '@/components/auth/RegisterChrome';
+import { DEPARTMENT_OPTIONS, NU_DOMAIN, PROGRAM_OPTIONS } from '@/lib/auth/constants';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
-import { BottomSheet, Button, InputGroup } from 'heroui-native';
 
-const NU_DOMAIN = '@students.nu-dasma.edu.ph';
+type Step = 'email' | 'info' | 'program';
+
+const STEP_PROGRESS: Record<Step, number> = {
+  email: 0 / 3,
+  info: 1 / 3,
+  program: 2 / 3,
+};
 
 export default function SignUp() {
   const router = useRouter();
+
+  const [step, setStep] = useState<Step>('email');
+
   const [email, setEmail] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
-  const [program, setProgram] = useState<(typeof PROGRAM_OPTIONS)[number] | ''>('');
   const [studentId, setStudentId] = useState('');
-  const [programPickerOpen, setProgramPickerOpen] = useState(false);
+  const [department, setDepartment] = useState<(typeof DEPARTMENT_OPTIONS)[number] | ''>('');
+  const [program, setProgram] = useState<(typeof PROGRAM_OPTIONS)[number] | ''>('');
+
+  const [openPicker, setOpenPicker] = useState<'none' | 'department' | 'program'>('none');
+
+  const formatStudentId = (v: string) => {
+    const digits = v.replace(/\D/g, '').slice(0, 10);
+    return digits.length <= 4 ? digits : `${digits.slice(0, 4)}-${digits.slice(4)}`;
+  };
+  const STUDENT_ID_RE = /^\d{4}-\d{6}$/;
 
   const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [error, setError] = useState<{ tone: 'error' | 'warning'; message: string } | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [showSuccess, setShowSuccess] = useState(false);
 
-  const clearError = (field: string) => setErrors((prev) => {
-    const next = { ...prev };
-    delete next[field];
-    return next;
-  });
+  const clearFieldError = (field: string) =>
+    setFieldErrors((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
 
-  const selectProgram = useCallback((value: (typeof PROGRAM_OPTIONS)[number]) => {
-    setProgram(value);
-    setProgramPickerOpen(false);
-  }, []);
+  const handleNextFromEmail = useCallback(() => {
+    setError(null);
+    const trimmed = email.trim().toLowerCase();
+    if (!trimmed) return setFieldErrors({ email: 'Please enter your NU email.' });
+    if (!trimmed.endsWith(NU_DOMAIN))
+      return setFieldErrors({ email: 'Only @students.nu-dasma.edu.ph emails are allowed.' });
+    setFieldErrors({});
+    setStep('info');
+  }, [email]);
 
-  const handleSignUp = async () => {
-    const newErrors: Record<string, string> = {};
+  const handleNextFromInfo = useCallback(() => {
+    setError(null);
+    const errs: Record<string, string> = {};
+    if (!firstName.trim()) errs.firstName = 'First name is required.';
+    if (!lastName.trim()) errs.lastName = 'Last name is required.';
+    if (!studentId.trim()) errs.studentId = 'Student ID is required.';
+    else if (!STUDENT_ID_RE.test(studentId.trim()))
+      errs.studentId = 'Format must be YYYY-NNNNNN (e.g. 2023-172077).';
+    if (Object.keys(errs).length) return setFieldErrors(errs);
+    setFieldErrors({});
+    setStep('program');
+  }, [firstName, lastName, studentId]);
 
-    const trimmedEmail = email.trim().toLowerCase();
-    if (!trimmedEmail) {
-      newErrors.email = 'Please enter your NU email.';
-    } else if (!trimmedEmail.endsWith(NU_DOMAIN)) {
-      newErrors.email = 'Only @students.nu-dasma.edu.ph emails are allowed.';
-    }
-    if (!firstName.trim()) newErrors.firstName = 'First name is required.';
-    if (!lastName.trim()) newErrors.lastName = 'Last name is required.';
-    if (!program) newErrors.program = 'Please select your program.';
-    if (!studentId.trim()) newErrors.studentId = 'Student ID is required.';
-
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
-      return;
-    }
-
-    setErrors({});
+  const handleSubmit = useCallback(async () => {
+    setError(null);
+    const errs: Record<string, string> = {};
+    if (!department) errs.department = 'Please select your department.';
+    if (!program) errs.program = 'Please select your program.';
+    if (Object.keys(errs).length) return setFieldErrors(errs);
+    setFieldErrors({});
 
     if (!isSupabaseConfigured || !supabase) {
-      setErrors({ general: 'Supabase is not configured. Contact support.' });
+      setError({ tone: 'error', message: 'Supabase is not configured. Contact support.' });
       return;
     }
 
     setLoading(true);
     try {
       const redirectTo = Linking.createURL('/login');
-
       const { error: authError } = await supabase.auth.signUp({
-        email: trimmedEmail,
+        email: email.trim().toLowerCase(),
         password: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
         options: {
           emailRedirectTo: redirectTo,
@@ -79,235 +103,282 @@ export default function SignUp() {
             first_name: firstName.trim(),
             last_name: lastName.trim(),
             program,
+            department,
             student_id: studentId.trim(),
           },
         },
       });
-
-      if (authError) {
-        setErrors({ general: authError.message });
-      } else {
-        setShowSuccess(true);
-      }
-    } catch (e: any) {
-      const msg = e?.message?.toLowerCase?.() ?? '';
-      if (msg.includes('network') || msg.includes('fetch')) {
-        setErrors({ general: 'Network error — please check your internet connection and try again.' });
-      } else {
-        setErrors({ general: 'Something went wrong. Please try again.' });
-      }
+      if (authError) setError({ tone: 'warning', message: authError.message });
+      else setShowSuccess(true);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message.toLowerCase() : '';
+      setError({
+        tone: 'warning',
+        message:
+          msg.includes('network') || msg.includes('fetch')
+            ? 'Network error — please check your internet and try again.'
+            : 'Something went wrong. Please try again.',
+      });
     } finally {
       setLoading(false);
     }
-  };
+  }, [department, email, firstName, lastName, program, studentId]);
+
+  const handleBack = useCallback(() => {
+    setError(null);
+    setFieldErrors({});
+    if (step === 'info') setStep('email');
+    else if (step === 'program') setStep('info');
+  }, [step]);
 
   return (
     <>
-    <RegisterChrome
-      title="Create your Account"
-      subtitle="Sign up to enjoy the best student welfare experience exclusively on National University."
-      footer={
-        <>
-          {errors.general ? (
-            <View className="flex-row items-start gap-3 rounded-xl border border-[#FED7AA] bg-[#FFFBEB] px-3.5 py-3">
-              <View className="mt-0.5">
-                <Ionicons name="warning" size={20} color="#D97706" />
+      <BottomSheetModal
+        onClose={() => router.back()}
+        dismissOnBackdropPress={step === 'email'}>
+        <View style={styles.content}>
+          {/* Progress bar */}
+          <ProgressBar value={STEP_PROGRESS[step]} />
+
+          {/* ── STEP 1: Email ── */}
+          {step === 'email' && (
+            <>
+              <View style={styles.textBlock}>
+                <Text style={styles.title}>Let&apos;s get started with your school email</Text>
+                <Text style={styles.subtitle}>
+                  Use your email to save your progress and enjoy smooth experience.
+                </Text>
               </View>
-              <Text className="flex-1 text-sm leading-5 text-[#92400E]">{errors.general}</Text>
-            </View>
-          ) : null}
-          <Button
-            variant="primary"
-            className="h-12 w-full rounded-3xl border border-[#001229]/10 bg-[#2970FF]"
-            isDisabled={loading}
-            onPress={handleSignUp}>
-            {loading ? (
-              <ActivityIndicator color="#FFFFFF" size="small" />
-            ) : (
-              <Button.Label className="font-semibold leading-5 text-white">Create my account</Button.Label>
-            )}
-          </Button>
-          <AuthLegalFooter topSpacing={false} />
-        </>
-      }>
-      <View className="gap-4">
-        <AuthSegmentedNav active="signup" className="mt-0" />
 
-        <View className="gap-1.5">
-          <Text className="text-sm font-semibold leading-5 text-[#494A50]">NU Email</Text>
-          <InputGroup className="relative w-full">
-            <InputGroup.Input
-              variant="primary"
-              autoCapitalize="none"
-              autoCorrect={false}
-              keyboardType="email-address"
-              placeholder={PLACEHOLDER_NU_EMAIL}
-              placeholderColorClassName="text-[#8F9098]"
-              value={email}
-              onChangeText={(v: string) => { setEmail(v); clearError('email'); }}
-            />
-            <InputGroup.Suffix isDecorative>
-              <IconsaxEnvelopeIcon size={22} />
-            </InputGroup.Suffix>
-          </InputGroup>
-          {errors.email ? (
-            <Text className="mt-1 text-sm leading-5 text-red-500">{errors.email}</Text>
-          ) : null}
-        </View>
+              {error ? <AuthErrorBanner message={error.message} tone={error.tone} /> : null}
 
-        <View className="flex-row gap-4">
-          <View className="min-w-0 flex-1 gap-1.5">
-            <Text className="text-sm font-semibold leading-5 text-[#494A50]">First name</Text>
-            <InputGroup className="relative w-full">
-              <InputGroup.Input
-                variant="primary"
+              <AppInput
+                error={fieldErrors.email}
+                inputType="email"
+                placeholder="johndoe@students.nu-dasma.edu.ph"
+                autoCapitalize="none"
                 autoCorrect={false}
-                placeholder="Juan"
-                placeholderColorClassName="text-[#8F9098]"
-                value={firstName}
-                onChangeText={(v: string) => { setFirstName(v); clearError('firstName'); }}
+                clearButtonMode="while-editing"
+                keyboardType="email-address"
+                value={email}
+                onChangeText={(v) => { setEmail(v); clearFieldError('email'); setError(null); }}
+                prefix={<IconsaxEnvelopeIcon size={20} color="#717680" />}
+                prefixDivider
+                fieldStyle={{ paddingRight: 8 }}
               />
-            </InputGroup>
-            {errors.firstName ? (
-              <Text className="mt-1 text-sm leading-5 text-red-500">{errors.firstName}</Text>
-            ) : null}
-          </View>
-            <View className="min-w-0 flex-1 gap-1.5">
-            <Text className="text-sm font-semibold leading-5 text-[#494A50]">Last name</Text>
-            <InputGroup className="relative w-full">
-              <InputGroup.Input
-                variant="primary"
-                autoCorrect={false}
-                placeholder="Dela Cruz"
-                placeholderColorClassName="text-[#8F9098]"
-                value={lastName}
-                onChangeText={(v: string) => { setLastName(v); clearError('lastName'); }}
-              />
-            </InputGroup>
-            {errors.lastName ? (
-              <Text className="mt-1 text-sm leading-5 text-red-500">{errors.lastName}</Text>
-            ) : null}
-          </View>
-        </View>
 
-        <View className="flex-row gap-4">
-          <View className="min-w-0 flex-1 gap-1.5">
-            <Text className="text-sm font-semibold leading-5 text-[#494A50]">Program</Text>
-            <BottomSheet
-              className="w-full"
-              isOpen={programPickerOpen}
-              onOpenChange={setProgramPickerOpen}>
-              <BottomSheet.Trigger className="w-full" accessibilityLabel="Select program">
-                <InputGroup>
-                  <InputGroup.Input
-                    variant="primary"
-                    editable={false}
-                    pointerEvents="none"
-                    showSoftInputOnFocus={false}
-                    placeholder="Select program"
-                    placeholderColorClassName="text-[#8F9098]"
-                    value={program}
+              <AppButton
+                label="Continue"
+                onPress={handleNextFromEmail}
+                variant="primary"
+                disabled={!email.trim()}
+              />
+
+              <Text style={styles.footerText}>
+                {'Already have an account? '}
+                <Text style={styles.footerLink} onPress={() => router.replace('/login')}>
+                  Sign in
+                </Text>
+              </Text>
+            </>
+          )}
+
+          {/* ── STEP 2: Basic info ── */}
+          {step === 'info' && (
+            <>
+              <View style={styles.textBlock}>
+                <Text style={styles.title}>Tell us something about you</Text>
+                <Text style={styles.subtitle}>
+                  Use your email to save your progress and enjoy smooth experience.
+                </Text>
+              </View>
+
+              {error ? <AuthErrorBanner message={error.message} tone={error.tone} /> : null}
+
+              <View style={styles.row}>
+                <View style={styles.rowCell}>
+                  <AppInput
+                    placeholder="First Name"
+                    error={fieldErrors.firstName}
+                    autoCorrect={false}
+                    autoCapitalize="words"
+                    value={firstName}
+                    onChangeText={(v) => { setFirstName(v); clearFieldError('firstName'); }}
                   />
-                  <InputGroup.Suffix isDecorative>
-                    <IconsaxArrowDownIcon size={18} color="#717680" />
-                  </InputGroup.Suffix>
-                </InputGroup>
-              </BottomSheet.Trigger>
-              <BottomSheet.Portal>
-                <BottomSheet.Overlay isCloseOnPress />
-                <BottomSheet.Content snapPoints={['60%', '85%']} index={0}>
-                  {/* Drag handle */}
-                  <View className="mb-4 items-center">
-                    <View className="h-1 w-10 rounded-full bg-[#E5E7EB]" />
-                  </View>
+                </View>
+                <View style={styles.rowCell}>
+                  <AppInput
+                    placeholder="Last Name"
+                    error={fieldErrors.lastName}
+                    autoCorrect={false}
+                    autoCapitalize="words"
+                    value={lastName}
+                    onChangeText={(v) => { setLastName(v); clearFieldError('lastName'); }}
+                  />
+                </View>
+              </View>
 
-                  {/* Header */}
-                  <View className="mb-4 px-1">
-                    <BottomSheet.Title className="text-base font-semibold leading-6 text-[#181D27]">
-                      Select Program
-                    </BottomSheet.Title>
-                    <Text className="mt-0.5 text-sm leading-5 text-[#717680]">
-                      Choose the program you are currently enrolled in
-                    </Text>
-                  </View>
-
-                  <ScrollView
-                    className="flex-1"
-                    keyboardShouldPersistTaps="handled"
-                    showsVerticalScrollIndicator={false}>
-                    {PROGRAM_OPTIONS.map((opt, index) => {
-                      const isSelected = program === opt;
-                      return (
-                        <Pressable
-                          key={opt}
-                          accessibilityRole="radio"
-                          accessibilityState={{ checked: isSelected }}
-                          className={`mx-1 flex-row items-center justify-between rounded-xl px-4 py-4 ${
-                            isSelected ? 'bg-[#EEF3FF]' : 'active:bg-[#F9FAFB]'
-                          } ${index < PROGRAM_OPTIONS.length - 1 ? 'mb-1' : ''}`}
-                          onPress={() => selectProgram(opt)}>
-                          <View className="mr-3 flex-1">
-                            <Text
-                              className={`text-sm leading-5 ${
-                                isSelected ? 'font-semibold text-[#2970FF]' : 'font-medium text-[#181D27]'
-                              }`}>
-                              {opt}
-                            </Text>
-                          </View>
-                          <View
-                            className={`h-5 w-5 items-center justify-center rounded-full border-2 ${
-                              isSelected ? 'border-[#2970FF] bg-[#2970FF]' : 'border-[#D1D5DB]'
-                            }`}>
-                            {isSelected ? (
-                              <Ionicons name="checkmark" size={13} color="#FFFFFF" />
-                            ) : null}
-                          </View>
-                        </Pressable>
-                      );
-                    })}
-                    <View className="h-4" />
-                  </ScrollView>
-                </BottomSheet.Content>
-              </BottomSheet.Portal>
-            </BottomSheet>
-            {errors.program ? (
-              <Text className="mt-1 text-sm leading-5 text-red-500">{errors.program}</Text>
-            ) : null}
-          </View>
-          <View className="min-w-0 flex-1 gap-1.5">
-            <Text className="text-sm font-semibold leading-5 text-[#494A50]">Student ID</Text>
-            <InputGroup className="relative w-full">
-              <InputGroup.Input
-                variant="primary"
+              <AppInput
+                placeholder="Student ID (e.g. 2023-172077)"
+                error={fieldErrors.studentId}
                 autoCorrect={false}
-                keyboardType="default"
-                placeholder="e.g. 2024-12345"
-                placeholderColorClassName="text-[#8F9098]"
+                autoCapitalize="none"
+                keyboardType="number-pad"
+                maxLength={11}
                 value={studentId}
-                onChangeText={(v: string) => { setStudentId(v); clearError('studentId'); }}
+                onChangeText={(v) => { setStudentId(formatStudentId(v)); clearFieldError('studentId'); }}
               />
-            </InputGroup>
-            {errors.studentId ? (
-              <Text className="mt-1 text-sm leading-5 text-red-500">{errors.studentId}</Text>
-            ) : null}
-          </View>
-        </View>
-      </View>
-    </RegisterChrome>
 
-    <AuthSuccessModal
-      visible={showSuccess}
-      onClose={() => {
-        setShowSuccess(false);
-        router.replace('/login');
-      }}
-      icon="checkmark-circle"
-      iconColor="#22C55E"
-      iconBg="rgba(34,197,94,0.1)"
-      title="Account Created!"
-      message="Your CampusCare account has been created. Please check your NU email to verify your account, then sign in with a magic link."
-      buttonLabel="Go to Login"
-    />
+              <View style={{ gap: 4 }}>
+                <AppButton
+                  label="Next"
+                  onPress={handleNextFromInfo}
+                  variant="primary"
+                  disabled={!firstName.trim() || !lastName.trim() || !studentId.trim()}
+                />
+                <Pressable onPress={handleBack} style={styles.goBackBtn} hitSlop={8}>
+                  <Text style={styles.goBackLabel}>Go back</Text>
+                </Pressable>
+              </View>
+
+              <Text style={styles.footerText}>
+                {'Already have an account? '}
+                <Text style={styles.footerLink} onPress={() => router.replace('/login')}>
+                  Sign in
+                </Text>
+              </Text>
+            </>
+          )}
+
+          {/* ── STEP 3: Program & department ── */}
+          {step === 'program' && (
+            <>
+              <View style={styles.textBlock}>
+                <Text style={styles.title}>What&apos;s your program and department</Text>
+                <Text style={styles.subtitle}>
+                  Use your email to save your progress and enjoy smooth experience.
+                </Text>
+              </View>
+
+              {error ? <AuthErrorBanner message={error.message} tone={error.tone} /> : null}
+
+              <InlineSelect
+                placeholder="School Department"
+                options={DEPARTMENT_OPTIONS}
+                value={department}
+                error={fieldErrors.department}
+                open={openPicker === 'department'}
+                onOpenChange={(o) => setOpenPicker(o ? 'department' : 'none')}
+                onChange={(v) => {
+                  setDepartment(v);
+                  clearFieldError('department');
+                  setProgram('');
+                }}
+              />
+
+              <InlineSelect
+                placeholder={department ? 'Program / Course' : 'Select a department first'}
+                options={PROGRAM_OPTIONS}
+                value={program}
+                error={fieldErrors.program}
+                disabled={!department}
+                open={openPicker === 'program'}
+                onOpenChange={(o) => setOpenPicker(o ? 'program' : 'none')}
+                onChange={(v) => { setProgram(v); clearFieldError('program'); }}
+              />
+
+              <View style={{ gap: 4 }}>
+                <AppButton
+                  label="Create my account"
+                  onPress={handleSubmit}
+                  loading={loading}
+                  variant="primary"
+                  disabled={!department || !program}
+                />
+                <Pressable onPress={handleBack} style={styles.goBackBtn} hitSlop={8}>
+                  <Text style={styles.goBackLabel}>Go back</Text>
+                </Pressable>
+              </View>
+
+              <Text style={styles.footerText}>
+                {'Already have an account? '}
+                <Text style={styles.footerLink} onPress={() => router.replace('/login')}>
+                  Sign in
+                </Text>
+              </Text>
+            </>
+          )}
+
+        </View>
+      </BottomSheetModal>
+
+      <AuthSuccessModal
+        visible={showSuccess}
+        onClose={() => { setShowSuccess(false); router.replace('/login'); }}
+        icon="checkmark-circle"
+        iconColor="#22C55E"
+        iconBg="rgba(34,197,94,0.1)"
+        title="Account Created!"
+        message="Your CampusCare account has been created. Please check your NU email to verify your account, then sign in with a magic link."
+        buttonLabel="Go to Login"
+      />
     </>
   );
 }
+
+const styles = StyleSheet.create({
+  content: {
+    gap: 20,
+    paddingHorizontal: 4,
+    paddingTop: 8,
+  },
+  textBlock: {
+    gap: 8,
+    marginTop: 8,
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: '700',
+    letterSpacing: -0.56,
+    color: '#181D27',
+    lineHeight: 36,
+  },
+  subtitle: {
+    fontSize: 16,
+    fontWeight: '400',
+    letterSpacing: -0.32,
+    color: '#717680',
+    lineHeight: 24,
+  },
+  row: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  rowCell: {
+    flex: 1,
+    minWidth: 0,
+  },
+  footerText: {
+    fontSize: 14,
+    color: '#A4A7AE',
+    textAlign: 'center',
+    letterSpacing: -0.24,
+    lineHeight: 14,
+    marginTop: 4,
+  },
+  footerLink: {
+    fontWeight: '500',
+    color: '#717680',
+  },
+  goBackBtn: {
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  goBackLabel: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#528BFF',
+    letterSpacing: -0.32,
+  },
+});

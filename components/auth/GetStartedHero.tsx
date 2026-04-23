@@ -1,22 +1,23 @@
-import { StyleSheet, Image, Pressable, Text, View, useWindowDimensions } from 'react-native';
+import { StyleSheet, Image, Text, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 
+import { AppButton } from '@/components/ui/AppButton';
 import { AppLogoIcon } from '@/components/icons/AppLogoIcon';
 
 const HERO_IMAGE_URI = 'https://www.figma.com/api/mcp/asset/49a36b8c-5a42-4cb6-b990-1275440cb77b';
 
-const BRAND       = '#2970FF';
-const BRAND_DARK  = '#155EEF';
-const BRAND_SOFT  = '#F5F8FF';
-const BG          = '#F5F5F5';
+const BRAND_DARK = '#155EEF';
+const BG         = '#F5F5F5';
 
 export type GetStartedHeroProps = {
   onSignIn: () => void;
   onSignUp: () => void;
+  onTerms?: () => void;
+  onPrivacy?: () => void;
 };
 
-export function GetStartedHero({ onSignIn, onSignUp }: GetStartedHeroProps) {
+export function GetStartedHero({ onSignIn, onSignUp, onTerms, onPrivacy }: GetStartedHeroProps) {
   const insets = useSafeAreaInsets();
   const { width: screenW } = useWindowDimensions();
 
@@ -71,29 +72,28 @@ export function GetStartedHero({ onSignIn, onSignUp }: GetStartedHeroProps) {
 
           {/* Buttons */}
           <View style={styles.btnStack}>
-            <Pressable
-              onPress={onSignIn}
-              accessibilityRole="button"
-              accessibilityLabel="Sign in with Email"
-              style={({ pressed }) => [styles.btnPrimary, pressed && styles.btnPrimaryPressed]}>
-              <Text style={styles.btnPrimaryLabel}>Sign in with Email</Text>
-            </Pressable>
-
-            <Pressable
-              onPress={onSignUp}
-              accessibilityRole="button"
-              accessibilityLabel="I don't have an account"
-              style={({ pressed }) => [styles.btnSecondary, pressed && styles.btnSecondaryPressed]}>
-              <Text style={styles.btnSecondaryLabel}>I don't have an account</Text>
-            </Pressable>
+            <AppButton label="Sign in with Email" onPress={onSignIn} variant="primary" />
+            <AppButton label="I don't have an account" onPress={onSignUp} variant="secondary" />
           </View>
 
           {/* Legal */}
           <Text style={styles.legal}>
             {'By proceeding to use CampusCare, you agree to our '}
-            <Text style={styles.legalLink}>terms of use</Text>
+            <Text
+              style={styles.legalLink}
+              onPress={onTerms}
+              accessibilityRole="link"
+              accessibilityLabel="Terms of use">
+              terms of use
+            </Text>
             {' and acknowledge that you have read our '}
-            <Text style={styles.legalLink}>privacy policy</Text>
+            <Text
+              style={styles.legalLink}
+              onPress={onPrivacy}
+              accessibilityRole="link"
+              accessibilityLabel="Privacy policy">
+              privacy policy
+            </Text>
           </Text>
         </View>
       </SafeAreaView>
@@ -160,40 +160,6 @@ const styles = StyleSheet.create({
   btnStack: {
     marginTop: 12,
     gap: 12,
-  },
-  btnPrimary: {
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: BRAND,
-    borderWidth: 1,
-    borderColor: 'rgba(0,18,41,0.10)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  btnPrimaryPressed: {
-    backgroundColor: '#1D65F5',
-  },
-  btnPrimaryLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    letterSpacing: -0.32,
-  },
-  btnSecondary: {
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: BRAND_SOFT,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  btnSecondaryPressed: {
-    backgroundColor: '#EBF0FF',
-  },
-  btnSecondaryLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: BRAND_DARK,
-    letterSpacing: -0.32,
   },
   legal: {
     fontSize: 12,
