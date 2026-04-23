@@ -17,7 +17,7 @@ export default function Index() {
     if (!isConfigured || session) {
       router.replace('/(tabs)');
     } else {
-      router.replace('/login');
+      router.replace('/(auth)');
     }
   }, [isLoading, isConfigured, session, router]);
 

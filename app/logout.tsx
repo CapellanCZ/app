@@ -10,7 +10,7 @@ export default function LogoutScreen() {
   useEffect(() => {
     void (async () => {
       await supabase?.auth.signOut();
-      router.replace('/login');
+      router.replace('/(auth)');
     })();
   }, [router]);
 
