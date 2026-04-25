@@ -4,12 +4,13 @@ import { SCHEDULE_PARTNER } from '@/lib/ui/theme';
 import { IconsaxLocationIcon } from '@/components/icons/IconsaxLocationIcon';
 import { IconsaxFlagIcon } from '@/components/icons/IconsaxFlagIcon';
 import { IconsaxClipboardTextIcon } from '@/components/icons/IconsaxClipboardTextIcon';
+import { IconsaxEditIcon } from '@/components/icons/IconsaxEditIcon';
 import { IconsaxProfile2UserIcon } from '@/components/icons/IconsaxProfile2UserIcon';
 import { IconsaxEyeIcon } from '@/components/icons/IconsaxEyeIcon';
 import { IconsaxClockIcon } from '@/components/icons/IconsaxClockIcon';
 import { IconsaxCalendarIcon } from '@/components/icons/IconsaxCalendarIcon';
 import { IconsaxTickCircleIcon } from '@/components/icons/IconsaxTickCircleIcon';
-import type { Referral, ReferralStatus } from '@/lib/referrals/types';
+import type { StudentReferral, ReferralStatus, WelfareOffice, CATEGORY_LABELS } from '@/lib/referrals/types';
 
 const T = SCHEDULE_PARTNER;
 
@@ -43,7 +44,34 @@ function timeAgo(date: Date): string {
   return `${Math.floor(diffDays / 365)}y ago`;
 }
 
-type Props = { referral: Referral; onPress?: () => void };
+type Props = { referral: StudentReferral; onPress?: () => void };
+
+// Helper to get office display name
+function getOfficeLabel(office: WelfareOffice): string {
+  const labels: Record<WelfareOffice, string> = {
+    health: 'Health Services Clinic',
+    counseling: 'Counseling & Guidance Office',
+    sdao: 'Student Development & Affairs',
+    discipline: 'Discipline Office',
+  };
+  return labels[office] ?? office;
+}
+
+// Helper to get category display name
+function getCategoryLabel(category: string): string {
+  const labels: Record<string, string> = {
+    mental_health: 'Mental Health',
+    physical_health: 'Physical Health',
+    behavioral: 'Behavioral',
+    academic: 'Academic Concern',
+    family_issue: 'Family Issue',
+    bullying: 'Bullying',
+    disciplinary: 'Disciplinary',
+    financial: 'Financial',
+    other: 'Other',
+  };
+  return labels[category] ?? category.replace('_', ' ');
+}
 
 export function ReferralCard({ referral, onPress }: Props) {
   const status = STATUS_CONFIG[referral.status];
@@ -68,10 +96,10 @@ export function ReferralCard({ referral, onPress }: Props) {
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <View style={{ flex: 1, marginRight: 10 }}>
           <Text style={{ fontSize: 20, fontWeight: '700', color: T.textPrimary, letterSpacing: -0.3 }}>
-            {referral.category}
+            {getCategoryLabel(referral.category)}
           </Text>
           <Text style={{ fontSize: 12, color: T.textDisabled, marginTop: 2 }}>
-            {referral.referralNumber} • {timeAgo(referral.createdAt)}
+            {referral.referenceId} • {timeAgo(new Date(referral.createdAt))}
           </Text>
         </View>
         <View style={{
@@ -93,14 +121,14 @@ export function ReferralCard({ referral, onPress }: Props) {
           <IconsaxLocationIcon size={20} color={T.textDisabled} />
           <View>
             <Text style={{ fontSize: 12, color: T.textDisabled }}>From</Text>
-            <Text style={{ fontSize: 14, color: T.textPrimary, marginTop: 1 }}>{referral.fromOffice}</Text>
+            <Text style={{ fontSize: 14, color: T.textPrimary, marginTop: 1 }}>{getOfficeLabel(referral.fromService)}</Text>
           </View>
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}>
           <IconsaxFlagIcon size={20} color={T.textDisabled} />
           <View>
             <Text style={{ fontSize: 12, color: T.textDisabled }}>To</Text>
-            <Text style={{ fontSize: 14, color: T.textPrimary, marginTop: 1 }}>{referral.toOffice}</Text>
+            <Text style={{ fontSize: 14, color: T.textPrimary, marginTop: 1 }}>{getOfficeLabel(referral.toService)}</Text>
           </View>
         </View>
       </View>
@@ -120,54 +148,55 @@ export function ReferralCard({ referral, onPress }: Props) {
         }}>
           <IconsaxClipboardTextIcon size={18} color={T.textMuted} />
         </View>
-        <View style={{ flex: 1, gap: 10 }}>
-          <View style={{ flexDirection: 'row', gap: 6 }}>
-            <Text style={{ fontSize: 13, fontWeight: '600', color: T.textPrimary, width: 72 }}>Reason:</Text>
-            <Text style={{ fontSize: 13, color: T.textMuted, flex: 1, lineHeight: 19 }}>
-              {referral.reason}
-            </Text>
-          </View>
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontSize: 14, fontWeight: '600', color: T.textPrimary, marginBottom: 6 }}>Reason</Text>
+          <Text style={{ fontSize: 14, color: T.textMuted, lineHeight: 20 }}>
+            {referral.reason}
+          </Text>
         </View>
       </View>
 
-      {/* Separator */}
-      <View style={{ height: 1, backgroundColor: T.divider }} />
-
-      {/* ── Staff ────────────────────────────────── */}
-      <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}>
-        <View style={{
-          width: 36, height: 36, borderRadius: 10,
-          backgroundColor: T.segmentTrackBg,
-          alignItems: 'center', justifyContent: 'center',
-          flexShrink: 0,
-        }}>
-          <IconsaxProfile2UserIcon size={18} color={T.textMuted} />
-        </View>
-        <View style={{ flex: 1, gap: 10 }}>
-          <View style={{ flexDirection: 'row', gap: 6 }}>
-            <Text style={{ fontSize: 13, fontWeight: '600', color: T.textPrimary, width: 72 }}>Referred:</Text>
-            <Text style={{ fontSize: 13, color: T.textMuted, flex: 1 }}>{referral.referredBy}</Text>
-          </View>
-          <View style={{ flexDirection: 'row', gap: 6 }}>
-            <Text style={{ fontSize: 13, fontWeight: '600', color: T.textPrimary, width: 72 }}>Assigned:</Text>
-            <Text style={{
-              fontSize: 13, flex: 1,
-              color: referral.assignedTo ? T.textMuted : T.textDisabled,
-              fontStyle: referral.assignedTo ? 'normal' : 'italic',
-            }}>
-              {referral.assignedTo ?? 'Not yet assigned'}
+      {/* ── Appointment ────────────────────────────────── */}
+      {referral.appointmentDate ? (
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginTop: 4 }}>
+          <View style={{ width: 36 }} />
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 14, fontWeight: '600', color: T.textPrimary, marginBottom: 6 }}>Appointment</Text>
+            <Text style={{ fontSize: 14, color: T.textMuted, lineHeight: 20 }}>
+              {new Date(referral.appointmentDate).toLocaleString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit',
+              })}
             </Text>
           </View>
-          {referral.nextAppointment ? (
-            <View style={{ flexDirection: 'row', gap: 6 }}>
-              <Text style={{ fontSize: 13, fontWeight: '600', color: T.textPrimary, width: 72 }}>Schedule:</Text>
-              <Text style={{ fontSize: 13, fontWeight: '600', color: T.brand, flex: 1 }}>
-                {referral.nextAppointment}
-              </Text>
-            </View>
-          ) : null}
         </View>
-      </View>
+      ) : null}
+
+      {/* ── Notes ────────────────────────────────── */}
+      {referral.studentNotes ? (
+        <>
+          {/* Separator */}
+          <View style={{ height: 1, backgroundColor: T.divider, marginTop: 4 }} />
+
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}>
+          <View style={{
+            width: 36, height: 36, borderRadius: 10,
+            backgroundColor: T.segmentTrackBg,
+            alignItems: 'center', justifyContent: 'center',
+            flexShrink: 0,
+          }}>
+            <IconsaxEditIcon size={18} color={T.textMuted} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 14, fontWeight: '600', color: T.textPrimary, marginBottom: 6 }}>Note</Text>
+            <Text style={{ fontSize: 14, color: T.textMuted, lineHeight: 20 }}>{referral.studentNotes}</Text>
+          </View>
+        </View>
+        </>
+      ) : null}
     </Pressable>
   );
 }
