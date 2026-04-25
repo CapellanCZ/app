@@ -4,6 +4,7 @@ import * as Linking from 'expo-linking';
 import type { Session } from '@supabase/supabase-js';
 
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { registerPushToken } from '@/lib/notifications/registerPushToken';
 
 /** Extract tokens from a Supabase magic-link redirect URL hash fragment. */
 function extractTokensFromUrl(url: string) {
@@ -80,6 +81,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       linkSub.remove();
     };
   }, []);
+
+  // Register Expo push token with Supabase whenever we have a session.
+  useEffect(() => {
+    if (session?.user?.id) {
+      registerPushToken(session.user.id);
+    }
+  }, [session?.user?.id]);
 
   return (
     <AuthContext.Provider value={{ session, isLoading, isConfigured: isSupabaseConfigured }}>

@@ -10,6 +10,8 @@ import { TamaguiProvider } from 'tamagui';
 
 import { UniwindInsetSync } from '@/components/UniwindInsetSync';
 import { AuthProvider } from '@/lib/auth/AuthProvider';
+import { NotificationHandler } from '@/components/notifications/NotificationHandler';
+import { NotificationSubscription } from '@/components/notifications/NotificationSubscription';
 import { tamaguiConfig } from '../tamagui.config';
 
 export const unstable_settings = {
@@ -37,6 +39,8 @@ export default function RootLayout() {
           <SafeAreaProvider>
             <KeyboardProvider>
               <AuthProvider>
+              <NotificationHandler />
+              <NotificationSubscription />
               <UniwindInsetSync />
               <Stack
                 screenOptions={{

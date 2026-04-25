@@ -1,27 +1,79 @@
-import { Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
- 
+import { StyleSheet, Text, View } from 'react-native';
+
+import { IconsaxDangerIcon } from '@/components/icons/IconsaxDangerIcon';
+
 type Tone = 'error' | 'warning';
- 
+
 type AuthErrorBannerProps = {
   message: string;
   tone?: Tone;
 };
- 
-const THEME: Record<Tone, { border: string; bg: string; text: string; icon: string; iconName: React.ComponentProps<typeof Ionicons>['name'] }> = {
-  error: { border: 'border-[#FECACA]', bg: 'bg-[#FFF1F0]', text: 'text-[#991B1B]', icon: '#DC2626', iconName: 'alert-circle' },
-  warning: { border: 'border-[#FED7AA]', bg: 'bg-[#FFFBEB]', text: 'text-[#92400E]', icon: '#D97706', iconName: 'warning' },
+
+type Theme = {
+  border: string;
+  bg: string;
+  iconBg: string;
+  text: string;
+  icon: string;
 };
- 
+
+const THEME: Record<Tone, Theme> = {
+  error: {
+    border: '#FEE4E2',
+    bg: '#FFFBFA',
+    iconBg: '#FEE4E2',
+    text: '#912018',
+    icon: '#D92D20',
+  },
+  warning: {
+    border: '#FEDF89',
+    bg: '#FFFCF5',
+    iconBg: '#FEF0C7',
+    text: '#93370D',
+    icon: '#DC6803',
+  },
+};
+
+/**
+ * Inline alert card shown above auth forms. The triangular danger icon is
+ * centered within a tinted circular badge that aligns to the first line of
+ * the message.
+ */
 export function AuthErrorBanner({ message, tone = 'warning' }: AuthErrorBannerProps) {
   const t = THEME[tone];
- 
+
   return (
-    <View className={`flex-row items-start gap-3 rounded-xl border px-3.5 py-3 ${t.border} ${t.bg}`}>
-      <View className="mt-0.5">
-        <Ionicons name={t.iconName} size={20} color={t.icon} />
+    <View style={[styles.card, { backgroundColor: t.bg, borderColor: t.border }]}>
+      <View style={[styles.iconBadge, { backgroundColor: t.iconBg }]}>
+        <IconsaxDangerIcon size={18} color={t.icon} />
       </View>
-      <Text className={`flex-1 text-sm leading-5 ${t.text}`}>{message}</Text>
+      <Text style={[styles.message, { color: t.text }]}>{message}</Text>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  card: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+  },
+  iconBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  message: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '500',
+    lineHeight: 18,
+    letterSpacing: -0.13,
+  },
+});

@@ -1,10 +1,12 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { NotificationListRow } from '@/components/notifications/NotificationListRow';
 import { SCHEDULE_PARTNER } from '@/lib/health-service/bookingScheduleTheme';
+import { useAuth } from '@/lib/auth/AuthProvider';
 import { useNotificationStore } from '@/lib/notifications/notificationStore';
 import {
   HOME_BG_GRADIENT_COLORS,
@@ -60,10 +62,30 @@ function SectionHeader({ title, unreadCount, onMarkAllRead }: SectionHeaderProps
 
 export default function NotificationScreen() {
   const insets = useSafeAreaInsets();
+  const { session } = useAuth();
   const items = useNotificationStore((s) => s.items);
+  const fetchAll = useNotificationStore((s) => s.fetchAll);
   const markAllReadInSection = useNotificationStore((s) => s.markAllReadInSection);
   const archiveNotification = useNotificationStore((s) => s.archive);
   const [readFilter, setReadFilter] = useState<ReadFilter>('all');
+
+  // Load mock data if not authenticated
+  useEffect(() => {
+    if (!session?.user?.id) {
+      useNotificationStore.getState().loadMock();
+    }
+  }, [session?.user?.id]);
+
+  // Refresh when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      const userId = session?.user?.id;
+      if (userId) {
+        console.log('[NotificationScreen] Focused - refreshing notifications');
+        fetchAll(userId);
+      }
+    }, [session?.user?.id, fetchAll])
+  );
 
   const unreadCount = useMemo(() => items.filter((n) => !n.read).length, [items]);
 

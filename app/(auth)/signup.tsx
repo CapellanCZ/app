@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
@@ -7,7 +7,7 @@ import { AuthErrorBanner } from '@/components/auth/AuthErrorBanner';
 import { AuthSuccessModal } from '@/components/auth/AuthSuccessModal';
 import { AppButton } from '@/components/ui/AppButton';
 import { AppInput } from '@/components/ui/AppInput';
-import { BottomSheetModal } from '@/components/ui/BottomSheetModal';
+import { BottomSheetModal, type BottomSheetModalHandle } from '@/components/ui/BottomSheetModal';
 import { InlineSelect } from '@/components/ui/InlineSelect';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { IconsaxEnvelopeIcon } from '@/components/icons/IconsaxEnvelopeIcon';
@@ -24,6 +24,8 @@ const STEP_PROGRESS: Record<Step, number> = {
 
 export default function SignUp() {
   const router = useRouter();
+  const sheetRef = useRef<BottomSheetModalHandle>(null);
+  const goToLogin = () => sheetRef.current?.dismiss(() => router.replace('/login'));
 
   const [step, setStep] = useState<Step>('email');
 
@@ -134,6 +136,7 @@ export default function SignUp() {
   return (
     <>
       <BottomSheetModal
+        ref={sheetRef}
         onClose={() => router.back()}
         dismissOnBackdropPress={step === 'email'}>
         <View style={styles.content}>
@@ -176,7 +179,7 @@ export default function SignUp() {
 
               <Text style={styles.footerText}>
                 {'Already have an account? '}
-                <Text style={styles.footerLink} onPress={() => router.replace('/login')}>
+                <Text style={styles.footerLink} onPress={goToLogin}>
                   Sign in
                 </Text>
               </Text>
@@ -243,7 +246,7 @@ export default function SignUp() {
 
               <Text style={styles.footerText}>
                 {'Already have an account? '}
-                <Text style={styles.footerLink} onPress={() => router.replace('/login')}>
+                <Text style={styles.footerLink} onPress={goToLogin}>
                   Sign in
                 </Text>
               </Text>
@@ -302,7 +305,7 @@ export default function SignUp() {
 
               <Text style={styles.footerText}>
                 {'Already have an account? '}
-                <Text style={styles.footerLink} onPress={() => router.replace('/login')}>
+                <Text style={styles.footerLink} onPress={goToLogin}>
                   Sign in
                 </Text>
               </Text>

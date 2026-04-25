@@ -13,7 +13,7 @@ import { AuthErrorBanner } from '@/components/auth/AuthErrorBanner';
 import { OtpCodeInput } from '@/components/auth/OtpCodeInput';
 import { AppButton } from '@/components/ui/AppButton';
 import { AppInput } from '@/components/ui/AppInput';
-import { BottomSheetModal } from '@/components/ui/BottomSheetModal';
+import { BottomSheetModal, type BottomSheetModalHandle } from '@/components/ui/BottomSheetModal';
 import { IconsaxEnvelopeIcon } from '@/components/icons/IconsaxEnvelopeIcon';
 import { NU_DOMAIN, RESEND_COOLDOWN_SECONDS } from '@/lib/auth/constants';
 
@@ -24,6 +24,8 @@ type Step = 'email' | 'verify';
 export default function Login() {
   const router = useRouter();
   const { session } = useAuth();
+  const sheetRef = useRef<BottomSheetModalHandle>(null);
+  const goToSignup = () => sheetRef.current?.dismiss(() => router.replace('/signup'));
 
   const [email, setEmail] = useState('');
   const [step, setStep] = useState<Step>('email');
@@ -88,6 +90,7 @@ export default function Login() {
 
   return (
     <BottomSheetModal
+      ref={sheetRef}
       onClose={() => router.back()}
       dismissOnBackdropPress={step !== 'verify'}>
 
@@ -128,7 +131,7 @@ export default function Login() {
 
               <Text style={styles.footerText}>
                 {'Don\u2019t have an account? '}
-                <Text style={styles.footerLink} onPress={() => router.replace('/signup')}>
+                <Text style={styles.footerLink} onPress={goToSignup}>
                   Sign up
                 </Text>
               </Text>
