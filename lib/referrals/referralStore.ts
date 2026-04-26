@@ -35,6 +35,7 @@ type ReferralState = {
 // ============================================
 // DATABASE ROW TYPE (snake_case from Supabase)
 // ============================================
+// Safe columns that students can see (NEVER use select('*'))
 type StudentReferralRow = {
   id: string;
   reference_id: string;
@@ -44,12 +45,11 @@ type StudentReferralRow = {
   status: ReferralStatus;
   category: ReferralCategory;
   reason: string;
+  reason_summary: string | null;
   appointment_date: string | null;
-  appointment_location: string | null;
   student_notes: string | null;
   created_at: string;
   updated_at: string;
-  resolved_at: string | null;
 };
 
 // ============================================
@@ -64,12 +64,11 @@ const mapRowToReferral = (row: StudentReferralRow): StudentReferral => ({
   status: row.status,
   category: row.category,
   reason: row.reason,
+  reasonSummary: row.reason_summary ?? undefined,
   appointmentDate: row.appointment_date ?? undefined,
-  appointmentLocation: row.appointment_location ?? undefined,
   studentNotes: row.student_notes ?? undefined,
   createdAt: row.created_at,
   updatedAt: row.updated_at,
-  resolvedAt: row.resolved_at ?? undefined,
 });
 
 // ============================================
@@ -100,10 +99,11 @@ export const useReferralStore = create<ReferralState>((set, get) => ({
     console.log('[referrals] Fetching referrals for student:', studentId);
 
     try {
-      // Query the student_referrals view (RLS automatically filters)
+      // Query referrals table with EXPLICIT safe columns only
+      // NEVER use select('*') - admin columns must stay hidden
       const { data, error } = await supabase
-        .from('student_referrals')
-        .select('*')
+        .from('referrals')
+        .select('id, reference_id, student_id, from_service, to_service, status, category, reason, reason_summary, appointment_date, student_notes, created_at, updated_at')
         .order('created_at', { ascending: false });
 
       if (error) {

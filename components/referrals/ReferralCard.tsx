@@ -49,10 +49,9 @@ type Props = { referral: StudentReferral; onPress?: () => void };
 // Helper to get office display name
 function getOfficeLabel(office: WelfareOffice): string {
   const labels: Record<WelfareOffice, string> = {
-    health: 'Health Services Clinic',
-    counseling: 'Counseling & Guidance Office',
-    sdao: 'Student Development & Affairs',
-    discipline: 'Discipline Office',
+    HSO: 'Health Service Office',
+    SDAO: 'Student Development and Activities Office',
+    DO: 'Discipline Office',
   };
   return labels[office] ?? office;
 }

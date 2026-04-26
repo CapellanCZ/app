@@ -1,13 +1,13 @@
 // ============================================
 // WELFARE OFFICE TYPES (matches database enum)
+// Codes: HSO, SDAO, DO
 // ============================================
-export type WelfareOffice = 'health' | 'counseling' | 'sdao' | 'discipline';
+export type WelfareOffice = 'HSO' | 'SDAO' | 'DO';
 
 export const WELFARE_OFFICE_LABELS: Record<WelfareOffice, string> = {
-  health: 'Health Services Clinic',
-  counseling: 'Counseling & Guidance Office',
-  sdao: 'Student Development & Affairs',
-  discipline: 'Discipline Office',
+  HSO: 'Health Service Office',
+  SDAO: 'Student Development and Activities Office',
+  DO: 'Discipline Office',
 };
 
 // ============================================
@@ -61,8 +61,8 @@ export const PRIORITY_LABELS: Record<ReferralPriority, string> = {
 };
 
 // ============================================
-// STUDENT-FACING REFERRAL (from student_referrals view)
-// NO priority, NO internal_notes, NO attachments, NO staff details
+// STUDENT-FACING REFERRAL (safe columns only)
+// NO is_urgent, NO internal_notes, NO attachments, NO staff details
 // ============================================
 export type StudentReferral = {
   id: string;
@@ -73,12 +73,11 @@ export type StudentReferral = {
   status: ReferralStatus;
   category: ReferralCategory;
   reason: string;
+  reasonSummary?: string;
   appointmentDate?: string;
-  appointmentLocation?: string;
   studentNotes?: string;
   createdAt: string;
   updatedAt: string;
-  resolvedAt?: string;
 };
 
 // ============================================
@@ -87,8 +86,7 @@ export type StudentReferral = {
 // ============================================
 export type AdminReferral = StudentReferral & {
   // Admin-only fields
-  priority: ReferralPriority;
-  reasonSummary?: string;
+  isUrgent: boolean;
   referredBy?: string;
   assignedTo?: string;
   internalNotes?: string;
@@ -99,6 +97,7 @@ export type AdminReferral = StudentReferral & {
     uploadedAt: string;
   }>;
   isArchived: boolean;
+  resolvedAt?: string;
 };
 
 // ============================================
