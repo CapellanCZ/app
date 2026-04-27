@@ -1,78 +1,132 @@
-import { Ionicons } from '@expo/vector-icons';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { OrDividerLabel } from '@/components/ui/OrDividerLabel';
+import { IconDocumentUploadIcon } from '@/components/icons/IconDocumentUploadIcon';
 
-const BRAND = '#2970FF';
-const MUTED = '#98A2B3';
-const SUBTEXT = '#475367';
+const BLUE = '#2970FF';
+const BLUE_BG = '#EFF4FF';
+const TITLE_COLOR = '#181D27';
+const SUBTITLE_COLOR = '#717680';
+const DIVIDER_COLOR = '#F0F0F0';
 
 export type FileUploadDropzoneCardProps = {
   onPickFiles: () => void;
-  /** When set, the dashed tap area opens the photo/video library; Upload Files still uses the file picker. */
   onPickMedia?: () => void;
   hintText?: string;
   className?: string;
 };
 
-/**
- * Dashed upload area + OR divider + Upload Files (Figma 703:33599). Mobile: tap opens picker.
- */
 export function FileUploadDropzoneCard({
   onPickFiles,
   onPickMedia,
-  hintText = 'SVG, PNG, JPG or GIF (max. 800×400px)',
+  hintText = 'Select Jpeg, Png, Pdf or Zip up to 20MB.',
   className,
 }: FileUploadDropzoneCardProps) {
   const openPrimary = onPickMedia ?? onPickFiles;
-  const primaryA11y = onPickMedia
-    ? 'Choose photos or videos from library'
-    : 'Choose file to upload';
 
   return (
-    <View
-      className={`w-full overflow-hidden rounded-2xl border-[1.5px] border-dashed border-[#C5C6CC] bg-white px-6 py-7 ${className ?? ''}`}>
+    <View style={s.card}>
+      {/* ── Tap area ── */}
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={primaryA11y}
+        accessibilityLabel="Choose photo or file to upload"
         onPress={openPrimary}
-        className="w-full items-center gap-4 active:opacity-90">
-        <View className="h-14 w-14 items-center justify-center rounded-full bg-[#F0F2F5]">
-          <Ionicons name="cloud-upload-outline" size={28} color="#98A2B3" />
+        className="active:opacity-85"
+        style={s.tapArea}>
+        <View style={s.iconBg}>
+          <IconDocumentUploadIcon size={26} color={BLUE} />
         </View>
-        <View className="w-full items-center gap-0.5">
-          <View className="flex-row flex-wrap items-center justify-center gap-1">
-            <Text className="text-sm font-semibold" style={{ color: BRAND }}>
-              Tap to upload
-            </Text>
-            <Text className="text-sm leading-5" style={{ color: SUBTEXT }}>
-              or use below
-            </Text>
-          </View>
-          <Text
-            className="mt-1 px-2 text-center text-xs leading-4 tracking-wide"
-            style={{ color: MUTED }}>
-            {hintText}
+        <View style={s.textGroup}>
+          <Text style={s.title}>
+            Take photo or{' '}
+            <Text style={s.titleBold}>choose file</Text>
+            {' '}to upload
           </Text>
+          <Text style={s.subtitle}>{hintText}</Text>
         </View>
       </Pressable>
 
-      <View className="mt-4 w-full">
-        <OrDividerLabel />
-      </View>
+      {/* ── Divider ── */}
+      <View style={s.divider} />
 
+      {/* ── Upload button ── */}
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={onPickMedia ? 'Upload files and documents' : 'Upload files'}
+        accessibilityLabel="Upload proof of compliance"
         onPress={onPickFiles}
-        className="mt-4 h-10 w-full items-center justify-center rounded-full active:opacity-90"
-        style={{
-          backgroundColor: BRAND,
-          borderWidth: 1,
-          borderColor: 'rgba(0, 18, 41, 0.1)',
-        }}>
-        <Text className="text-sm font-semibold text-white">Upload Files</Text>
+        className="active:opacity-85"
+        style={s.uploadBtn}>
+        <Text style={s.uploadBtnText}>Upload Proof of Compliance</Text>
       </Pressable>
     </View>
   );
 }
+
+const s = StyleSheet.create({
+  card: {
+    width: '100%',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E9EAEB',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 20,
+    paddingTop: 24,
+    paddingBottom: 20,
+    gap: 20,
+  },
+  tapArea: {
+    alignItems: 'center',
+    gap: 16,
+  },
+  iconBg: {
+    width: 52,
+    height: 52,
+    borderRadius: 14,
+    backgroundColor: BLUE_BG,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  textGroup: {
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 8,
+  },
+  title: {
+    fontSize: 15,
+    fontWeight: '400',
+    color: TITLE_COLOR,
+    textAlign: 'center',
+    lineHeight: 22,
+    letterSpacing: -0.3,
+  },
+  titleBold: {
+    fontWeight: '700',
+    color: BLUE,
+  },
+  subtitle: {
+    fontSize: 13,
+    fontWeight: '400',
+    color: SUBTITLE_COLOR,
+    textAlign: 'center',
+    lineHeight: 18,
+    letterSpacing: -0.26,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: DIVIDER_COLOR,
+  },
+  uploadBtn: {
+    borderRadius: 24,
+    backgroundColor: BLUE,
+    borderWidth: 1.5,
+    borderColor: '#84ADFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+  },
+  uploadBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    letterSpacing: -0.28,
+  },
+});

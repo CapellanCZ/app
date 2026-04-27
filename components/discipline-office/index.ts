@@ -11,6 +11,7 @@ export {
   type SanctionCardProps,
   type SanctionProgress,
   type SanctionStatus,
+  type SanctionType,
 } from './SanctionCard';
 export {
   SanctionInReviewBadge,

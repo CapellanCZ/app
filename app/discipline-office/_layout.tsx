@@ -16,6 +16,9 @@ export default function DisciplineOfficeLayout() {
       <Stack.Screen name="incident-report" />
       <Stack.Screen name="upload-proof" />
       <Stack.Screen name="nte-response" />
+      <Stack.Screen name="my-cases" />
+      <Stack.Screen name="statement-of-explanation" />
+      <Stack.Screen name="my-sanctions" />
     </Stack>
   );
 }

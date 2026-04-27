@@ -1,15 +1,19 @@
 import { Ionicons } from '@expo/vector-icons';
+import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   InteractionManager,
   Keyboard,
+  Modal,
+  Platform,
   Pressable,
   ScrollView,
+  StyleSheet,
   Text,
   View,
 } from 'react-native';
@@ -17,118 +21,149 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useToast } from 'heroui-native';
 
 import { DisciplineOfficeScreenShell } from '@/components/discipline-office';
-import { FileUploadDropzoneCard } from '@/components/FileUploadDropzoneCard';
-import { IconPdfIcon } from '@/components/icons/IconPdfIcon';
-import { ScreenNavbar } from '@/components/ScreenNavbar';
+import { IconDocumentUploadIcon } from '@/components/icons/IconDocumentUploadIcon';
+import { IconsaxArrowLeftIcon } from '@/components/icons/IconsaxArrowLeftIcon';
 import { UploadedFileListRow } from '@/components/UploadedFileListRow';
+import { sanctionsProgressStore } from '@/features/discipline/sanctionsProgressStore';
 
-const TOAST_SUCCESS_ICON = '#079455';
-const SUBMIT_BRAND = '#2970FF';
-/** Simulated network delay before success (ms) */
-const MOCK_SUBMIT_MS = 1400;
+// ── Constants ─────────────────────────────────────────────────────────────────
+const BLUE = '#2970FF';
+const MOCK_SUBMIT_MS = 1200;
+const HOME_TABS_ROUTE = '/(tabs)';
 
-function proofThumbnail(fileName: string, mimeType?: string | null) {
-  const mime = mimeType?.toLowerCase() ?? '';
-  if (mime.startsWith('image/')) {
-    return <Ionicons name="image-outline" size={28} color="#2970FF" />;
-  }
-  if (mime.startsWith('video/')) {
-    return <Ionicons name="videocam-outline" size={28} color="#2970FF" />;
-  }
-  const lower = fileName.toLowerCase();
-  if (/\.(png|jpe?g|gif|webp|heic|heif|bmp|tiff?)$/i.test(lower)) {
-    return <Ionicons name="image-outline" size={28} color="#2970FF" />;
-  }
-  if (/\.(mp4|mov|m4v|webm|mkv|avi|3gp|mpeg|mpg)$/i.test(lower)) {
-    return <Ionicons name="videocam-outline" size={28} color="#2970FF" />;
-  }
-  return <IconPdfIcon size={28} />;
-}
-
+// ── Types ─────────────────────────────────────────────────────────────────────
 type UploadFileRow = {
   id: string;
   fileName: string;
   mimeType?: string | null;
-  dateLabel: string;
-  timeLabel: string;
-  sizeLabel: string;
   progress: number;
 };
 
-function formatPickMeta(d: Date) {
-  return {
-    dateLabel: d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }),
-    timeLabel: d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }),
-  };
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function formatTime(d: Date): string {
+  return d.toLocaleTimeString(undefined, {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
 }
 
-function formatSize(bytes: number | undefined) {
-  if (bytes == null || Number.isNaN(bytes)) return '—';
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+/**
+ * Calculates the hours between time-in and time-out.
+ * Returns 0 if timeOut <= timeIn (invalid session).
+ */
+export function calcSessionHours(timeIn: Date, timeOut: Date): number {
+  const diffMs = timeOut.getTime() - timeIn.getTime();
+  if (diffMs <= 0) return 0;
+  return Math.round((diffMs / 3600000) * 100) / 100;
 }
 
+// ── Screen ────────────────────────────────────────────────────────────────────
 export default function UploadProofScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { toast } = useToast();
-  const tickers = useRef<Record<string, ReturnType<typeof setInterval>>>({});
-  /** Synchronous guard — blocks double-taps before `isSubmitting` re-renders */
-  const submitLockedRef = useRef(false);
-  /** Avoids native `PickingInProgressException` when the document picker is invoked twice quickly. */
+
+  const params = useLocalSearchParams<{
+    sanctionId?: string;
+    sanctionTitle?: string;
+    sanctionDescription?: string;
+    sanctionType?: string;
+    dueDateLabel?: string;
+    totalHours?: string;
+    currentHours?: string;
+  }>();
+
+  const sanctionId        = params.sanctionId ?? '';
+  const sanctionTitle     = params.sanctionTitle ?? 'Proof of Compliance';
+  const sanctionDesc      = params.sanctionDescription
+    ?? 'Upload photos or videos as proof of compliance for admin review.';
+  const isCommunityService = params.sanctionType === 'community_service';
+  const totalHours        = params.totalHours ? parseFloat(params.totalHours) : 0;
+  const currentHours      = params.currentHours ? parseFloat(params.currentHours) : 0;
+
+  // ── Time picker state ──────────────────────────────────────────────────────
+  const [timeIn,  setTimeIn]  = useState<Date | null>(null);
+  const [timeOut, setTimeOut] = useState<Date | null>(null);
+  /** Which field is actively being picked ('in' | 'out' | null) */
+  const [activeField, setActiveField] = useState<'in' | 'out' | null>(null);
+  /** iOS spinner temp value before "Done" is confirmed */
+  const [pickerTemp, setPickerTemp] = useState<Date>(new Date());
+
+  // ── File upload state ──────────────────────────────────────────────────────
+  const tickers              = useRef<Record<string, ReturnType<typeof setInterval>>>({});
+  const submitLockedRef      = useRef(false);
   const documentPickerBusyRef = useRef(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [files, setFiles]    = useState<UploadFileRow[]>([]);
 
-  const [files, setFiles] = useState<UploadFileRow[]>([
-    {
-      id: 'demo-1',
-      fileName: 'Name of document.pdf',
-      mimeType: 'application/pdf',
-      dateLabel: '11 Feb, 2026',
-      timeLabel: '12:24 pm',
-      sizeLabel: '13 MB',
-      progress: 25,
+  // ── Derived ────────────────────────────────────────────────────────────────
+  const calculatedHours = useMemo(() => {
+    if (!timeIn || !timeOut) return 0;
+    return calcSessionHours(timeIn, timeOut);
+  }, [timeIn, timeOut]);
+
+  const allUploadsComplete = useMemo(
+    () => files.length > 0 && files.every((f) => f.progress >= 100),
+    [files],
+  );
+
+  const timeValid = !isCommunityService || (!!timeIn && !!timeOut && calculatedHours > 0);
+  const submitDisabled = !allUploadsComplete || !timeValid || isSubmitting;
+
+  // ── Navigation ─────────────────────────────────────────────────────────────
+  const handleBack = () => {
+    if (router.canGoBack()) router.back();
+    else router.replace(HOME_TABS_ROUTE);
+  };
+
+  // ── Time picker handlers ───────────────────────────────────────────────────
+  const openTimePicker = (field: 'in' | 'out') => {
+    const current = field === 'in' ? timeIn : timeOut;
+    setPickerTemp(current ?? new Date());
+    setActiveField(field);
+  };
+
+  const handleTimeChange = useCallback(
+    (event: DateTimePickerEvent, selectedDate?: Date) => {
+      if (Platform.OS === 'android') {
+        setActiveField(null);
+        if (event.type === 'set' && selectedDate) {
+          if (activeField === 'in') setTimeIn(selectedDate);
+          else setTimeOut(selectedDate);
+        }
+      } else {
+        if (selectedDate) setPickerTemp(selectedDate);
+      }
     },
-  ]);
+    [activeField],
+  );
 
+  const handleIOSConfirm = () => {
+    if (activeField === 'in') setTimeIn(pickerTemp);
+    else setTimeOut(pickerTemp);
+    setActiveField(null);
+  };
+
+  // ── File upload helpers ────────────────────────────────────────────────────
   const clearTicker = useCallback((id: string) => {
     const t = tickers.current[id];
-    if (t) {
-      clearInterval(t);
-      delete tickers.current[id];
-    }
+    if (t) { clearInterval(t); delete tickers.current[id]; }
   }, []);
 
   useEffect(() => {
-    return () => {
-      Object.keys(tickers.current).forEach((id) => clearTicker(id));
-    };
+    return () => { Object.keys(tickers.current).forEach((id) => clearTicker(id)); };
   }, [clearTicker]);
 
-  const addProofItemsWithProgress = useCallback(
+  const addFilesWithProgress = useCallback(
     (items: { fileName: string; size?: number; mimeType?: string | null }[]) => {
       if (items.length === 0) return;
-      const now = new Date();
-      const { dateLabel, timeLabel } = formatPickMeta(now);
-
       for (const item of items) {
         const id = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-        const sizeLabel = formatSize(item.size);
-
         setFiles((prev) => [
           ...prev,
-          {
-            id,
-            fileName: item.fileName,
-            mimeType: item.mimeType ?? null,
-            dateLabel,
-            timeLabel,
-            sizeLabel,
-            progress: 0,
-          },
+          { id, fileName: item.fileName, mimeType: item.mimeType ?? null, progress: 0 },
         ]);
-
         tickers.current[id] = setInterval(() => {
           setFiles((prev) =>
             prev.map((f) => {
@@ -144,92 +179,54 @@ export default function UploadProofScreen() {
     [clearTicker],
   );
 
-  const pickMediaFromLibrary = useCallback(async () => {
+  const pickMedia = useCallback(async () => {
     if (isSubmitting) return;
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
-      Alert.alert(
-        'Photo access needed',
-        'Allow photo library access so you can attach photos or videos. You can change this in Settings.',
-      );
+      Alert.alert('Photo access needed', 'Allow photo library access in Settings.');
       return;
     }
-
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images', 'videos'],
       allowsMultipleSelection: true,
       quality: 1,
     });
-
     if (result.canceled || !result.assets?.length) return;
-
-    addProofItemsWithProgress(
-      result.assets.map((asset) => {
-        const isVideo = asset.type === 'video';
-        const fileName =
-          (asset.fileName && asset.fileName.trim()) ||
-          (isVideo ? 'Video.mp4' : 'Photo.jpg');
-        return {
-          fileName,
-          size: asset.fileSize,
-          mimeType: asset.mimeType ?? (isVideo ? 'video/mp4' : 'image/jpeg'),
-        };
-      }),
+    addFilesWithProgress(
+      result.assets.map((a) => ({
+        fileName: (a.fileName?.trim()) || (a.type === 'video' ? 'Video.mp4' : 'Photo.jpg'),
+        size: a.fileSize,
+        mimeType: a.mimeType ?? null,
+      })),
     );
-  }, [addProofItemsWithProgress, isSubmitting]);
+  }, [addFilesWithProgress, isSubmitting]);
 
   const pickFiles = useCallback(async () => {
     if (isSubmitting || documentPickerBusyRef.current) return;
     documentPickerBusyRef.current = true;
     Keyboard.dismiss();
-
-    const openPicker = (multiple: boolean) =>
-      DocumentPicker.getDocumentAsync({
-        type: '*/*',
-        copyToCacheDirectory: true,
-        multiple,
-      });
-
     try {
-      // Defer until the active screen has a window (avoids iOS MissingViewController / Android activity timing issues with Expo Router).
-      await new Promise<void>((resolve) => {
-        InteractionManager.runAfterInteractions(() => {
-          requestAnimationFrame(() => setTimeout(resolve, 120));
-        });
+      await new Promise<void>((res) => {
+        InteractionManager.runAfterInteractions(() =>
+          requestAnimationFrame(() => setTimeout(res, 120)),
+        );
       });
-
       let result: Awaited<ReturnType<typeof DocumentPicker.getDocumentAsync>>;
       try {
-        result = await openPicker(true);
+        result = await DocumentPicker.getDocumentAsync({ type: '*/*', copyToCacheDirectory: true, multiple: true });
       } catch {
-        result = await openPicker(false);
+        result = await DocumentPicker.getDocumentAsync({ type: '*/*', copyToCacheDirectory: true, multiple: false });
       }
-
       if (result.canceled || !result.assets?.length) return;
-
-      addProofItemsWithProgress(
-        result.assets.map((asset) => ({
-          fileName: asset.name ?? 'document',
-          size: asset.size,
-          mimeType: asset.mimeType ?? null,
-        })),
+      addFilesWithProgress(
+        result.assets.map((a) => ({ fileName: a.name ?? 'document', size: a.size, mimeType: a.mimeType ?? null })),
       );
     } catch (e) {
-      const message =
-        e instanceof Error ? e.message : typeof e === 'string' ? e : 'Unknown error';
-      Alert.alert(
-        'Could not open files',
-        `${message}\n\nYou can use “Tap to upload” for photos and videos from your library.`,
-      );
+      Alert.alert('Could not open files', e instanceof Error ? e.message : 'Unknown error');
     } finally {
       documentPickerBusyRef.current = false;
     }
-  }, [addProofItemsWithProgress, isSubmitting]);
-
-  const allUploadsComplete = useMemo(
-    () => files.length > 0 && files.every((f) => f.progress >= 100),
-    [files],
-  );
+  }, [addFilesWithProgress, isSubmitting]);
 
   const removeFile = useCallback(
     (id: string) => {
@@ -240,22 +237,29 @@ export default function UploadProofScreen() {
     [clearTicker, isSubmitting],
   );
 
+  // ── Submit ─────────────────────────────────────────────────────────────────
   const onSubmit = useCallback(async () => {
-    if (!allUploadsComplete || submitLockedRef.current) return;
+    if (submitDisabled || submitLockedRef.current) return;
     submitLockedRef.current = true;
     setIsSubmitting(true);
     try {
-      await new Promise<void>((resolve) => setTimeout(resolve, MOCK_SUBMIT_MS));
+      await new Promise<void>((res) => setTimeout(res, MOCK_SUBMIT_MS));
+
+      if (isCommunityService && calculatedHours > 0 && sanctionId) {
+        sanctionsProgressStore.enqueue({ sanctionId, additionalHours: calculatedHours });
+      }
+
       toast.show({
         variant: 'success',
         placement: 'top',
         duration: 4200,
-        label: 'Proof received',
-        description:
-          "Your upload is with our team. Reviews usually finish in 1-3 business days. We'll notify you in the app.",
+        label: 'Proof submitted!',
+        description: isCommunityService && calculatedHours > 0
+          ? `${calculatedHours.toFixed(2)} hrs logged. Hours will be credited once admin approves.`
+          : "Your proof is under review. We'll notify you when it's approved.",
         icon: (
-          <View className="shrink-0 pt-0.5">
-            <Ionicons name="checkmark-circle" size={26} color={TOAST_SUCCESS_ICON} />
+          <View style={{ paddingTop: 2 }}>
+            <Ionicons name="checkmark-circle" size={26} color="#079455" />
           </View>
         ),
       });
@@ -264,84 +268,463 @@ export default function UploadProofScreen() {
       submitLockedRef.current = false;
       setIsSubmitting(false);
     }
-  }, [allUploadsComplete, router, toast]);
+  }, [submitDisabled, isCommunityService, calculatedHours, sanctionId, router, toast]);
 
-  const submitDisabled = !allUploadsComplete || isSubmitting;
-
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <DisciplineOfficeScreenShell>
-      <ScreenNavbar title="Proof of Compliance" showMenu={false} />
+
+      {/* ── Header ── */}
+      <View style={[s.header, { paddingTop: insets.top + 16 }]}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+          hitSlop={12}
+          onPress={handleBack}
+          className="active:opacity-70"
+          style={s.backBtn}>
+          <IconsaxArrowLeftIcon size={20} color="#181D27" />
+        </Pressable>
+        <View style={s.headerText}>
+          <Text style={s.title}>{sanctionTitle}</Text>
+          <Text style={s.subtitle} numberOfLines={2}>{sanctionDesc}</Text>
+        </View>
+      </View>
+
+      {/* ── Scrollable body ── */}
       <ScrollView
-        className="flex-1"
+        style={s.scroll}
+        contentContainerStyle={[s.scrollContent, { paddingBottom: 24 }]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}>
-        <View className="px-5 pb-4 pt-4">
-        <FileUploadDropzoneCard
-          onPickMedia={pickMediaFromLibrary}
-          onPickFiles={pickFiles}
-          hintText="Tap above for photos & videos from your library, or Upload Files for PDFs and documents."
-          className={isSubmitting ? 'opacity-50' : undefined}
-        />
 
-        <View className="mt-8 w-full gap-4">
-          <View className="flex-row items-center gap-2">
-            <Text className="text-base font-semibold tracking-wide text-[#1F2024]">
-              Uploaded Files
-            </Text>
-            <View
-              className="min-w-[28px] items-center justify-center rounded-full px-2 py-1"
-              style={{ backgroundColor: '#2970FF' }}>
-              <Text className="text-xs font-semibold text-white">{files.length}</Text>
+        {/* Time In / Time Out (community service only) */}
+        {isCommunityService && (
+          <>
+            <View style={s.timeSection}>
+              <View style={s.timeRow}>
+                {/* Time In */}
+                <View style={s.timeField}>
+                  <Text style={s.fieldLabel}>Time In</Text>
+                  <Pressable
+                    style={s.timeInputBox}
+                    onPress={() => openTimePicker('in')}
+                    className="active:opacity-80">
+                    <Text style={[s.timeInputText, !timeIn && s.timePlaceholder]}>
+                      {timeIn ? formatTime(timeIn) : '--:-- --'}
+                    </Text>
+                  </Pressable>
+                </View>
+                {/* Time Out */}
+                <View style={s.timeField}>
+                  <Text style={s.fieldLabel}>Time Out</Text>
+                  <Pressable
+                    style={s.timeInputBox}
+                    onPress={() => openTimePicker('out')}
+                    className="active:opacity-80">
+                    <Text style={[s.timeInputText, !timeOut && s.timePlaceholder]}>
+                      {timeOut ? formatTime(timeOut) : '--:-- --'}
+                    </Text>
+                  </Pressable>
+                </View>
+              </View>
+
+              {/* Hours calculation feedback */}
+              {calculatedHours > 0 && (
+                <View style={s.hoursRow}>
+                  <Ionicons name="time-outline" size={14} color={BLUE} />
+                  <Text style={s.hoursText}>
+                    {`Session: ${calculatedHours.toFixed(2)} hrs`}
+                    {totalHours > 0
+                      ? `  ·  ${Math.min(totalHours, currentHours + calculatedHours).toFixed(2)} / ${totalHours} hrs total`
+                      : ''}
+                  </Text>
+                </View>
+              )}
+              {timeIn && timeOut && calculatedHours === 0 && (
+                <Text style={s.timeError}>Time Out must be after Time In.</Text>
+              )}
             </View>
+
+            <View style={s.divider} />
+          </>
+        )}
+
+        {/* Upload a proof section */}
+        <View style={s.uploadSection}>
+          <View style={s.sectionHeader}>
+            <Text style={s.sectionTitle}>Upload a proof</Text>
+            <Text style={s.sectionSubtitle}>
+              Upload photos, videos, files or any proof of compliance for discipline staffs to review.
+            </Text>
           </View>
 
-          <View className="gap-3">
+          {/* Dashed dropzone */}
+          <View style={[s.dropzone, isSubmitting && { opacity: 0.5 }]}>
+            {/* Tapping the icon uploads a photo/video */}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Tap to upload a photo or video"
+              onPress={pickMedia}
+              className="active:opacity-70"
+              style={s.dropzoneIconBg}>
+              <IconDocumentUploadIcon size={24} color="#717680" />
+            </Pressable>
+            {/* Text row — 'choose a file' is a separate file picker tap target */}
+            <View style={s.dropzoneTextRow}>
+              <Text style={s.dropzoneTitle}>Tap to upload or </Text>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Choose a file from storage"
+                onPress={pickFiles}
+                disabled={isSubmitting}
+                hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}>
+                <Text style={s.dropzoneBold}>choose a file</Text>
+              </Pressable>
+              <Text style={s.dropzoneTitle}> to upload</Text>
+            </View>
+            <Text style={s.dropzoneHint}>JPEG, PNG, PDF up to 20MB.</Text>
+          </View>
+        </View>
+
+        {/* Uploaded file rows */}
+        {files.length > 0 && (
+          <View style={s.fileList}>
             {files.map((f) => (
               <UploadedFileListRow
                 key={f.id}
                 fileName={f.fileName}
-                dateLabel={f.dateLabel}
-                timeLabel={f.timeLabel}
-                sizeLabel={f.sizeLabel}
                 progress={f.progress}
-                fileThumbnail={proofThumbnail(f.fileName, f.mimeType)}
                 onRemove={isSubmitting ? undefined : () => removeFile(f.id)}
               />
             ))}
           </View>
-        </View>
-        </View>
+        )}
       </ScrollView>
 
-      <View
-        className="border-t border-[#E8EFFF] bg-white/95 px-5 pt-3"
-        style={{ paddingBottom: Math.max(insets.bottom, 16) }}>
+      {/* ── Sticky footer CTA ── */}
+      <View style={[s.footer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={
-            isSubmitting ? 'Uploading your proof of compliance' : 'Submit proof of compliance'
-          }
+          accessibilityLabel={isSubmitting ? 'Uploading proof' : 'Upload proof of compliance'}
           accessibilityState={{ disabled: submitDisabled, busy: isSubmitting }}
           disabled={submitDisabled}
-          pointerEvents={submitDisabled ? 'none' : 'auto'}
           onPress={onSubmit}
-          style={({ pressed }) => ({
-            opacity: submitDisabled ? 1 : pressed ? 0.9 : 1,
-            backgroundColor: submitDisabled && !isSubmitting ? '#A8C4FF' : SUBMIT_BRAND,
-            borderWidth: 1,
-            borderColor: 'rgba(0,0,0,0.1)',
-          })}
-          className="w-full flex-row items-center justify-center gap-2 rounded-full py-3">
+          className="active:opacity-85"
+          style={[s.submitBtn, submitDisabled && !isSubmitting && s.submitBtnDisabled]}>
           {isSubmitting ? (
             <>
               <ActivityIndicator color="#FFFFFF" size="small" />
-              <Text className="text-sm font-semibold text-white">Submitting...</Text>
+              <Text style={s.submitBtnText}>Submitting...</Text>
             </>
           ) : (
-            <Text className="text-sm font-semibold text-white">Submit my proof of compliance</Text>
+            <Text style={s.submitBtnText}>Upload Proof of Compliance</Text>
           )}
         </Pressable>
       </View>
+
+      {/* ── iOS time picker modal ── */}
+      {Platform.OS === 'ios' && activeField !== null && (
+        <Modal
+          transparent
+          animationType="fade"
+          statusBarTranslucent
+          onRequestClose={() => setActiveField(null)}>
+          <View style={s.modalContainer}>
+            {/* Dim backdrop — tap to dismiss */}
+            <Pressable
+              style={StyleSheet.absoluteFillObject}
+              onPress={() => setActiveField(null)}
+            />
+            {/* Bottom sheet */}
+            <View style={[s.pickerSheet, { paddingBottom: Math.max(insets.bottom, 24) }]}>
+              {/* Drag handle */}
+              <View style={s.dragHandle} />
+              {/* Header row */}
+              <View style={s.pickerHeader}>
+                <Pressable onPress={() => setActiveField(null)} hitSlop={12}>
+                  <Text style={s.pickerCancel}>Cancel</Text>
+                </Pressable>
+                <Text style={s.pickerTitle}>
+                  {activeField === 'in' ? 'Time In' : 'Time Out'}
+                </Text>
+                <Pressable onPress={handleIOSConfirm} hitSlop={12}>
+                  <Text style={s.pickerDone}>Done</Text>
+                </Pressable>
+              </View>
+              {/* Spinner */}
+              <DateTimePicker
+                value={pickerTemp}
+                mode="time"
+                display="spinner"
+                onChange={handleTimeChange}
+                style={s.iosSpinner}
+              />
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {/* ── Android time picker (native dialog) ── */}
+      {Platform.OS === 'android' && activeField !== null && (
+        <DateTimePicker
+          value={(activeField === 'in' ? timeIn : timeOut) ?? new Date()}
+          mode="time"
+          display="default"
+          onChange={handleTimeChange}
+        />
+      )}
+
     </DisciplineOfficeScreenShell>
   );
 }
+
+// ── Styles ────────────────────────────────────────────────────────────────────
+const s = StyleSheet.create({
+  // Header
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    paddingHorizontal: 20,
+    paddingBottom: 8,
+  },
+  backBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#F5F5F5',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerText: {
+    flex: 1,
+    gap: 4,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: '600',
+    color: '#000000',
+    letterSpacing: -0.48,
+  },
+  subtitle: {
+    fontSize: 14,
+    fontWeight: '300',
+    color: '#717680',
+    letterSpacing: -0.28,
+    lineHeight: 20,
+  },
+  // Scroll
+  scroll: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    gap: 24,
+  },
+  // Time In/Out
+  timeSection: {
+    gap: 12,
+  },
+  timeRow: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  timeField: {
+    flex: 1,
+    gap: 8,
+  },
+  fieldLabel: {
+    fontSize: 16,
+    fontWeight: '400',
+    color: '#000000',
+    lineHeight: 20,
+  },
+  timeInputBox: {
+    height: 44,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E9EAEB',
+    paddingHorizontal: 12,
+    justifyContent: 'center',
+  },
+  timeInputText: {
+    fontSize: 14,
+    fontWeight: '400',
+    color: '#000000',
+    lineHeight: 20,
+  },
+  timePlaceholder: {
+    color: '#717680',
+  },
+  hoursRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  hoursText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: BLUE,
+    letterSpacing: -0.26,
+  },
+  timeError: {
+    fontSize: 12,
+    fontWeight: '400',
+    color: '#D92D20',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#E9EAEB',
+  },
+  // Upload section
+  uploadSection: {
+    gap: 12,
+  },
+  sectionHeader: {
+    gap: 4,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '400',
+    color: '#000000',
+    lineHeight: 20,
+  },
+  sectionSubtitle: {
+    fontSize: 14,
+    fontWeight: '300',
+    color: '#535862',
+    letterSpacing: -0.28,
+    lineHeight: 20,
+  },
+  // Dropzone
+  dropzone: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: '#E9EAEB',
+    paddingHorizontal: 12,
+    paddingVertical: 28,
+    alignItems: 'center',
+    gap: 12,
+  },
+  dropzoneIconBg: {
+    width: 48,
+    height: 48,
+    borderRadius: 999,
+    backgroundColor: '#F5F5F5',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dropzoneTitle: {
+    fontSize: 14,
+    fontWeight: '400',
+    color: '#000000',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  dropzoneBold: {
+    fontWeight: '600',
+    color: BLUE,
+  },
+  dropzoneHint: {
+    fontSize: 12,
+    fontWeight: '400',
+    color: '#717680',
+    lineHeight: 20,
+  },
+  // File list
+  fileList: {
+    gap: 10,
+  },
+  // Footer
+  footer: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#E8EFFF',
+    backgroundColor: 'rgba(255,255,255,0.97)',
+  },
+  submitBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderRadius: 24,
+    backgroundColor: BLUE,
+    borderWidth: 2,
+    borderColor: '#84ADFF',
+    paddingVertical: 13,
+  },
+  submitBtnDisabled: {
+    backgroundColor: '#A8C4FF',
+    borderColor: 'transparent',
+  },
+  submitBtnText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#FFFFFF',
+    letterSpacing: -0.32,
+  },
+  // Dropzone text row
+  dropzoneTextRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+  },
+  // iOS picker modal
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.45)',
+  },
+  pickerSheet: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  dragHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#D0D0D0',
+    marginTop: 10,
+    marginBottom: 2,
+  },
+  pickerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E9EAEB',
+    width: '100%',
+  },
+  pickerTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#000000',
+  },
+  pickerCancel: {
+    fontSize: 15,
+    fontWeight: '400',
+    color: '#717680',
+    minWidth: 56,
+  },
+  pickerDone: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: BLUE,
+    minWidth: 56,
+    textAlign: 'right',
+  },
+  iosSpinner: {
+    height: 216,
+    width: '100%',
+  },
+});

@@ -446,18 +446,14 @@ export default function DisciplineOfficeScreen() {
           <QuickActionCard
             icon={<IconsaxBriefcaseIcon size={20} color="#0A0D12" />}
             label="View my Cases"
-            accessibilityLabel="Scroll to my cases"
-            onPress={() =>
-              scrollRef.current?.scrollTo({ y: casesSectionY.current, animated: true })
-            }
+            accessibilityLabel="View my cases"
+            onPress={() => router.push('/discipline-office/my-cases')}
           />
           <QuickActionCard
             icon={<IconsaxPaperIcon size={20} color="#0A0D12" />}
             label="View my Sanctions"
             accessibilityLabel="View my sanctions"
-            onPress={() =>
-              scrollRef.current?.scrollTo({ y: casesSectionY.current, animated: true })
-            }
+            onPress={() => router.push('/discipline-office/my-sanctions')}
           />
         </ScrollView>
 
@@ -480,7 +476,7 @@ export default function DisciplineOfficeScreen() {
                   isOverdue={item.isOverdue}
                   onRespond={() =>
                     router.push({
-                      pathname: '/discipline-office/nte-response',
+                      pathname: '/discipline-office/statement-of-explanation',
                       params: {
                         nteId: item.id,
                         caseType: item.caseType,
