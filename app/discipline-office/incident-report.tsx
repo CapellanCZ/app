@@ -2,57 +2,62 @@ import DateTimePicker, {
   type DateTimePickerEvent,
 } from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
-import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   BackHandler,
-  InteractionManager,
+  Image,
   Keyboard,
   Platform,
   Pressable,
   ScrollView,
+  StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { KeyboardAwareScrollView, KeyboardStickyView } from 'react-native-keyboard-controller';
+import Animated, {
+  cancelAnimation,
+  Easing,
+  FadeIn,
+  FadeInDown,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   BottomSheet,
   Button,
   Dialog,
-  InputGroup,
-  TextArea,
-  TextField,
   useToast,
 } from 'heroui-native';
 
+import { AppInput } from '@/components/ui/AppInput';
+
 import { DisciplineOfficeScreenShell } from '@/components/discipline-office';
-import { FileUploadDropzoneCard } from '@/components/FileUploadDropzoneCard';
-import { IconPdfIcon } from '@/components/icons/IconPdfIcon';
 import { IconsaxArrowDownIcon } from '@/components/icons/IconsaxArrowDownIcon';
+import { IconsaxArrowLeftIcon } from '@/components/icons/IconsaxArrowLeftIcon';
 import { IconsaxCalendarIcon } from '@/components/icons/IconsaxCalendarIcon';
 import { IconsaxClockIcon } from '@/components/icons/IconsaxClockIcon';
 import { IconsaxLocationIcon } from '@/components/icons/IconsaxLocationIcon';
 import { IconsaxPeopleIcon } from '@/components/icons/IconsaxPeopleIcon';
-import { ScreenNavbar } from '@/components/ScreenNavbar';
-import { UploadedFileListRow } from '@/components/UploadedFileListRow';
 
 const TOAST_SUCCESS_ICON = '#079455';
 const SUBMIT_BRAND = '#2970FF';
 const MOCK_SUBMIT_MS = 1400;
 const ICON_SUFFIX = '#717680';
+const UPLOAD_SIM_MS = 900;
+const MAX_PHOTOS = 24;
+const MAX_DESC_CHARS = 300;
 
-/** Home tab (Quick Actions / main student dashboard). */
 const HOME_TABS_ROUTE = '/(tabs)';
-
-function normalizePhoneDigits(value: string) {
-  return value.replace(/\D/g, '');
-}
 
 const INCIDENT_TYPES = [
   'Academic dishonesty',
@@ -64,48 +69,6 @@ const INCIDENT_TYPES = [
 ] as const;
 
 const INCIDENT_TYPE_OTHER = 'Other';
-
-function evidenceThumbnail(fileName: string, mimeType?: string | null) {
-  const mime = mimeType?.toLowerCase() ?? '';
-  if (mime.startsWith('image/')) {
-    return <Ionicons name="image-outline" size={28} color="#2970FF" />;
-  }
-  if (mime.startsWith('video/')) {
-    return <Ionicons name="videocam-outline" size={28} color="#2970FF" />;
-  }
-  const lower = fileName.toLowerCase();
-  if (/\.(png|jpe?g|gif|webp|heic|heif|bmp|tiff?)$/i.test(lower)) {
-    return <Ionicons name="image-outline" size={28} color="#2970FF" />;
-  }
-  if (/\.(mp4|mov|m4v|webm|mkv|avi|3gp|mpeg|mpg)$/i.test(lower)) {
-    return <Ionicons name="videocam-outline" size={28} color="#2970FF" />;
-  }
-  return <IconPdfIcon size={28} />;
-}
-
-type UploadFileRow = {
-  id: string;
-  fileName: string;
-  mimeType?: string | null;
-  dateLabel: string;
-  timeLabel: string;
-  sizeLabel: string;
-  progress: number;
-};
-
-function formatPickMeta(d: Date) {
-  return {
-    dateLabel: d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }),
-    timeLabel: d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }),
-  };
-}
-
-function formatSize(bytes: number | undefined) {
-  if (bytes == null || Number.isNaN(bytes)) return '—';
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
 
 function formatPickedDate(d: Date) {
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
@@ -128,16 +91,44 @@ function fiveYearsAgo() {
   return d;
 }
 
+function formatDuration(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+type PhotoItem = { id: string; uri: string; uploading?: boolean };
+type VideoItem = { id: string; uri: string; durationLabel?: string; uploading?: boolean };
+
+function UploadingTile() {
+  const opacity = useSharedValue(0.9);
+  useEffect(() => {
+    opacity.value = withRepeat(
+      withTiming(0.3, { duration: 650, easing: Easing.inOut(Easing.ease) }),
+      -1,
+      true,
+    );
+    return () => cancelAnimation(opacity);
+  }, [opacity]);
+  const animStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
+  return (
+    <Animated.View style={[styles.mediaTile, styles.uploadingTile, animStyle]}>
+      <Ionicons name="image-outline" size={28} color="#717680" />
+      <Text style={styles.uploadingText}>Uploading...</Text>
+    </Animated.View>
+  );
+}
+
 export default function IncidentReportScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { toast } = useToast();
   const submitLockedRef = useRef(false);
-  const documentPickerBusyRef = useRef(false);
+
+  const [step, setStep] = useState<1 | 2 | 3>(1);
 
   const [incidentTypeOpen, setIncidentTypeOpen] = useState(false);
   const [incidentType, setIncidentType] = useState('');
-  /** Required when incident type is "Other". */
   const [incidentTypeOther, setIncidentTypeOther] = useState('');
   const [incidentDate, setIncidentDate] = useState<Date | null>(null);
   const [incidentTime, setIncidentTime] = useState<Date | null>(null);
@@ -150,135 +141,22 @@ export default function IncidentReportScreen() {
     return t;
   });
   const [location, setLocation] = useState('');
-  const [personsInvolved, setPersonsInvolved] = useState('');
   const [reporterPhone, setReporterPhone] = useState('');
+  const [personsInvolved, setPersonsInvolved] = useState('');
   const [whatHappened, setWhatHappened] = useState('');
-  const [files, setFiles] = useState<UploadFileRow[]>([]);
+  const [photos, setPhotos] = useState<PhotoItem[]>([]);
+  const [videos, setVideos] = useState<VideoItem[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [discardDialogOpen, setDiscardDialogOpen] = useState(false);
 
-  /** Mirrors draft pickers so we can persist when the sheet closes without tapping Done. */
   const draftDateRef = useRef(draftDate);
   draftDateRef.current = draftDate;
   const draftTimeRef = useRef(draftTime);
   draftTimeRef.current = draftTime;
 
-  const ingestEvidenceItems = useCallback(
-    (items: { fileName: string; size?: number; mimeType?: string | null }[]) => {
-      if (items.length === 0) return;
-      const now = new Date();
-      const { dateLabel, timeLabel } = formatPickMeta(now);
-
-      const newRows: UploadFileRow[] = items.map((item, index) => ({
-        id: `${Date.now()}-${index}-${Math.random().toString(36).slice(2, 9)}`,
-        fileName: item.fileName,
-        mimeType: item.mimeType ?? null,
-        dateLabel,
-        timeLabel,
-        sizeLabel: formatSize(item.size),
-        progress: 100,
-      }));
-
-      setFiles((prev) => [...prev, ...newRows]);
-    },
-    [],
-  );
-
-  const pickMediaFromLibrary = useCallback(async () => {
-    if (isSubmitting) return;
-    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!perm.granted) {
-      Alert.alert(
-        'Photo access needed',
-        'Allow photo library access so you can attach photos and videos to this report. You can change this in Settings.',
-      );
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images', 'videos'],
-      allowsMultipleSelection: true,
-      quality: 1,
-    });
-
-    if (result.canceled || !result.assets?.length) return;
-
-    ingestEvidenceItems(
-      result.assets.map((asset) => {
-        const isVideo = asset.type === 'video';
-        const fileName =
-          (asset.fileName && asset.fileName.trim()) ||
-          (isVideo ? 'Video.mp4' : 'Photo.jpg');
-        return {
-          fileName,
-          size: asset.fileSize,
-          mimeType:
-            asset.mimeType ?? (isVideo ? 'video/mp4' : 'image/jpeg'),
-        };
-      }),
-    );
-  }, [ingestEvidenceItems, isSubmitting]);
-
-  const pickFiles = useCallback(async () => {
-    if (isSubmitting || documentPickerBusyRef.current) return;
-    documentPickerBusyRef.current = true;
-    Keyboard.dismiss();
-
-    const openPicker = (multiple: boolean) =>
-      DocumentPicker.getDocumentAsync({
-        type: '*/*',
-        copyToCacheDirectory: true,
-        multiple,
-      });
-
-    try {
-      await new Promise<void>((resolve) => {
-        InteractionManager.runAfterInteractions(() => {
-          requestAnimationFrame(() => setTimeout(resolve, 120));
-        });
-      });
-
-      let result: Awaited<ReturnType<typeof DocumentPicker.getDocumentAsync>>;
-      try {
-        result = await openPicker(true);
-      } catch {
-        result = await openPicker(false);
-      }
-
-      if (result.canceled || !result.assets?.length) return;
-
-      ingestEvidenceItems(
-        result.assets.map((asset) => ({
-          fileName: asset.name ?? 'document',
-          size: asset.size,
-          mimeType: asset.mimeType ?? null,
-        })),
-      );
-    } catch (e) {
-      const message =
-        e instanceof Error ? e.message : typeof e === 'string' ? e : 'Unknown error';
-      Alert.alert(
-        'Could not open files',
-        `${message}\n\nYou can use “Tap to upload” for photos and videos from your library.`,
-      );
-    } finally {
-      documentPickerBusyRef.current = false;
-    }
-  }, [ingestEvidenceItems, isSubmitting]);
-
-  const removeFile = useCallback(
-    (id: string) => {
-      if (isSubmitting) return;
-      setFiles((prev) => prev.filter((f) => f.id !== id));
-    },
-    [isSubmitting],
-  );
-
   const selectIncidentType = useCallback((value: string) => {
     setIncidentType(value);
-    if (value !== INCIDENT_TYPE_OTHER) {
-      setIncidentTypeOther('');
-    }
+    if (value !== INCIDENT_TYPE_OTHER) setIncidentTypeOther('');
     setIncidentTypeOpen(false);
   }, []);
 
@@ -340,41 +218,84 @@ export default function IncidentReportScreen() {
 
   const dateDisplay = incidentDate ? formatPickedDate(incidentDate) : '';
   const timeDisplay = incidentTime ? formatPickedTime(incidentTime) : '';
-
   const datePickerDisplay = Platform.OS === 'ios' ? 'spinner' : 'calendar';
   const timePickerDisplay = Platform.OS === 'ios' ? 'spinner' : 'clock';
+
+  const pickPhotos = useCallback(async () => {
+    if (photos.length >= MAX_PHOTOS) return;
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert('Photo access needed', 'Allow photo library access to attach photos to this report.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsMultipleSelection: true,
+      quality: 1,
+    });
+    if (result.canceled || !result.assets?.length) return;
+    const remaining = MAX_PHOTOS - photos.length;
+    const newPhotos: PhotoItem[] = result.assets.slice(0, remaining).map((asset) => ({
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      uri: asset.uri,
+      uploading: true,
+    }));
+    setPhotos((prev) => [...prev, ...newPhotos]);
+    const ids = newPhotos.map((p) => p.id);
+    setTimeout(() => {
+      setPhotos((prev) =>
+        prev.map((p) => (ids.includes(p.id) ? { ...p, uploading: false } : p)),
+      );
+    }, UPLOAD_SIM_MS);
+  }, [photos.length]);
+
+  const pickVideo = useCallback(async () => {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert('Photo access needed', 'Allow photo library access to attach videos to this report.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['videos'],
+      allowsMultipleSelection: false,
+      quality: 1,
+    });
+    if (result.canceled || !result.assets?.length) return;
+    const asset = result.assets[0];
+    const durationLabel = asset.duration != null ? formatDuration(asset.duration) : undefined;
+    const newId = `${Date.now()}`;
+    setVideos([{ id: newId, uri: asset.uri, durationLabel, uploading: true }]);
+    setTimeout(() => {
+      setVideos((prev) =>
+        prev.map((v) => (v.id === newId ? { ...v, uploading: false } : v)),
+      );
+    }, UPLOAD_SIM_MS);
+  }, []);
+
+  const removePhoto = useCallback((id: string) => {
+    setPhotos((prev) => prev.filter((p) => p.id !== id));
+  }, []);
+
+  const removeVideo = useCallback(() => {
+    setVideos([]);
+  }, []);
 
   const incidentTypeComplete =
     incidentType.length > 0 &&
     (incidentType !== INCIDENT_TYPE_OTHER || incidentTypeOther.trim().length > 0);
 
-  const whatHappenedValid = whatHappened.trim().length > 0;
-
-  const phoneDigits = normalizePhoneDigits(reporterPhone);
-  const phoneValid = phoneDigits.length >= 10 && phoneDigits.length <= 15;
-
   const hasUnsavedChanges = useMemo(
     () =>
       incidentType.length > 0 ||
-      incidentTypeOther.trim().length > 0 ||
       incidentDate != null ||
       incidentTime != null ||
       location.trim().length > 0 ||
-      personsInvolved.trim().length > 0 ||
       reporterPhone.trim().length > 0 ||
+      personsInvolved.trim().length > 0 ||
       whatHappened.trim().length > 0 ||
-      files.length > 0,
-    [
-      incidentType,
-      incidentTypeOther,
-      incidentDate,
-      incidentTime,
-      location,
-      personsInvolved,
-      reporterPhone,
-      whatHappened,
-      files.length,
-    ],
+      photos.length > 0 ||
+      videos.length > 0,
+    [incidentType, incidentDate, incidentTime, location, reporterPhone, personsInvolved, whatHappened, photos.length, videos.length],
   );
 
   const goHome = useCallback(() => {
@@ -398,34 +319,26 @@ export default function IncidentReportScreen() {
     goHome();
   }, [goHome]);
 
+  const handleBack = useCallback(() => {
+    if (step === 1) {
+      requestLeave();
+    } else {
+      setStep((s) => (s - 1) as 1 | 2 | 3);
+    }
+  }, [step, requestLeave]);
+
   useFocusEffect(
     useCallback(() => {
       const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-        if (hasUnsavedChanges) {
-          setDiscardDialogOpen(true);
-          return true;
-        }
-        goHome();
+        handleBack();
         return true;
       });
       return () => sub.remove();
-    }, [goHome, hasUnsavedChanges]),
+    }, [handleBack]),
   );
 
-  // Supporting evidence is optional — do not require files.
-  const canSubmit =
-    incidentTypeComplete &&
-    incidentDate != null &&
-    incidentTime != null &&
-    location.trim().length > 0 &&
-    phoneValid &&
-    whatHappenedValid &&
-    !isSubmitting;
-
-  const submitDisabled = !canSubmit || isSubmitting;
-
   const onSubmit = useCallback(async () => {
-    if (!canSubmit || submitLockedRef.current) return;
+    if (submitLockedRef.current) return;
     submitLockedRef.current = true;
     setIsSubmitting(true);
     try {
@@ -449,15 +362,85 @@ export default function IncidentReportScreen() {
       submitLockedRef.current = false;
       setIsSubmitting(false);
     }
-  }, [canSubmit, router, toast]);
+  }, [router, toast]);
+
+  const filledBars = step - 1;
 
   return (
     <DisciplineOfficeScreenShell>
-      <ScreenNavbar title="Incident Report" showMenu={false} onBackPress={requestLeave} />
+      <View style={{ flex: 1, backgroundColor: '#FDFDFD' }}>
+        {/* ── Header + Progress Bars ── */}
+        <View style={{ paddingTop: insets.top + 16, paddingHorizontal: 20, gap: 28 }}>
+          {/* Title row */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Go back"
+              hitSlop={12}
+              onPress={handleBack}
+              className="active:opacity-70"
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 22,
+                backgroundColor: '#F5F5F5',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+              <IconsaxArrowLeftIcon size={20} color="#181D27" />
+            </Pressable>
+            <View style={{ flex: 1, gap: 4 }}>
+              <Text
+                style={{
+                  fontSize: 24,
+                  fontWeight: '600',
+                  color: '#000000',
+                  letterSpacing: -0.48,
+                }}>
+                Report an Incident
+              </Text>
+              <Text
+                style={{
+                  fontSize: 14,
+                  fontWeight: '300',
+                  color: '#535862',
+                  letterSpacing: -0.28,
+                }}>
+                View reports filed for your disciplinary concerns and track their status.
+              </Text>
+            </View>
+          </View>
 
-      <View className="flex-1 bg-transparent">
+          {/* Progress bars */}
+          <View style={{ flexDirection: 'row', gap: 28 }}>
+            {[0, 1, 2].map((i) => (
+              <View
+                key={i}
+                style={{
+                  flex: 1,
+                  height: 8,
+                  borderRadius: 4,
+                  backgroundColor: i < filledBars ? '#006FFD' : '#E8E9F1',
+                  overflow: 'hidden',
+                }}>
+                {i < filledBars && (
+                  <View
+                    style={{
+                      position: 'absolute',
+                      inset: 0,
+                      backgroundColor: '#006FFD',
+                      borderRadius: 8,
+                    }}
+                  />
+                )}
+              </View>
+            ))}
+          </View>
+        </View>
+
+        {/* ── Form Content ── */}
         <KeyboardAwareScrollView
-          className="flex-1"
+          style={{ flex: 1 }}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
           keyboardDismissMode="on-drag"
@@ -465,340 +448,469 @@ export default function IncidentReportScreen() {
           extraKeyboardSpace={24}
           contentContainerStyle={{
             paddingHorizontal: 20,
-            paddingTop: 8,
-            paddingBottom: Math.max(insets.bottom, 20) + 16,
+            paddingTop: 20,
+            paddingBottom: Math.max(insets.bottom, 20) + 100,
             flexGrow: 1,
           }}>
-        <View className="gap-5">
-          <View className="gap-2">
-            <Text className="text-sm font-semibold leading-5 text-[#2A2A2A]">Type of Incident</Text>
-            <View className="w-full shrink-0">
-            <BottomSheet
-              className="w-full shrink-0"
-              isOpen={incidentTypeOpen}
-              onOpenChange={setIncidentTypeOpen}>
-              <BottomSheet.Trigger className="w-full" accessibilityLabel="Select type of incident">
-                <InputGroup className="relative w-full">
-                  <InputGroup.Input
-                    variant="primary"
-                    editable={false}
-                    pointerEvents="none"
-                    showSoftInputOnFocus={false}
-                    placeholder="What type of incident happened?"
-                    placeholderColorClassName="text-[#8F9098]"
-                    value={incidentType}
-                  />
-                  <InputGroup.Suffix isDecorative>
-                    <IconsaxArrowDownIcon size={20} color={ICON_SUFFIX} />
-                  </InputGroup.Suffix>
-                </InputGroup>
-              </BottomSheet.Trigger>
-              <BottomSheet.Portal>
-                <BottomSheet.Overlay isCloseOnPress />
-                <BottomSheet.Content snapPoints={['50%', '75%']} index={0}>
-                  <BottomSheet.Title className="mb-2 px-1 text-base font-semibold leading-6 text-[#181D27]">
-                    Type of Incident
-                  </BottomSheet.Title>
-                  <ScrollView
-                    className="flex-1"
-                    keyboardShouldPersistTaps="handled"
-                    showsVerticalScrollIndicator={false}>
-                    {INCIDENT_TYPES.map((opt) => (
-                      <Pressable
-                        key={opt}
-                        accessibilityRole="button"
-                        className="rounded-xl px-3 py-3.5 active:bg-[#FAFAFA]"
-                        onPress={() => selectIncidentType(opt)}>
-                        <Text
-                          className={`text-sm leading-5 ${incidentType === opt ? 'font-semibold text-[#2970FF]' : 'text-[#181D27]'}`}>
-                          {opt}
-                        </Text>
-                      </Pressable>
-                    ))}
-                  </ScrollView>
-                </BottomSheet.Content>
-              </BottomSheet.Portal>
-            </BottomSheet>
-            </View>
-            {incidentType === INCIDENT_TYPE_OTHER ? (
-              <View className="gap-2 pt-1">
-                <Text className="text-sm font-semibold leading-5 text-[#2A2A2A]">
-                  Describe the incident type
-                </Text>
-                <InputGroup className="relative w-full">
-                  <InputGroup.Input
-                    variant="primary"
+
+          {/* ── STEP 1 ── */}
+          {step === 1 && (
+            <Animated.View key="step-1" entering={FadeIn.duration(220)} style={{ gap: 20 }}>
+              {/* Incident Type */}
+              <View style={{ gap: 8 }}>
+                <Text style={styles.fieldLabel}>Incident Type</Text>
+                <View style={{ width: '100%' }}>
+                  <BottomSheet
+                    className="w-full shrink-0"
+                    isOpen={incidentTypeOpen}
+                    onOpenChange={setIncidentTypeOpen}>
+                    <BottomSheet.Trigger className="w-full" accessibilityLabel="Select type of incident">
+                      <AppInput
+                        editable={false}
+                        pointerEvents="none"
+                        showSoftInputOnFocus={false}
+                        placeholder="Select type of incident"
+                        value={incidentType}
+                        suffix={<IconsaxArrowDownIcon size={12} color={ICON_SUFFIX} />}
+                      />
+                    </BottomSheet.Trigger>
+                    <BottomSheet.Portal>
+                      <BottomSheet.Overlay isCloseOnPress />
+                      <BottomSheet.Content snapPoints={['50%', '75%']} index={0}>
+                        <BottomSheet.Title className="mb-2 px-1 text-base font-semibold leading-6 text-[#181D27]">
+                          Type of Incident
+                        </BottomSheet.Title>
+                        <ScrollView
+                          className="flex-1"
+                          keyboardShouldPersistTaps="handled"
+                          showsVerticalScrollIndicator={false}>
+                          {INCIDENT_TYPES.map((opt) => (
+                            <Pressable
+                              key={opt}
+                              accessibilityRole="button"
+                              className="rounded-xl px-3 py-3.5 active:bg-[#FAFAFA]"
+                              onPress={() => selectIncidentType(opt)}>
+                              <Text
+                                className={`text-sm leading-5 ${incidentType === opt ? 'font-semibold text-[#2970FF]' : 'text-[#181D27]'}`}>
+                                {opt}
+                              </Text>
+                            </Pressable>
+                          ))}
+                        </ScrollView>
+                      </BottomSheet.Content>
+                    </BottomSheet.Portal>
+                  </BottomSheet>
+                </View>
+                {incidentType === INCIDENT_TYPE_OTHER && (
+                  <AppInput
                     editable={!isSubmitting}
                     placeholder="Briefly describe what type of incident this is"
-                    placeholderColorClassName="text-[#8F9098]"
                     value={incidentTypeOther}
                     onChangeText={setIncidentTypeOther}
+                    containerStyle={{ marginTop: 8 }}
                   />
-                </InputGroup>
+                )}
               </View>
-            ) : null}
-          </View>
 
-          <View className="w-full shrink-0 flex-row gap-3">
-            <View className="min-w-0 flex-1 gap-2">
-              <Text className="text-sm font-semibold leading-5 text-[#2A2A2A]">Date</Text>
-              <View className="w-full shrink-0">
-              <BottomSheet
-                className="w-full shrink-0"
-                isOpen={dateSheetOpen}
-                onOpenChange={onDateSheetOpenChange}>
-                <BottomSheet.Trigger className="w-full" accessibilityLabel="Choose incident date">
-                  <InputGroup className="relative w-full">
-                    <InputGroup.Input
-                      variant="primary"
-                      editable={false}
-                      pointerEvents="none"
-                      showSoftInputOnFocus={false}
-                      placeholder="Select date"
-                      placeholderColorClassName="text-[#8F9098]"
-                      value={dateDisplay}
-                    />
-                    <InputGroup.Suffix isDecorative>
-                      <IconsaxCalendarIcon size={20} color={ICON_SUFFIX} />
-                    </InputGroup.Suffix>
-                  </InputGroup>
-                </BottomSheet.Trigger>
-                <BottomSheet.Portal>
-                  <BottomSheet.Overlay isCloseOnPress />
-                  <BottomSheet.Content
-                    snapPoints={Platform.OS === 'android' ? ['62%', '85%'] : ['48%', '72%']}
-                    index={0}>
-                    <BottomSheet.Title className="mb-1 px-1 text-base font-semibold leading-6 text-[#181D27]">
-                      Incident date
-                    </BottomSheet.Title>
-                    <Text className="mb-3 px-1 text-xs leading-4 text-[#8F9098]">
-                      Choose the date the incident occurred (not in the future).
-                    </Text>
-                    <View className="items-center">
-                      <DateTimePicker
-                        value={draftDate}
-                        mode="date"
-                        display={datePickerDisplay}
-                        themeVariant="light"
-                        minimumDate={fiveYearsAgo()}
-                        maximumDate={startOfToday()}
-                        onChange={onDraftDateChange}
+              {/* Date + Time row */}
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                {/* Date */}
+                <View style={{ width: '46%', gap: 8 }}>
+                  <Text style={styles.fieldLabel}>Date</Text>
+                  <BottomSheet
+                    className="w-full shrink-0"
+                    isOpen={dateSheetOpen}
+                    onOpenChange={onDateSheetOpenChange}>
+                    <BottomSheet.Trigger className="w-full" accessibilityLabel="Choose incident date">
+                      <AppInput
+                        editable={false}
+                        pointerEvents="none"
+                        showSoftInputOnFocus={false}
+                        placeholder="Select date"
+                        value={dateDisplay}
+                        suffix={<IconsaxCalendarIcon size={16} color={ICON_SUFFIX} />}
                       />
-                    </View>
-                    <Button
-                      variant="primary"
-                      className="mt-4 h-12 w-full rounded-full bg-[#2970FF]"
-                      onPress={commitDate}>
-                      <Button.Label className="font-semibold text-white">Done</Button.Label>
-                    </Button>
-                  </BottomSheet.Content>
-                </BottomSheet.Portal>
-              </BottomSheet>
-              </View>
-            </View>
-            <View className="min-w-0 flex-1 gap-2">
-              <Text className="text-sm font-semibold leading-5 text-[#2A2A2A]">Time</Text>
-              <View className="w-full shrink-0">
-              <BottomSheet
-                className="w-full shrink-0"
-                isOpen={timeSheetOpen}
-                onOpenChange={onTimeSheetOpenChange}>
-                <BottomSheet.Trigger className="w-full" accessibilityLabel="Choose incident time">
-                  <InputGroup className="relative w-full">
-                    <InputGroup.Input
-                      variant="primary"
-                      editable={false}
-                      pointerEvents="none"
-                      showSoftInputOnFocus={false}
-                      placeholder="Select time"
-                      placeholderColorClassName="text-[#8F9098]"
-                      value={timeDisplay}
-                    />
-                    <InputGroup.Suffix isDecorative>
-                      <IconsaxClockIcon size={20} color={ICON_SUFFIX} />
-                    </InputGroup.Suffix>
-                  </InputGroup>
-                </BottomSheet.Trigger>
-                <BottomSheet.Portal>
-                  <BottomSheet.Overlay isCloseOnPress />
-                  <BottomSheet.Content snapPoints={['48%', '72%']} index={0}>
-                    <BottomSheet.Title className="mb-1 px-1 text-base font-semibold leading-6 text-[#181D27]">
-                      Incident time
-                    </BottomSheet.Title>
-                    <Text className="mb-3 px-1 text-xs leading-4 text-[#8F9098]">
-                      Choose the time the incident occurred.
-                    </Text>
-                    <View className="items-center">
-                      <DateTimePicker
-                        value={draftTime}
-                        mode="time"
-                        display={timePickerDisplay}
-                        themeVariant="light"
-                        onChange={onDraftTimeChange}
-                      />
-                    </View>
-                    <Button
-                      variant="primary"
-                      className="mt-4 h-12 w-full rounded-full bg-[#2970FF]"
-                      onPress={commitTime}>
-                      <Button.Label className="font-semibold text-white">Done</Button.Label>
-                    </Button>
-                  </BottomSheet.Content>
-                </BottomSheet.Portal>
-              </BottomSheet>
-              </View>
-            </View>
-          </View>
-
-          <View className="gap-2">
-            <Text className="text-sm font-semibold leading-5 text-[#2A2A2A]">Location</Text>
-            <InputGroup className="relative w-full">
-              <InputGroup.Input
-                variant="primary"
-                placeholder="Where did it happen?"
-                placeholderColorClassName="text-[#8F9098]"
-                value={location}
-                onChangeText={setLocation}
-              />
-              <InputGroup.Suffix isDecorative>
-                <IconsaxLocationIcon size={20} color={ICON_SUFFIX} />
-              </InputGroup.Suffix>
-            </InputGroup>
-          </View>
-
-          <View className="gap-2">
-            <Text className="text-sm font-semibold leading-5 text-[#2A2A2A]">
-              Your phone number
-            </Text>
-            <InputGroup className="relative w-full">
-              <InputGroup.Input
-                variant="primary"
-                editable={!isSubmitting}
-                keyboardType="phone-pad"
-                placeholder="e.g. 09XX XXX XXXX"
-                placeholderColorClassName="text-[#8F9098]"
-                value={reporterPhone}
-                onChangeText={setReporterPhone}
-              />
-              <InputGroup.Suffix isDecorative>
-                <Ionicons name="call-outline" size={20} color={ICON_SUFFIX} />
-              </InputGroup.Suffix>
-            </InputGroup>
-            <Text className="text-xs leading-4 text-[#6B7280]">
-              Required so the discipline office can reach you about this report.
-            </Text>
-          </View>
-
-          <View className="gap-2">
-            <Text className="text-sm font-semibold leading-5 text-[#2A2A2A]">Person(s) Involved</Text>
-            <InputGroup className="relative w-full">
-              <InputGroup.Input
-                variant="primary"
-                placeholder="Who are the persons involved?"
-                placeholderColorClassName="text-[#8F9098]"
-                value={personsInvolved}
-                onChangeText={setPersonsInvolved}
-              />
-              <InputGroup.Suffix isDecorative>
-                <IconsaxPeopleIcon size={20} color={ICON_SUFFIX} />
-              </InputGroup.Suffix>
-            </InputGroup>
-            <Text className="text-xs leading-4 text-[#6B7280]">
-              Leave blank if unknown or for an anonymous report
-            </Text>
-          </View>
-
-          <TextField className="w-full gap-2">
-            <Text className="text-base font-semibold leading-6 text-[#2A2A2A]">What happened?</Text>
-            <TextArea
-              variant="primary"
-              className="min-h-[180px] w-full"
-              placeholder="Describe what happened in as much detail as you can remember."
-              placeholderColorClassName="text-[#8F9098]"
-              value={whatHappened}
-              onChangeText={setWhatHappened}
-              textAlignVertical="top"
-              editable={!isSubmitting}
-            />
-            <Text className="text-xs leading-4 text-[#6B7280]">
-              Include who, what, when, and where if you know them. You can use multiple paragraphs.
-            </Text>
-          </TextField>
-
-          <View className="w-full shrink-0 gap-2 mt-12">
-            <Text className="text-sm font-semibold leading-5 text-[#2A2A2A]">Supporting evidence</Text>
-            <Text className="text-xs leading-4 text-[#6B7280]">
-              Photos, screenshots, videos, or documents that support your report. Optional.
-            </Text>
-            <FileUploadDropzoneCard
-              onPickMedia={pickMediaFromLibrary}
-              onPickFiles={pickFiles}
-              hintText="Tap above for photos and videos from your library, or Upload Files for PDFs and other documents."
-              className={isSubmitting ? 'opacity-50' : undefined}
-            />
-            {files.length > 0 ? (
-              <View className="gap-3 pt-1">
-                <View className="flex-row items-center gap-2">
-                  <Text className="text-base font-semibold tracking-wide text-[#1F2024]">
-                    Uploaded files
-                  </Text>
-                  <View
-                    className="min-w-[28px] items-center justify-center rounded-full px-2 py-1"
-                    style={{ backgroundColor: '#2970FF' }}>
-                    <Text className="text-xs font-semibold text-white">{files.length}</Text>
-                  </View>
+                    </BottomSheet.Trigger>
+                    <BottomSheet.Portal>
+                      <BottomSheet.Overlay isCloseOnPress />
+                      <BottomSheet.Content
+                        snapPoints={Platform.OS === 'android' ? ['62%', '85%'] : ['48%', '72%']}
+                        index={0}>
+                        <BottomSheet.Title className="mb-1 px-1 text-base font-semibold leading-6 text-[#181D27]">
+                          Incident date
+                        </BottomSheet.Title>
+                        <Text className="mb-3 px-1 text-xs leading-4 text-[#8F9098]">
+                          Choose the date the incident occurred.
+                        </Text>
+                        <View className="items-center">
+                          <DateTimePicker
+                            value={draftDate}
+                            mode="date"
+                            display={datePickerDisplay}
+                            themeVariant="light"
+                            minimumDate={fiveYearsAgo()}
+                            maximumDate={startOfToday()}
+                            onChange={onDraftDateChange}
+                          />
+                        </View>
+                        <Button
+                          variant="primary"
+                          className="mt-4 h-12 w-full rounded-full bg-[#2970FF]"
+                          onPress={commitDate}>
+                          <Button.Label className="font-semibold text-white">Done</Button.Label>
+                        </Button>
+                      </BottomSheet.Content>
+                    </BottomSheet.Portal>
+                  </BottomSheet>
                 </View>
-                {files.map((f) => (
-                  <UploadedFileListRow
-                    key={f.id}
-                    fileName={f.fileName}
-                    dateLabel={f.dateLabel}
-                    timeLabel={f.timeLabel}
-                    sizeLabel={f.sizeLabel}
-                    progress={f.progress}
-                    fileThumbnail={evidenceThumbnail(f.fileName, f.mimeType)}
-                    onRemove={isSubmitting ? undefined : () => removeFile(f.id)}
-                  />
-                ))}
+
+                {/* Time */}
+                <View style={{ width: '46%', gap: 8 }}>
+                  <Text style={styles.fieldLabel}>Time</Text>
+                  <BottomSheet
+                    className="w-full shrink-0"
+                    isOpen={timeSheetOpen}
+                    onOpenChange={onTimeSheetOpenChange}>
+                    <BottomSheet.Trigger className="w-full" accessibilityLabel="Choose incident time">
+                      <AppInput
+                        editable={false}
+                        pointerEvents="none"
+                        showSoftInputOnFocus={false}
+                        placeholder="Select time"
+                        value={timeDisplay}
+                        suffix={<IconsaxClockIcon size={16} color={ICON_SUFFIX} />}
+                      />
+                    </BottomSheet.Trigger>
+                    <BottomSheet.Portal>
+                      <BottomSheet.Overlay isCloseOnPress />
+                      <BottomSheet.Content snapPoints={['48%', '72%']} index={0}>
+                        <BottomSheet.Title className="mb-1 px-1 text-base font-semibold leading-6 text-[#181D27]">
+                          Incident time
+                        </BottomSheet.Title>
+                        <Text className="mb-3 px-1 text-xs leading-4 text-[#8F9098]">
+                          Choose the time the incident occurred.
+                        </Text>
+                        <View className="items-center">
+                          <DateTimePicker
+                            value={draftTime}
+                            mode="time"
+                            display={timePickerDisplay}
+                            themeVariant="light"
+                            onChange={onDraftTimeChange}
+                          />
+                        </View>
+                        <Button
+                          variant="primary"
+                          className="mt-4 h-12 w-full rounded-full bg-[#2970FF]"
+                          onPress={commitTime}>
+                          <Button.Label className="font-semibold text-white">Done</Button.Label>
+                        </Button>
+                      </BottomSheet.Content>
+                    </BottomSheet.Portal>
+                  </BottomSheet>
+                </View>
               </View>
-            ) : null}
-          </View>
-        </View>
+
+              {/* Location */}
+              <View style={{ gap: 8 }}>
+                <Text style={styles.fieldLabel}>Location</Text>
+                <AppInput
+                  placeholder="Where did it happen?"
+                  value={location}
+                  onChangeText={setLocation}
+                  suffix={<IconsaxLocationIcon size={16} color={ICON_SUFFIX} />}
+                />
+              </View>
+
+              {/* Phone Number */}
+              <View style={{ gap: 8 }}>
+                <Text style={styles.fieldLabel}>Phone Number</Text>
+                <AppInput
+                  keyboardType="phone-pad"
+                  placeholder="9XX XXX XXXX"
+                  value={reporterPhone}
+                  onChangeText={setReporterPhone}
+                  maxLength={10}
+                  prefix={<Text style={{ fontSize: 14, color: '#717680', fontWeight: '400' }}>63+</Text>}
+                  prefixDivider
+                />
+                <Text style={{ fontSize: 12, color: '#717680', lineHeight: 16 }}>
+                  Phone number is{' '}
+                  <Text style={{ color: '#414651', textDecorationLine: 'underline' }}>optional</Text>
+                  {' '}but it can help the discipline staff so they reach you about this report.
+                </Text>
+              </View>
+            </Animated.View>
+          )}
+
+          {/* ── STEP 2 ── */}
+          {step === 2 && (
+            <Animated.View key="step-2" entering={FadeIn.duration(220)} style={{ gap: 20 }}>
+              {/* Person(s) Involved */}
+              <View style={{ gap: 8 }}>
+                <Text style={styles.fieldLabel}>Person(s) Involved</Text>
+                <AppInput
+                  placeholder="Who are the persons involved in this case?"
+                  value={personsInvolved}
+                  onChangeText={setPersonsInvolved}
+                  suffix={<IconsaxPeopleIcon size={16} color={ICON_SUFFIX} />}
+                />
+                <Text style={{ fontSize: 12, color: '#717680', lineHeight: 13 }}>
+                  Leave blank if unknown
+                </Text>
+              </View>
+
+              {/* What happened */}
+              <View style={{ gap: 6 }}>
+                <Text style={styles.fieldLabel}>What happened?</Text>
+                <View style={styles.textareaField}>
+                  <TextInput
+                    multiline
+                    textAlignVertical="top"
+                    placeholder="Describe what happened in as much detail as you can remember..."
+                    placeholderTextColor="#A4A7AE"
+                    selectionColor="#2970FF"
+                    value={whatHappened}
+                    onChangeText={(v) => {
+                      if (v.length <= MAX_DESC_CHARS) setWhatHappened(v);
+                    }}
+                    editable={!isSubmitting}
+                    maxLength={MAX_DESC_CHARS}
+                    style={styles.textareaInput}
+                  />
+                </View>
+                <Text style={{ fontSize: 12, color: '#71717A', lineHeight: 16 }}>
+                  Characters: {whatHappened.length}/{MAX_DESC_CHARS}
+                </Text>
+              </View>
+            </Animated.View>
+          )}
+
+          {/* ── STEP 3 ── */}
+          {step === 3 && (
+            <Animated.View key="step-3" entering={FadeIn.duration(220)} style={{ gap: 20 }}>
+              {/* Photos section */}
+              <View style={{ gap: 4 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Text style={styles.fieldLabel}>Photos</Text>
+                  <Text style={{ fontSize: 16, fontWeight: '400', color: '#717680' }}>
+                    ({photos.length}/{MAX_PHOTOS})
+                  </Text>
+                </View>
+                <Text style={{ fontSize: 12, color: '#535862', letterSpacing: -0.24, lineHeight: 16 }}>
+                  You can add up to 24 photos. Discipline Office Staffs want to see all details and angles.
+                </Text>
+              </View>
+
+              {/* Photo grid */}
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+                {/* Add photo button — always visible while below limit */}
+                {photos.length < MAX_PHOTOS && (
+                  <Pressable
+                    onPress={pickPhotos}
+                    className="active:opacity-70"
+                    style={styles.addTile}>
+                    <View style={styles.addTileCircle}>
+                      <Ionicons name="add" size={24} color="#181D27" />
+                    </View>
+                  </Pressable>
+                )}
+
+                {/* Photo thumbnails */}
+                {photos.map((photo) =>
+                  photo.uploading ? (
+                    <Animated.View key={photo.id} entering={FadeInDown.duration(220)}>
+                      <UploadingTile />
+                    </Animated.View>
+                  ) : (
+                    <Animated.View
+                      key={photo.id}
+                      entering={FadeInDown.duration(250)}
+                      style={[styles.mediaTile, { backgroundColor: '#000000', overflow: 'hidden' }]}>
+                      <Image
+                        source={{ uri: photo.uri }}
+                        style={{ width: '100%', height: '100%' }}
+                        resizeMode="cover"
+                      />
+                      <Pressable
+                        onPress={() => removePhoto(photo.id)}
+                        className="active:opacity-80"
+                        style={styles.deleteBadge}>
+                        <Ionicons name="trash-outline" size={14} color="#181D27" />
+                      </Pressable>
+                    </Animated.View>
+                  )
+                )}
+              </View>
+
+              {/* Videos section */}
+              <View style={{ gap: 4, marginTop: 8 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Text style={styles.fieldLabel}>Videos</Text>
+                  <Text style={{ fontSize: 16, fontWeight: '400', color: '#717680' }}>
+                    ({videos.length}/1)
+                  </Text>
+                </View>
+                <Text style={{ fontSize: 12, color: '#535862', letterSpacing: -0.24, lineHeight: 16 }}>
+                  Add an optional video that's about 1 minute long or less.
+                </Text>
+              </View>
+
+              {/* Video grid */}
+              <View style={{ flexDirection: 'row', gap: 12 }}>
+                {/* Add / replace video button — always visible (max 1, re-picking replaces) */}
+                <Pressable
+                  onPress={pickVideo}
+                  className="active:opacity-70"
+                  style={styles.addTile}>
+                  <View style={styles.addTileCircle}>
+                    <Ionicons name="add" size={24} color="#181D27" />
+                  </View>
+                </Pressable>
+
+                {/* Video tile */}
+                {videos.map((video) =>
+                  video.uploading ? (
+                    <Animated.View key={video.id} entering={FadeInDown.duration(220)}>
+                      <UploadingTile />
+                    </Animated.View>
+                  ) : (
+                    <Animated.View
+                      key={video.id}
+                      entering={FadeInDown.duration(250)}
+                      style={[styles.mediaTile, { backgroundColor: '#1a1a1a', overflow: 'hidden' }]}>
+                      <Image
+                        source={{ uri: video.uri }}
+                        style={{ width: '100%', height: '100%' }}
+                        resizeMode="cover"
+                      />
+                      {/* Video icon overlay (thumbnail fallback) */}
+                      <View
+                        style={{
+                          position: 'absolute',
+                          inset: 0,
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                        pointerEvents="none">
+                        <Ionicons name="play-circle" size={32} color="rgba(255,255,255,0.8)" />
+                      </View>
+                      <Pressable
+                        onPress={removeVideo}
+                        className="active:opacity-80"
+                        style={styles.deleteBadge}>
+                        <Ionicons name="trash-outline" size={14} color="#181D27" />
+                      </Pressable>
+                      {video.durationLabel && (
+                        <View style={styles.durationBadge}>
+                          <Ionicons name="play" size={10} color="#000000" />
+                          <Text style={styles.durationText}>{video.durationLabel}</Text>
+                        </View>
+                      )}
+                    </Animated.View>
+                  )
+                )}
+              </View>
+            </Animated.View>
+          )}
         </KeyboardAwareScrollView>
 
+        {/* ── Bottom Buttons ── */}
         <KeyboardStickyView
-          className="border-t border-[#E8EFFF] bg-white/95 px-5 pt-3"
-          style={{ paddingBottom: Math.max(insets.bottom, 12) }}
+          style={{ paddingBottom: Math.max(insets.bottom, 20), paddingHorizontal: 20, paddingTop: 12, backgroundColor: '#FDFDFD' }}
           offset={{ closed: 0, opened: 4 }}>
-          <Text className="mb-2 px-0.5 text-center text-xs leading-4 text-[#6B7280]">
-            You can submit without attachments. Evidence is optional.
-          </Text>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={isSubmitting ? 'Submitting report' : 'Submit incident report'}
-            accessibilityState={{ disabled: submitDisabled, busy: isSubmitting }}
-            disabled={submitDisabled}
-            pointerEvents={submitDisabled ? 'none' : 'auto'}
-            onPress={onSubmit}
-            style={({ pressed }) => ({
-              opacity: submitDisabled ? 1 : pressed ? 0.9 : 1,
-              backgroundColor: submitDisabled && !isSubmitting ? '#A8C4FF' : SUBMIT_BRAND,
-              borderWidth: 1,
-              borderColor: 'rgba(0,0,0,0.1)',
-            })}
-            className="w-full flex-row items-center justify-center gap-2 rounded-full py-3">
-            {isSubmitting ? (
-              <>
+
+          {step === 1 && (
+            <Pressable
+              accessibilityRole="button"
+              disabled={!incidentTypeComplete}
+              onPress={() => setStep(2)}
+              className="active:opacity-90"
+              style={{
+                height: 48,
+                borderRadius: 24,
+                backgroundColor: incidentTypeComplete ? '#2970FF' : '#A8C4FF',
+                borderWidth: 2,
+                borderColor: '#84ADFF',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+              <Text style={{ fontSize: 16, fontWeight: '500', color: '#FFFFFF', letterSpacing: -0.32 }}>
+                Next
+              </Text>
+            </Pressable>
+          )}
+
+          {step === 2 && (
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => setStep(1)}
+                className="active:opacity-80"
+                style={{
+                  width: 140,
+                  height: 48,
+                  borderRadius: 24,
+                  borderWidth: 1,
+                  borderColor: '#528BFF',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: 'transparent',
+                }}>
+                <Text style={{ fontSize: 16, fontWeight: '500', color: '#2970FF', letterSpacing: -0.32 }}>
+                  Back
+                </Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                disabled={whatHappened.trim().length === 0}
+                onPress={() => setStep(3)}
+                className="active:opacity-90"
+                style={{
+                  flex: 1,
+                  height: 48,
+                  borderRadius: 24,
+                  backgroundColor: whatHappened.trim().length > 0 ? '#2970FF' : '#A8C4FF',
+                  borderWidth: 2,
+                  borderColor: '#84ADFF',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
+                <Text style={{ fontSize: 16, fontWeight: '500', color: '#FFFFFF', letterSpacing: -0.32 }}>
+                  Next
+                </Text>
+              </Pressable>
+            </View>
+          )}
+
+          {step === 3 && (
+            <Pressable
+              accessibilityRole="button"
+              disabled={isSubmitting}
+              onPress={onSubmit}
+              className="active:opacity-90"
+              style={{
+                height: 48,
+                borderRadius: 24,
+                backgroundColor: SUBMIT_BRAND,
+                borderWidth: 2,
+                borderColor: '#84ADFF',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+              {isSubmitting ? (
                 <ActivityIndicator color="#FFFFFF" size="small" />
-                <Text className="text-sm font-semibold text-white">Submitting...</Text>
-              </>
-            ) : (
-              <Text className="text-sm font-semibold text-white">Submit Report</Text>
-            )}
-          </Pressable>
+              ) : (
+                <Text style={{ fontSize: 16, fontWeight: '500', color: '#FFFFFF', letterSpacing: -0.32 }}>
+                  Submit Report
+                </Text>
+              )}
+            </Pressable>
+          )}
         </KeyboardStickyView>
       </View>
 
+      {/* Discard dialog */}
       <Dialog isOpen={discardDialogOpen} onOpenChange={setDiscardDialogOpen}>
         <Dialog.Portal>
           <Dialog.Overlay className="bg-black/50" isCloseOnPress={false} />
@@ -830,3 +942,98 @@ export default function IncidentReportScreen() {
     </DisciplineOfficeScreenShell>
   );
 }
+
+const styles = StyleSheet.create({
+  fieldLabel: {
+    fontSize: 16,
+    fontWeight: '400',
+    color: '#000000',
+    lineHeight: 20,
+  },
+  textareaField: {
+    borderWidth: 1,
+    borderColor: '#E9EAEB',
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    minHeight: 120,
+  },
+  textareaInput: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '400',
+    lineHeight: 20,
+    color: '#252B37',
+    letterSpacing: -0.16,
+    padding: 0,
+    margin: 0,
+    minHeight: 96,
+  },
+  mediaTile: {
+    width: 104,
+    height: 104,
+    borderRadius: 16,
+  },
+  addTile: {
+    width: 104,
+    height: 104,
+    borderRadius: 16,
+    backgroundColor: '#E9EAEB',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addTileCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 9999,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  uploadingTile: {
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: '#D5D7DA',
+    backgroundColor: '#FAFAFA',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  uploadingText: {
+    fontSize: 10,
+    fontWeight: '400',
+    color: '#717680',
+    letterSpacing: -0.2,
+  },
+  deleteBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 32,
+    height: 32,
+    borderRadius: 9999,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  durationBadge: {
+    position: 'absolute',
+    bottom: 8,
+    right: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+  },
+  durationText: {
+    fontSize: 10,
+    fontWeight: '400',
+    color: '#000000',
+    letterSpacing: -0.2,
+    minWidth: 21,
+  },
+});

@@ -178,7 +178,7 @@ function CleanRecordBanner({ onDismiss }: { onDismiss: () => void }) {
         paddingVertical: 12,
       }}>
       <View style={{ width: 28, height: 28, alignItems: 'center', justifyContent: 'center' }}>
-        <IconsaxLikeIcon size={24} color="#FFFFFF" />
+        <IconsaxLikeIcon size={32} color="#FFFFFF" />
       </View>
       <Text
         style={{
@@ -196,7 +196,7 @@ function CleanRecordBanner({ onDismiss }: { onDismiss: () => void }) {
         hitSlop={8}
         className="active:opacity-70">
         <View style={{ width: 28, height: 28, alignItems: 'center', justifyContent: 'center' }}>
-          <IconsaxCloseCircleIcon size={24} color="#FFFFFF" />
+          <IconsaxCloseCircleIcon size={28} color="#FFFFFF" />
         </View>
       </Pressable>
     </View>
