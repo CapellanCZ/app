@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BottomSheet } from 'heroui-native';
 
@@ -10,89 +10,87 @@ import {
   ScholarshipSearchBar,
 } from '@/components/student-development-affairs';
 import { ScreenNavbar } from '@/components/ScreenNavbar';
-
-const SCHOLARSHIP_ANNOUNCEMENT_COPY =
-  'Scholarship application for AY 2025 - 2026 3rd Term is only open from January 22, 2026 until March 14, 2026.';
+import { useScholarshipStore } from '@/lib/scholarships/scholarshipStore';
+import type { ScholarshipProgram } from '@/lib/scholarships/types';
 
 /** Matches home (`app/(tabs)/index.tsx`) powder blue → white backdrop. */
 const SCHOLARSHIP_BG_GRADIENT = ['#E8EFFF', '#F4F8FF', '#FFFFFF'] as const;
 
-const MOCK_SCHOLARSHIPS = [
-  {
-    id: '1',
-    title: 'White Scholarship',
-    categoryLabel: 'Academic Excellence',
-    discountLabel: '50% Discount',
-    scheduleLabel: 'every start of academic year',
-  },
-  {
-    id: '2',
-    title: 'Gold Scholarship',
-    categoryLabel: 'Academic Excellence',
-    discountLabel: '50% Discount',
-    scheduleLabel: 'every start of academic year',
-  },
-  {
-    id: '3',
-    title: 'Student Leadership Award',
-    categoryLabel: 'Leadership & Service',
-    discountLabel: 'Partial grant',
-    scheduleLabel: 'annual renewal',
-  },
-] as const;
-
-type Scholarship = (typeof MOCK_SCHOLARSHIPS)[number];
-
-type SortKey = 'name_asc' | 'name_desc' | 'category_asc';
+type SortKey = 'name_asc' | 'name_desc' | 'closes_asc';
 
 const SORT_OPTIONS: { key: SortKey; label: string }[] = [
   { key: 'name_asc', label: 'Scholarship name (A–Z)' },
   { key: 'name_desc', label: 'Scholarship name (Z–A)' },
-  { key: 'category_asc', label: 'Category (A–Z)' },
+  { key: 'closes_asc', label: 'Closing date (soonest first)' },
 ];
 
 function normalize(s: string) {
   return s.trim().toLowerCase();
 }
 
+function formatCloseDate(dateStr: string): string {
+  const d = new Date(dateStr);
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function getDiscountLabel(program: ScholarshipProgram): string {
+  if (program.tuitionDiscountPercent === 100 && program.miscDiscountPercent === 100) {
+    return 'Full Scholarship';
+  }
+  if (program.tuitionDiscountPercent === program.miscDiscountPercent) {
+    return `${program.tuitionDiscountPercent}% Discount`;
+  }
+  return `${program.tuitionDiscountPercent}% Tuition`;
+}
+
 /** Search band + white sheet on the same gradient shell as the home tab. */
 export default function StudentDevelopmentAffairsScreen() {
   const router = useRouter();
+  const { programs, isLoadingPrograms, error, fetchPrograms } = useScholarshipStore();
+
   const [query, setQuery] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('name_asc');
-  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  const [academicYearFilter, setAcademicYearFilter] = useState<string | null>(null);
   const [sortSheetOpen, setSortSheetOpen] = useState(false);
 
-  const categories = useMemo(
-    () => [...new Set(MOCK_SCHOLARSHIPS.map((s) => s.categoryLabel))].sort((a, b) => a.localeCompare(b)),
-    [],
+  useEffect(() => {
+    fetchPrograms();
+  }, [fetchPrograms]);
+
+  const academicYears = useMemo(
+    () => [...new Set(programs.map((p) => p.academicYear))].sort((a, b) => b.localeCompare(a)),
+    [programs],
   );
 
+  const openBanner = useMemo(() => {
+    const open = programs.find((p) => p.status === 'open');
+    if (!open) return null;
+    return `Scholarship applications for AY ${open.academicYear} ${open.term} are open until ${formatCloseDate(open.applicationCloseDate)}.`;
+  }, [programs]);
+
   const displayed = useMemo(() => {
-    let list: Scholarship[] = [...MOCK_SCHOLARSHIPS];
+    let list = [...programs];
     const q = normalize(query);
     if (q.length > 0) {
-      list = list.filter((s) => normalize(s.title).includes(q));
+      list = list.filter((p) => normalize(p.name).includes(q));
     }
-    if (categoryFilter != null) {
-      list = list.filter((s) => s.categoryLabel === categoryFilter);
+    if (academicYearFilter != null) {
+      list = list.filter((p) => p.academicYear === academicYearFilter);
     }
-    const sorted = [...list].sort((a, b) => {
-      if (sortKey === 'name_asc') return a.title.localeCompare(b.title);
-      if (sortKey === 'name_desc') return b.title.localeCompare(a.title);
-      const c = a.categoryLabel.localeCompare(b.categoryLabel);
-      return c !== 0 ? c : a.title.localeCompare(b.title);
+    return list.sort((a, b) => {
+      if (sortKey === 'name_asc') return a.name.localeCompare(b.name);
+      if (sortKey === 'name_desc') return b.name.localeCompare(a.name);
+      return new Date(a.applicationCloseDate).getTime() - new Date(b.applicationCloseDate).getTime();
     });
-    return sorted;
-  }, [query, sortKey, categoryFilter]);
+  }, [query, sortKey, academicYearFilter, programs]);
 
   const selectSort = useCallback((key: SortKey) => {
     setSortKey(key);
     setSortSheetOpen(false);
   }, []);
 
-  const selectCategory = useCallback((value: string | null) => {
-    setCategoryFilter(value);
+  const selectYear = useCallback((value: string | null) => {
+    setAcademicYearFilter(value);
     setSortSheetOpen(false);
   }, []);
 
@@ -115,31 +113,50 @@ export default function StudentDevelopmentAffairsScreen() {
             onChangeText={setQuery}
             onSortPress={() => setSortSheetOpen(true)}
           />
-          <View className="mb-2">
-            <ScholarshipAnnouncementBanner message={SCHOLARSHIP_ANNOUNCEMENT_COPY} />
-          </View>
+          {openBanner ? (
+            <View className="mb-2">
+              <ScholarshipAnnouncementBanner message={openBanner} />
+            </View>
+          ) : null}
         </View>
-        <View className="min-h-0 flex-1 rounded-t-[30px] pb-12 pt-2 ">
+        <View className="min-h-0 flex-1 rounded-t-[30px] pb-12 pt-2">
           <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
             <View className="w-full gap-3 px-4 pb-4">
-              {displayed.length === 0 ? (
+              {isLoadingPrograms ? (
+                <View className="items-center justify-center py-16">
+                  <ActivityIndicator size="large" color="#2970FF" />
+                  <Text className="mt-3 text-sm leading-5 text-[#717680]">Loading scholarships…</Text>
+                </View>
+              ) : error ? (
+                <View className="items-center justify-center py-10 px-4">
+                  <Text className="text-center text-sm leading-5 text-[#D92D20]">{error}</Text>
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={fetchPrograms}
+                    className="mt-4 rounded-full bg-[#2970FF] px-5 py-2.5">
+                    <Text className="text-sm font-semibold text-white">Try Again</Text>
+                  </Pressable>
+                </View>
+              ) : displayed.length === 0 ? (
                 <View className="items-center justify-center py-10 px-4">
                   <Text className="text-center text-sm leading-5 text-[#535862]">
-                    No scholarships match that name. Try another search or change sort and filters.
+                    {query.length > 0
+                      ? 'No scholarships match that name. Try another search or change filters.'
+                      : 'No scholarships are currently open.'}
                   </Text>
                 </View>
               ) : (
-                displayed.map((item) => (
+                displayed.map((program) => (
                   <ScholarshipCard
-                    key={item.id}
-                    title={item.title}
-                    categoryLabel={item.categoryLabel}
-                    discountLabel={item.discountLabel}
-                    scheduleLabel={item.scheduleLabel}
+                    key={program.id}
+                    title={program.name}
+                    categoryLabel={`AY ${program.academicYear} · ${program.term}`}
+                    discountLabel={getDiscountLabel(program)}
+                    scheduleLabel={`Closes ${formatCloseDate(program.applicationCloseDate)}`}
                     onApplyPress={() =>
                       router.push({
                         pathname: '/student-development-affairs/about-scholarship',
-                        params: { id: item.id, title: item.title },
+                        params: { id: program.id, title: program.name },
                       })
                     }
                   />
@@ -177,30 +194,34 @@ export default function StudentDevelopmentAffairsScreen() {
                     </Text>
                   </Pressable>
                 ))}
-                <Text className="mb-2 mt-4 px-1 text-xs font-semibold uppercase tracking-wide text-[#8F9098]">
-                  Category
-                </Text>
-                <Pressable
-                  accessibilityRole="button"
-                  className="rounded-xl px-3 py-3.5 active:bg-[#FAFAFA]"
-                  onPress={() => selectCategory(null)}>
-                  <Text
-                    className={`text-sm leading-5 ${categoryFilter === null ? 'font-semibold text-[#2970FF]' : 'text-[#181D27]'}`}>
-                    All categories
-                  </Text>
-                </Pressable>
-                {categories.map((cat) => (
-                  <Pressable
-                    key={cat}
-                    accessibilityRole="button"
-                    className="rounded-xl px-3 py-3.5 active:bg-[#FAFAFA]"
-                    onPress={() => selectCategory(cat)}>
-                    <Text
-                      className={`text-sm leading-5 ${categoryFilter === cat ? 'font-semibold text-[#2970FF]' : 'text-[#181D27]'}`}>
-                      {cat}
+                {academicYears.length > 0 ? (
+                  <>
+                    <Text className="mb-2 mt-4 px-1 text-xs font-semibold uppercase tracking-wide text-[#8F9098]">
+                      Academic Year
                     </Text>
-                  </Pressable>
-                ))}
+                    <Pressable
+                      accessibilityRole="button"
+                      className="rounded-xl px-3 py-3.5 active:bg-[#FAFAFA]"
+                      onPress={() => selectYear(null)}>
+                      <Text
+                        className={`text-sm leading-5 ${academicYearFilter === null ? 'font-semibold text-[#2970FF]' : 'text-[#181D27]'}`}>
+                        All years
+                      </Text>
+                    </Pressable>
+                    {academicYears.map((year) => (
+                      <Pressable
+                        key={year}
+                        accessibilityRole="button"
+                        className="rounded-xl px-3 py-3.5 active:bg-[#FAFAFA]"
+                        onPress={() => selectYear(year)}>
+                        <Text
+                          className={`text-sm leading-5 ${academicYearFilter === year ? 'font-semibold text-[#2970FF]' : 'text-[#181D27]'}`}>
+                          AY {year}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </>
+                ) : null}
               </ScrollView>
             </BottomSheet.Content>
           </BottomSheet.Portal>

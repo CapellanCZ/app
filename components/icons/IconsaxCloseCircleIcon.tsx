@@ -2,22 +2,34 @@ import Svg, { Path } from 'react-native-svg';
 
 type Props = {
   size?: number;
-  /** Default matches `assets/icons/iconsax-close-circle.svg` fill. */
+  /** Default matches `assets/icons/iconsax-close-circle.svg` stroke. */
   color?: string;
 };
 
-/** `assets/icons/iconsax-close-circle.svg` (clip omitted; viewport matches viewBox) */
-export function IconsaxCloseCircleIcon({ size = 22, color = '#717680' }: Props) {
+/** `assets/icons/iconsax-close-circle.svg` */
+export function IconsaxCloseCircleIcon({ size = 24, color = '#FFFFFF' }: Props) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Path
-        opacity={0.4}
-        d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z"
-        fill={color}
+        d="M12 22C17.5 22 22 17.5 22 12C22 6.5 17.5 2 12 2C6.5 2 2 6.5 2 12C2 17.5 6.5 22 12 22Z"
+        stroke={color}
+        strokeWidth={1.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
       />
       <Path
-        d="M13.0599 11.9994L15.3599 9.69937C15.6499 9.40937 15.6499 8.92937 15.3599 8.63938C15.0699 8.34938 14.5899 8.34938 14.2999 8.63938L11.9999 10.9394L9.69986 8.63938C9.40986 8.34938 8.92986 8.34938 8.63986 8.63938C8.34986 8.92937 8.34986 9.40937 8.63986 9.69937L10.9399 11.9994L8.63986 14.2994C8.34986 14.5894 8.34986 15.0694 8.63986 15.3594C8.78986 15.5094 8.97986 15.5794 9.16986 15.5794C9.35986 15.5794 9.54986 15.5094 9.69986 15.3594L11.9999 13.0594L14.2999 15.3594C14.4499 15.5094 14.6399 15.5794 14.8299 15.5794C15.0199 15.5794 15.2099 15.5094 15.3599 15.3594C15.6499 15.0694 15.6499 14.5894 15.3599 14.2994L13.0599 11.9994Z"
-        fill={color}
+        d="M9.17004 14.8299L14.83 9.16992"
+        stroke={color}
+        strokeWidth={1.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M14.83 14.8299L9.17004 9.16992"
+        stroke={color}
+        strokeWidth={1.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
       />
     </Svg>
   );

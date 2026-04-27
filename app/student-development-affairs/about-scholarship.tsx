@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
-import { Alert, ScrollView, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Alert, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from 'heroui-native';
 
@@ -11,89 +11,92 @@ import type { ScholarshipDetailTab } from '@/components/student-development-affa
 import { ScholarshipEligibilityChecklist } from '@/components/student-development-affairs/ScholarshipEligibilityChecklist';
 import { ScholarshipFeeSummaryCard } from '@/components/student-development-affairs/ScholarshipFeeSummaryCard';
 import { ScholarshipRequirementsList } from '@/components/student-development-affairs/ScholarshipRequirementsList';
+import { useScholarshipStore } from '@/lib/scholarships/scholarshipStore';
 
-const DEFAULT_SPONSOR = 'DOÑA MIGUELA M. JHOCSON';
-const DEFAULT_ABOUT =
-  'This scholarship may apply to a senior high student graduating with high honors. Limited number of scholars available.';
-
-const REQUIREMENT_ITEMS = [
-  'Certificate Award',
-  'Original High School Report Card',
-  'Certificate of Good Moral Character',
-  'PSA Birth Certificate (photocopy)',
-  '2x2 picture (2 copies)',
-  'No grade lower than 90 (1st–4th grading)',
-  'Pass NU Scholarship Exam',
-] as const;
-
-const ELIGIBILITY_ITEMS = [
-  'Maintain CGWA of at least 3.0',
-  'Keep grades not lower than 2.50',
-  'No fail, repeat, or zero-credit subjects',
-  'One-time grace period for grade issues',
-  'Must be enrolled continuously',
-  'Maintain good conduct record',
-  'Cannot reclassify as Gold Scholar',
-  'Stay within program curriculum flow',
-  'No add/drop unless College initiated',
-  'Maintain minimum load requirements',
-] as const;
-
-type DetailConfig = {
-  title: string;
-  sponsorLabel: string;
-  aboutBody: string;
-  tuitionPercent: string;
-  miscPercent: string;
-};
-
-const MOCK_BY_ID: Record<string, DetailConfig> = {
-  '1': {
-    title: 'White Scholarship',
-    sponsorLabel: DEFAULT_SPONSOR,
-    aboutBody: DEFAULT_ABOUT,
-    tuitionPercent: '50%',
-    miscPercent: '50%',
-  },
-  '2': {
-    title: 'Gold Scholarship',
-    sponsorLabel: DEFAULT_SPONSOR,
-    aboutBody: DEFAULT_ABOUT,
-    tuitionPercent: '50%',
-    miscPercent: '50%',
-  },
-  '3': {
-    title: 'Gold Scholarship',
-    sponsorLabel: DEFAULT_SPONSOR,
-    aboutBody: DEFAULT_ABOUT,
-    tuitionPercent: '50%',
-    miscPercent: '50%',
-  },
-};
-
-function resolveDetail(id: string | undefined, titleParam: string | undefined): DetailConfig {
-  if (id && MOCK_BY_ID[id]) {
-    return MOCK_BY_ID[id];
+function buildEligibilityStrings(program: {
+  minGpa: number | null;
+  maxGpa: number | null;
+  yearLevels: string[] | null;
+  programs: string[] | null;
+  tuitionDiscountPercent: number;
+  miscDiscountPercent: number;
+}): string[] {
+  const items: string[] = [];
+  if (program.minGpa != null) {
+    items.push(`Maintain a minimum GPA of ${program.minGpa.toFixed(2)}`);
   }
-  return {
-    title: titleParam?.trim() || 'Scholarship',
-    sponsorLabel: DEFAULT_SPONSOR,
-    aboutBody: DEFAULT_ABOUT,
-    tuitionPercent: '100%',
-    miscPercent: '100%',
-  };
+  if (program.maxGpa != null) {
+    items.push(`GPA must not exceed ${program.maxGpa.toFixed(2)}`);
+  }
+  if (program.yearLevels && program.yearLevels.length > 0) {
+    items.push(`Open to ${program.yearLevels.join(', ')} year level students`);
+  }
+  if (program.programs && program.programs.length > 0) {
+    items.push(`Available for: ${program.programs.join(', ')}`);
+  }
+  if (program.tuitionDiscountPercent > 0) {
+    items.push(`Receive ${program.tuitionDiscountPercent}% discount on tuition fees`);
+  }
+  if (program.miscDiscountPercent > 0) {
+    items.push(`Receive ${program.miscDiscountPercent}% discount on miscellaneous fees`);
+  }
+  items.push('Must be continuously enrolled');
+  items.push('Must maintain good conduct record');
+  items.push('No failing, incomplete, or withdrawn subjects');
+  return items;
 }
 
 export default function AboutScholarshipScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { id, title: titleParam } = useLocalSearchParams<{ id?: string; title?: string }>();
+  const { id } = useLocalSearchParams<{ id?: string }>();
 
-  const detail = useMemo(() => resolveDetail(id, titleParam), [id, titleParam]);
+  const {
+    currentProgram,
+    isLoadingProgram,
+    myApplications,
+    isSubmitting,
+    error,
+    fetchProgramById,
+    fetchMyApplications,
+    createApplication,
+    clearCurrentProgram,
+  } = useScholarshipStore();
 
   const [tab, setTab] = useState<ScholarshipDetailTab>('requirements');
-  const [eligibilityChecked, setEligibilityChecked] = useState(() =>
-    ELIGIBILITY_ITEMS.map(() => false),
+  const [eligibilityChecked, setEligibilityChecked] = useState<boolean[]>([]);
+
+  useEffect(() => {
+    if (id) {
+      fetchProgramById(id);
+      fetchMyApplications();
+    }
+    return () => {
+      clearCurrentProgram();
+    };
+  }, [id, fetchProgramById, fetchMyApplications, clearCurrentProgram]);
+
+  // Sync eligibility checkbox count when program loads
+  useEffect(() => {
+    if (currentProgram) {
+      const items = buildEligibilityStrings(currentProgram);
+      setEligibilityChecked(items.map(() => false));
+    }
+  }, [currentProgram]);
+
+  const existingApplication = useMemo(
+    () => myApplications.find((a) => a.programId === id),
+    [myApplications, id],
+  );
+
+  const requirementItems = useMemo(
+    () => currentProgram?.requirements.map((r) => r.name) ?? [],
+    [currentProgram],
+  );
+
+  const eligibilityItems = useMemo(
+    () => (currentProgram ? buildEligibilityStrings(currentProgram) : []),
+    [currentProgram],
   );
 
   const toggleEligibility = useCallback((index: number) => {
@@ -104,9 +107,84 @@ export default function AboutScholarshipScreen() {
     });
   }, []);
 
-  const onWantToApply = useCallback(() => {
-    Alert.alert('Apply', `Application flow for ${detail.title} is not wired yet.`);
-  }, [detail.title]);
+  const onWantToApply = useCallback(async () => {
+    if (!id) return;
+
+    // Continue existing draft
+    if (existingApplication?.status === 'draft') {
+      router.push({
+        pathname: '/student-development-affairs/apply',
+        params: { applicationId: existingApplication.id },
+      });
+      return;
+    }
+
+    // Already submitted / reviewed — show status info
+    if (existingApplication) {
+      Alert.alert(
+        'Application Status',
+        `Your application (ref: ${existingApplication.referenceNumber ?? 'pending'}) is currently: ${existingApplication.status.replace(/_/g, ' ')}.`,
+      );
+      return;
+    }
+
+    // Create new draft and navigate
+    const applicationId = await createApplication(id, {});
+    if (applicationId) {
+      router.push({
+        pathname: '/student-development-affairs/apply',
+        params: { applicationId },
+      });
+    }
+  }, [id, existingApplication, createApplication, router]);
+
+  const buttonLabel = useMemo(() => {
+    if (isSubmitting) return 'Creating application…';
+    if (!existingApplication) return 'I want to apply';
+    const s = existingApplication.status;
+    if (s === 'draft') return 'Continue application';
+    if (s === 'submitted') return 'Application submitted';
+    if (s === 'under_review') return 'Under review';
+    if (s === 'approved') return 'Application approved';
+    if (s === 'rejected') return 'Application not approved';
+    return 'View application';
+  }, [existingApplication, isSubmitting]);
+
+  const buttonDisabled = useMemo(() => {
+    if (isSubmitting) return true;
+    if (!existingApplication) return false;
+    return existingApplication.status !== 'draft';
+  }, [existingApplication, isSubmitting]);
+
+  if (isLoadingProgram) {
+    return (
+      <View className="flex-1 bg-white">
+        <ScreenNavbar title="About Scholarship" menuIconSize={32} onBackPress={() => router.back()} />
+        <View className="flex-1 items-center justify-center">
+          <ActivityIndicator size="large" color="#2970FF" />
+          <Text className="mt-3 text-sm leading-5 text-[#717680]">Loading details…</Text>
+        </View>
+      </View>
+    );
+  }
+
+  if (!currentProgram || error) {
+    return (
+      <View className="flex-1 bg-white">
+        <ScreenNavbar title="About Scholarship" menuIconSize={32} onBackPress={() => router.back()} />
+        <View className="flex-1 items-center justify-center px-6">
+          <Text className="text-center text-sm leading-5 text-[#D92D20]">
+            {error ?? 'Could not load scholarship details.'}
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
+  const tuitionLabel =
+    currentProgram.tuitionDiscountPercent === 100 ? '100%' : `${currentProgram.tuitionDiscountPercent}%`;
+  const miscLabel =
+    currentProgram.miscDiscountPercent === 100 ? '100%' : `${currentProgram.miscDiscountPercent}%`;
 
   return (
     <View className="flex-1 bg-white">
@@ -121,24 +199,36 @@ export default function AboutScholarshipScreen() {
         contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 16 }}>
         <View className="gap-4">
           <ScholarshipDetailHeroCard
-            sponsorLabel={detail.sponsorLabel}
-            title={detail.title}
-            aboutBody={detail.aboutBody}
+            sponsorLabel={currentProgram.sponsorName}
+            title={currentProgram.name}
+            aboutBody={currentProgram.fullDescription ?? currentProgram.shortDescription}
           />
           <ScholarshipFeeSummaryCard
-            tuitionPercent={detail.tuitionPercent}
-            miscPercent={detail.miscPercent}
+            tuitionPercent={tuitionLabel}
+            miscPercent={miscLabel}
           />
           <View className="gap-4">
             <ScholarshipDetailSegmentedTabs active={tab} onChange={setTab} />
             {tab === 'requirements' ? (
-              <ScholarshipRequirementsList items={[...REQUIREMENT_ITEMS]} />
+              requirementItems.length > 0 ? (
+                <ScholarshipRequirementsList items={requirementItems} />
+              ) : (
+                <View className="items-center py-6">
+                  <Text className="text-sm leading-5 text-[#717680]">No requirements listed yet.</Text>
+                </View>
+              )
             ) : (
-              <ScholarshipEligibilityChecklist
-                items={[...ELIGIBILITY_ITEMS]}
-                checked={eligibilityChecked}
-                onToggle={toggleEligibility}
-              />
+              eligibilityItems.length > 0 ? (
+                <ScholarshipEligibilityChecklist
+                  items={eligibilityItems}
+                  checked={eligibilityChecked}
+                  onToggle={toggleEligibility}
+                />
+              ) : (
+                <View className="items-center py-6">
+                  <Text className="text-sm leading-5 text-[#717680]">No eligibility criteria listed yet.</Text>
+                </View>
+              )
             )}
           </View>
         </View>
@@ -148,9 +238,14 @@ export default function AboutScholarshipScreen() {
         style={{ paddingBottom: Math.max(insets.bottom, 20) }}>
         <Button
           variant="primary"
-          className="h-12 w-full rounded-full border border-[#001229]/10 bg-[#2970FF]"
+          isDisabled={buttonDisabled}
+          className={`h-12 w-full rounded-full border border-[#001229]/10 ${buttonDisabled ? 'bg-[#D0D5DD]' : 'bg-[#2970FF]'}`}
           onPress={onWantToApply}>
-          <Button.Label className="text-sm font-semibold text-white">I want to apply</Button.Label>
+          {isSubmitting ? (
+            <ActivityIndicator size="small" color="#FFFFFF" />
+          ) : (
+            <Button.Label className="text-sm font-semibold text-white">{buttonLabel}</Button.Label>
+          )}
         </Button>
       </View>
     </View>

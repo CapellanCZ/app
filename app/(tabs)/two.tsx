@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { useAuth } from '@/lib/auth/AuthProvider';
 import { fetchStudentProfile, pickAndUploadAvatar, type StudentProfile } from '@/lib/profile/profileApi';
+import { useScholarshipStore } from '@/lib/scholarships/scholarshipStore';
 import { SCHEDULE_PARTNER } from '@/lib/health-service/bookingScheduleTheme';
 import {
   HOME_BG_GRADIENT_COLORS,
@@ -129,6 +130,180 @@ function maskEmail(email: string): string {
   if (!local || !domain) return email;
   const visible = local.slice(0, 2);
   return `${visible}${'*'.repeat(Math.min(local.length - 2, 5))}@${domain}`;
+}
+
+// ── Scholarship status card ──────────────────────────────────────────────────
+
+const SCHOLARSHIP_STATUS_META: Record<string, { label: string; dot: string; bg: string; text: string }> = {
+  active:     { label: 'Active',     dot: '#47CD89', bg: '#ECFDF3', text: '#067647' },
+  compliant:  { label: 'Compliant',  dot: '#47CD89', bg: '#ECFDF3', text: '#067647' },
+  at_risk:    { label: 'At Risk',    dot: '#F79009', bg: '#FFFAEB', text: '#B54708' },
+  probation:  { label: 'Probation',  dot: '#F04438', bg: '#FEF3F2', text: '#B42318' },
+  suspended:  { label: 'Suspended',  dot: '#F04438', bg: '#FEF3F2', text: '#B42318' },
+  terminated: { label: 'Terminated', dot: '#98A2B3', bg: '#F2F4F7', text: '#475467' },
+  completed:  { label: 'Completed',  dot: '#47CD89', bg: '#ECFDF3', text: '#067647' },
+};
+
+function ScholarshipStatusCard({ onPress }: { onPress: () => void }) {
+  const { myEnrollment, fetchMyEnrollment } = useScholarshipStore();
+
+  useEffect(() => {
+    fetchMyEnrollment();
+  }, [fetchMyEnrollment]);
+
+  if (!myEnrollment) return null;
+
+  const meta = SCHOLARSHIP_STATUS_META[myEnrollment.status] ?? SCHOLARSHIP_STATUS_META.active;
+  const programName = myEnrollment.program?.name ?? 'Scholarship';
+  const gpa = myEnrollment.currentGpa != null ? myEnrollment.currentGpa.toFixed(2) : null;
+
+  const totalItems = myEnrollment.complianceItems.length;
+  const verifiedItems = myEnrollment.complianceItems.filter(
+    (i) => i.status === 'verified' || i.status === 'waived',
+  ).length;
+  const pendingActionable = myEnrollment.complianceItems.filter(
+    (i) => i.status === 'pending' || i.status === 'overdue' || i.status === 'rejected',
+  ).length;
+
+  return (
+    <>
+      <SectionLabel title="My Scholarship" />
+      <Pressable
+        onPress={onPress}
+        accessibilityRole="button"
+        accessibilityLabel={`View ${programName} status`}
+        className="active:opacity-80">
+        <LinearGradient
+          colors={['#2970FF', '#155EEF', '#1248E8']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={{
+            borderRadius: 16,
+            padding: 16,
+            gap: 14,
+          }}>
+          {/* Header row */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <View
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 10,
+                backgroundColor: 'rgba(255,255,255,0.18)',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+              <Ionicons name="ribbon" size={22} color="#FFFFFF" />
+            </View>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text
+                numberOfLines={1}
+                style={{ fontSize: 15, fontWeight: '700', color: '#FFFFFF' }}>
+                {programName}
+              </Text>
+              <Text
+                style={{
+                  marginTop: 2,
+                  fontSize: 12,
+                  color: 'rgba(255,255,255,0.85)',
+                }}>
+                {myEnrollment.yearLevel} · AY {myEnrollment.academicYear}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.9)" />
+          </View>
+
+          {/* Status + stats row */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 6,
+                backgroundColor: meta.bg,
+                paddingHorizontal: 10,
+                paddingVertical: 4,
+                borderRadius: 999,
+              }}>
+              <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: meta.dot }} />
+              <Text style={{ fontSize: 12, fontWeight: '600', color: meta.text }}>
+                {meta.label}
+              </Text>
+            </View>
+
+            {gpa ? (
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 6,
+                  backgroundColor: 'rgba(255,255,255,0.18)',
+                  paddingHorizontal: 10,
+                  paddingVertical: 4,
+                  borderRadius: 999,
+                }}>
+                <Ionicons name="school-outline" size={12} color="#FFFFFF" />
+                <Text style={{ fontSize: 12, fontWeight: '600', color: '#FFFFFF' }}>GPA {gpa}</Text>
+              </View>
+            ) : null}
+
+            {pendingActionable > 0 ? (
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 6,
+                  backgroundColor: 'rgba(255,255,255,0.18)',
+                  paddingHorizontal: 10,
+                  paddingVertical: 4,
+                  borderRadius: 999,
+                }}>
+                <Ionicons name="alert-circle-outline" size={12} color="#FFFFFF" />
+                <Text style={{ fontSize: 12, fontWeight: '600', color: '#FFFFFF' }}>
+                  {pendingActionable} pending
+                </Text>
+              </View>
+            ) : null}
+          </View>
+
+          {/* Progress bar */}
+          {totalItems > 0 ? (
+            <View style={{ gap: 6 }}>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                }}>
+                <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.85)' }}>
+                  Compliance progress
+                </Text>
+                <Text style={{ fontSize: 12, fontWeight: '600', color: '#FFFFFF' }}>
+                  {verifiedItems} / {totalItems}
+                </Text>
+              </View>
+              <View
+                style={{
+                  height: 6,
+                  borderRadius: 3,
+                  backgroundColor: 'rgba(255,255,255,0.22)',
+                  overflow: 'hidden',
+                }}>
+                <View
+                  style={{
+                    height: '100%',
+                    width: `${Math.round((verifiedItems / totalItems) * 100)}%`,
+                    backgroundColor: '#FFFFFF',
+                    borderRadius: 3,
+                  }}
+                />
+              </View>
+            </View>
+          ) : null}
+        </LinearGradient>
+      </Pressable>
+    </>
+  );
 }
 
 export default function ProfileTab() {
@@ -295,6 +470,9 @@ export default function ProfileTab() {
             <Ionicons name="person-outline" size={18} color={ICON_COLOR} />
           </Pressable>
         </View>
+
+        {/* Scholarship status (hidden if user has no enrollment) */}
+        <ScholarshipStatusCard onPress={() => router.push('/my-scholarship')} />
 
         {/* Combined card — all menu items */}
         <SectionLabel title="Account & Settings" />

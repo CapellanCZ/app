@@ -1,28 +1,17 @@
 import type { ReactNode } from 'react';
 import { View } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-
-import {
-  HOME_BG_GRADIENT_COLORS,
-  HOME_BG_GRADIENT_LOCATIONS,
-} from '@/lib/ui/screenGradients';
 
 type DisciplineOfficeScreenShellProps = {
   children: ReactNode;
 };
 
 /**
- * Powder gradient shell aligned with Home / Health Service so the discipline hub feels cohesive.
+ * Solid background shell matching Figma design.
  */
 export function DisciplineOfficeScreenShell({ children }: DisciplineOfficeScreenShellProps) {
   return (
-    <LinearGradient
-      colors={[...HOME_BG_GRADIENT_COLORS]}
-      locations={[...HOME_BG_GRADIENT_LOCATIONS]}
-      start={{ x: 0.5, y: 1 }}
-      end={{ x: 0.5, y: 0 }}
-      style={{ flex: 1 }}>
+    <View style={{ flex: 1, backgroundColor: '#FDFDFD' }}>
       <View className="flex-1 bg-transparent">{children}</View>
-    </LinearGradient>
+    </View>
   );
 }
