@@ -25,19 +25,19 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useToast } from 'heroui-native';
 
-import { DisciplineOfficeScreenShell } from '@/components/discipline-office';
+import { DisciplineOfficeScreenShell, ScreenHeader } from '@/components/discipline-office';
 import { AppInput } from '@/components/ui/AppInput';
-import { IconsaxArrowLeftIcon } from '@/components/icons/IconsaxArrowLeftIcon';
+import { submitNTEResponse, type AttachmentFile } from '@/lib/discipline-office/disciplineApi';
+import { Alert } from 'react-native';
 
-const HOME_TABS_ROUTE = '/(tabs)';
 const MAX_STATEMENT_CHARS = 2000;
 const MAX_PHOTOS = 24;
 const UPLOAD_SIM_MS = 900;
 const TOAST_SUCCESS_ICON = '#079455';
 const SUBMIT_BRAND = '#2970FF';
 
-type PhotoItem = { id: string; uri: string; uploading?: boolean };
-type VideoItem = { id: string; uri: string; durationLabel?: string; uploading?: boolean };
+type PhotoItem = { id: string; uri: string; fileName?: string; mimeType?: string | null; size?: number; uploading?: boolean };
+type VideoItem = { id: string; uri: string; fileName?: string; mimeType?: string | null; size?: number; durationLabel?: string; uploading?: boolean };
 
 function formatDuration(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -89,14 +89,6 @@ export default function StatementOfExplanationScreen() {
   const canSubmit = statement.trim().length > 0 && acceptedTerms && !isSubmitting;
 
   // ── Navigation ───────────────────────────────────────────────────────────────
-  const handleBack = useCallback(() => {
-    if (router.canGoBack()) {
-      router.back();
-    } else {
-      router.replace(HOME_TABS_ROUTE);
-    }
-  }, [router]);
-
   // ── Photo picker ─────────────────────────────────────────────────────────────
   const pickPhotos = useCallback(async () => {
     Keyboard.dismiss();
@@ -113,6 +105,9 @@ export default function StatementOfExplanationScreen() {
       const newPhotos: PhotoItem[] = result.assets.slice(0, remaining).map((asset) => ({
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         uri: asset.uri,
+        fileName: asset.fileName ?? `photo_${Date.now()}.jpg`,
+        mimeType: asset.mimeType ?? 'image/jpeg',
+        size: asset.fileSize,
         uploading: true,
       }));
       setPhotos((prev) => [...prev, ...newPhotos]);
@@ -143,7 +138,15 @@ export default function StatementOfExplanationScreen() {
       const asset = result.assets[0];
       const durationLabel = asset.duration != null ? formatDuration(asset.duration) : undefined;
       const newId = `${Date.now()}`;
-      setVideos([{ id: newId, uri: asset.uri, durationLabel, uploading: true }]);
+      setVideos([{
+        id: newId,
+        uri: asset.uri,
+        fileName: asset.fileName ?? `video_${Date.now()}.mp4`,
+        mimeType: asset.mimeType ?? 'video/mp4',
+        size: asset.fileSize,
+        durationLabel,
+        uploading: true,
+      }]);
       setTimeout(() => {
         setVideos((prev) =>
           prev.map((v) => (v.id === newId ? { ...v, uploading: false } : v)),
@@ -155,13 +158,46 @@ export default function StatementOfExplanationScreen() {
   const removeVideo = useCallback(() => setVideos([]), []);
 
   // ── Submit ───────────────────────────────────────────────────────────────────
+  const nteId = params.nteId ?? '';
+
   const handleSubmit = useCallback(async () => {
     if (!canSubmit || submitLockedRef.current) return;
+    if (!nteId) {
+      Alert.alert('Missing NTE', 'No NTE was selected for this statement.');
+      return;
+    }
     submitLockedRef.current = true;
     Keyboard.dismiss();
     setIsSubmitting(true);
     try {
-      await new Promise((res) => setTimeout(res, 1200));
+      // Compose response body: statement + witnesses (if any)
+      const responseText = witnesses.trim()
+        ? `${statement.trim()}\n\nWitnesses: ${witnesses.trim()}`
+        : statement.trim();
+
+      const files: AttachmentFile[] = [
+        ...photos.filter((p) => !p.uploading).map((p) => ({
+          uri: p.uri,
+          fileName: p.fileName ?? `photo_${p.id}.jpg`,
+          mimeType: p.mimeType ?? 'image/jpeg',
+          size: p.size,
+        })),
+        ...videos.filter((v) => !v.uploading).map((v) => ({
+          uri: v.uri,
+          fileName: v.fileName ?? `video_${v.id}.mp4`,
+          mimeType: v.mimeType ?? 'video/mp4',
+          size: v.size,
+        })),
+      ];
+
+      const { error } = await submitNTEResponse(nteId, responseText, files);
+      if (error) {
+        setIsSubmitting(false);
+        submitLockedRef.current = false;
+        Alert.alert('Submission failed', error);
+        return;
+      }
+
       toast.show({
         variant: 'success',
         placement: 'top',
@@ -175,33 +211,21 @@ export default function StatementOfExplanationScreen() {
         ),
       });
       router.back();
-    } finally {
+    } catch (e) {
       setIsSubmitting(false);
       submitLockedRef.current = false;
+      Alert.alert('Submission failed', e instanceof Error ? e.message : 'Unknown error');
     }
-  }, [canSubmit, router, toast]);
+  }, [canSubmit, nteId, statement, witnesses, photos, videos, router, toast]);
 
   return (
     <DisciplineOfficeScreenShell>
       <View style={{ flex: 1 }}>
-        {/* ── Header ── */}
-        <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
-            hitSlop={12}
-            onPress={handleBack}
-            className="active:opacity-70"
-            style={styles.backBtn}>
-            <IconsaxArrowLeftIcon size={20} color="#181D27" />
-          </Pressable>
-          <View style={styles.headerText}>
-            <Text style={styles.headerTitle}>Statement of Explanation</Text>
-            <Text style={styles.headerSubtitle}>
-              Provide a clear and honest account of your side of the incident.
-            </Text>
-          </View>
-        </View>
+        <ScreenHeader
+          title="Statement of Explanation"
+          subtitle="Provide a clear and honest account of your side of the incident."
+          paddingBottom={24}
+        />
 
         {/* ── Scrollable form ── */}
         <KeyboardAwareScrollView
@@ -392,38 +416,6 @@ export default function StatementOfExplanationScreen() {
 }
 
 const styles = StyleSheet.create({
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-    paddingHorizontal: 20,
-    paddingBottom: 24,
-  },
-  backBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#F5F5F5',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerText: {
-    flex: 1,
-    gap: 4,
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: '600',
-    color: '#000000',
-    letterSpacing: -0.48,
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    fontWeight: '300',
-    color: '#535862',
-    letterSpacing: -0.28,
-    lineHeight: 20,
-  },
   scrollContent: {
     paddingHorizontal: 20,
     paddingTop: 4,

@@ -15,7 +15,7 @@ import { KeyboardAwareScrollView, KeyboardStickyView } from 'react-native-keyboa
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useToast } from 'heroui-native';
 
-import { submitNTEResponse } from '@/lib/discipline-office/disciplineApi';
+import { submitNTEResponse, type AttachmentFile } from '@/lib/discipline-office/disciplineApi';
 
 import { DisciplineOfficeScreenShell } from '@/components/discipline-office';
 import { FileUploadDropzoneCard } from '@/components/FileUploadDropzoneCard';
@@ -31,7 +31,9 @@ const TOAST_SUCCESS_ICON = '#079455';
 type UploadFileRow = {
   id: string;
   fileName: string;
+  uri: string;
   mimeType?: string | null;
+  size?: number;
   dateLabel: string;
   timeLabel: string;
   sizeLabel: string;
@@ -109,7 +111,9 @@ export default function NTEResponseScreen() {
       const newRows: UploadFileRow[] = result.assets.map((asset) => ({
         id: `doc-${now.getTime()}-${Math.random().toString(36).slice(2)}`,
         fileName: asset.name,
+        uri: asset.uri,
         mimeType: asset.mimeType,
+        size: asset.size,
         dateLabel,
         timeLabel,
         sizeLabel: formatSize(asset.size),
@@ -140,7 +144,9 @@ export default function NTEResponseScreen() {
         return {
           id: `img-${now.getTime()}-${Math.random().toString(36).slice(2)}`,
           fileName: parts[parts.length - 1] ?? 'image.jpg',
+          uri: asset.uri,
           mimeType: asset.mimeType ?? 'image/jpeg',
+          size: asset.fileSize,
           dateLabel,
           timeLabel,
           sizeLabel: formatSize(asset.fileSize),
@@ -160,7 +166,13 @@ export default function NTEResponseScreen() {
     Keyboard.dismiss();
     setIsSubmitting(true);
     try {
-      const { error } = await submitNTEResponse(nteId, responseText.trim());
+      const attachments: AttachmentFile[] = files.map((f) => ({
+        uri: f.uri,
+        fileName: f.fileName,
+        mimeType: f.mimeType,
+        size: f.size,
+      }));
+      const { error } = await submitNTEResponse(nteId, responseText.trim(), attachments);
       if (error) {
         toast.show({
           variant: 'danger',
@@ -188,7 +200,7 @@ export default function NTEResponseScreen() {
       setIsSubmitting(false);
       submitLockedRef.current = false;
     }
-  }, [canSubmit, router, toast]);
+  }, [canSubmit, router, toast, files, nteId, responseText]);
 
   return (
     <DisciplineOfficeScreenShell>

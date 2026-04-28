@@ -1,83 +1,49 @@
-import { useRouter } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   DisciplineCaseProgressCard,
   DisciplineOfficeScreenShell,
-  type DisciplineCaseStep,
+  ScreenHeader,
 } from '@/components/discipline-office';
-import { IconsaxArrowLeftIcon } from '@/components/icons/IconsaxArrowLeftIcon';
+import { useAuth } from '@/lib/auth/AuthProvider';
+import { fetchCasesByStudent, type DBCase } from '@/lib/discipline-office/disciplineApi';
 
-const HOME_TABS_ROUTE = '/(tabs)';
-
-const NTE_STEPS: DisciplineCaseStep[] = [
-  { label: 'NTE Issued', date: 'Nov 12' },
-  { label: 'Awaiting Student Response' },
-  { label: 'Decision: Accepted / Declined' },
-  { label: 'Case Closed' },
-];
-
-const MOCK_CASES = [
-  {
-    id: '1',
-    description:
-      'The student submitted an assignment containing copied content from an online source without proper citation, resulting in a plagiarism violation.',
-    tags: ['Minor Offense', 'Plagiarism'],
-    progressPercent: 50,
-    currentStepIndex: 1,
-    steps: NTE_STEPS,
-    defaultExpanded: true,
-  },
-  {
-    id: '2',
-    description:
-      "Student was reported for repeatedly disrupting an ongoing class session and disregarding the instructor's verbal warnings.",
-    tags: ['Minor Offense', 'Disruptive Conduct'],
-    progressPercent: 25,
-    currentStepIndex: 0,
-    steps: NTE_STEPS,
-    defaultExpanded: false,
-  },
-];
+// Build the tags array the card expects: ['Minor Offense', 'Code of Conduct Violation']
+function buildTags(c: DBCase): string[] {
+  const sev = c.severity === 'major' ? 'Major Offense' : 'Minor Offense';
+  return c.case_type ? [sev, c.case_type] : [sev];
+}
 
 export default function MyCasesScreen() {
-  const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { session } = useAuth();
+  const studentId = (session?.user?.user_metadata?.student_id as string | undefined) ?? '';
 
-  const handleBack = () => {
-    if (router.canGoBack()) {
-      router.back();
-    } else {
-      router.replace(HOME_TABS_ROUTE);
-    }
-  };
+  const [cases, setCases] = useState<DBCase[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    if (!studentId) { setIsLoading(false); return; }
+    let cancelled = false;
+    setIsLoading(true);
+    fetchCasesByStudent(studentId).then((rows) => {
+      if (cancelled) return;
+      setCases(rows);
+      setIsLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [studentId]);
 
   return (
     <DisciplineOfficeScreenShell>
       <View style={{ flex: 1 }}>
-        {/* ── Header ── */}
-        <View
-          style={[
-            styles.header,
-            { paddingTop: insets.top + 16 },
-          ]}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
-            hitSlop={12}
-            onPress={handleBack}
-            className="active:opacity-70"
-            style={styles.backBtn}>
-            <IconsaxArrowLeftIcon size={20} color="#181D27" />
-          </Pressable>
-          <View style={styles.headerText}>
-            <Text style={styles.headerTitle}>Your Cases</Text>
-            <Text style={styles.headerSubtitle}>
-              View reports filed for your disciplinary concerns and track their status.
-            </Text>
-          </View>
-        </View>
+        <ScreenHeader
+          title="Your Cases"
+          subtitle="View reports filed for your disciplinary concerns and track their status."
+          paddingBottom={32}
+        />
 
         {/* ── Cases list ── */}
         <ScrollView
@@ -86,17 +52,28 @@ export default function MyCasesScreen() {
             styles.listContent,
             { paddingBottom: Math.max(insets.bottom, 20) + 20 },
           ]}>
-          {MOCK_CASES.map((c) => (
-            <DisciplineCaseProgressCard
-              key={c.id}
-              description={c.description}
-              tags={c.tags}
-              progressPercent={c.progressPercent}
-              currentStepIndex={c.currentStepIndex}
-              steps={c.steps}
-              defaultExpanded={c.defaultExpanded}
-            />
-          ))}
+          {isLoading ? (
+            <ActivityIndicator style={{ marginTop: 32 }} />
+          ) : cases.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyTitle}>No cases on file</Text>
+              <Text style={styles.emptySubtitle}>
+                You don't have any disciplinary cases yet. That's a good thing.
+              </Text>
+            </View>
+          ) : (
+            cases.map((c, i) => (
+              <DisciplineCaseProgressCard
+                key={c.id}
+                description={c.description}
+                tags={buildTags(c)}
+                progressPercent={c.progress_percent ?? 0}
+                currentStepIndex={c.current_step_index ?? 0}
+                steps={Array.isArray(c.case_steps) ? c.case_steps : []}
+                defaultExpanded={i === 0}
+              />
+            ))
+          )}
         </ScrollView>
       </View>
     </DisciplineOfficeScreenShell>
@@ -104,40 +81,27 @@ export default function MyCasesScreen() {
 }
 
 const styles = StyleSheet.create({
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-    paddingHorizontal: 20,
-    paddingBottom: 32,
-  },
-  backBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#F5F5F5',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerText: {
-    flex: 1,
-    gap: 4,
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: '600',
-    color: '#000000',
-    letterSpacing: -0.48,
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    fontWeight: '300',
-    color: '#535862',
-    letterSpacing: -0.28,
-    lineHeight: 20,
-  },
   listContent: {
     paddingHorizontal: 20,
     gap: 16,
+  },
+  emptyState: {
+    paddingTop: 48,
+    alignItems: 'center',
+    gap: 8,
+  },
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#181D27',
+    letterSpacing: -0.32,
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    fontWeight: '400',
+    color: '#717680',
+    lineHeight: 20,
+    textAlign: 'center',
+    paddingHorizontal: 32,
   },
 });

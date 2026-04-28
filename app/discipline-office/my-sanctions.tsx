@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useToast } from 'heroui-native';
 
@@ -9,65 +9,19 @@ import { sanctionsProgressStore } from '@/features/discipline/sanctionsProgressS
 
 import {
   DisciplineOfficeScreenShell,
+  ScreenHeader,
   SanctionCard,
-  type SanctionCardProps,
   type SanctionStatus,
   type SanctionType,
 } from '@/components/discipline-office';
-import { IconsaxArrowLeftIcon } from '@/components/icons/IconsaxArrowLeftIcon';
+import { useAuth } from '@/lib/auth/AuthProvider';
+import {
+  fetchSanctionsByStudent,
+  mapSanctionToScreenRow,
+  subscribeMySanctions,
+} from '@/lib/discipline-office/disciplineApi';
 
-const HOME_TABS_ROUTE = '/(tabs)';
-
-type MockSanction = Omit<SanctionCardProps, 'onUploadProof' | 'sanctionType'> & {
-  id: string;
-  sanctionType?: SanctionType;
-};
-
-const MOCK_SANCTIONS: MockSanction[] = [
-  {
-    id: '1',
-    status: 'in_progress',
-    title: 'Community Service',
-    description:
-      'Complete 20 hours of community service at the campus grounds as assigned by the Discipline Office.',
-    sanctionType: 'community_service',
-    dueDateLabel: 'Due May 15',
-    progress: { current: 10, total: 24, unit: 'hours' },
-    timeAgoLabel: '1 min ago',
-  },
-  {
-    id: '2',
-    status: 'pending',
-    title: 'Written Apology Letter',
-    description:
-      'Submit a formal written apology letter addressed to the affected faculty member and the Discipline Office.',
-    sanctionType: 'disciplinary_warning',
-    dueDateLabel: 'Due May 15',
-    timeAgoLabel: '1 hour ago',
-  },
-  {
-    id: '3',
-    status: 'in_review',
-    title: 'Written Apology Letter',
-    description:
-      'Submit a formal written apology letter addressed to the affected faculty member and the Discipline Office.',
-    sanctionType: 'probation',
-    dueDateLabel: 'Due May 15',
-    timeAgoLabel: '1 hour ago',
-    submittedAtLabel: 'Apr 20, 2026',
-  },
-  {
-    id: '4',
-    status: 'case_closed',
-    title: 'Written Apology Letter',
-    description:
-      'Submit a formal written apology letter addressed to the affected faculty member and the Discipline Office.',
-    sanctionType: 'suspension',
-    dueDateLabel: 'Due May 15',
-    timeAgoLabel: '1 hour ago',
-    completedAtLabel: 'Apr 20, 2026',
-  },
-];
+type SanctionRow = ReturnType<typeof mapSanctionToScreenRow>;
 
 type FilterKey = SanctionStatus | 'all';
 
@@ -90,49 +44,84 @@ export default function MySanctionsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { toast } = useToast();
-  const [activeFilter, setActiveFilter] = useState<FilterKey>('all');
-  const [sanctions, setSanctions] = useState<MockSanction[]>(MOCK_SANCTIONS);
+  const { session } = useAuth();
+  const studentId = (session?.user?.user_metadata?.student_id as string | undefined) ?? '';
 
+  const [activeFilter, setActiveFilter] = useState<FilterKey>('all');
+  const [serverRows, setServerRows] = useState<SanctionRow[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Optimistic "hours pending admin approval" — keyed by sanction id.
+  // Bumps the visible progress on community_service rows until the server
+  // catches up (admin approves → Realtime UPDATE → refetch overwrites it).
+  const [pendingHours, setPendingHours] = useState<Record<string, number>>({});
+
+  // ── Refetch helper ────────────────────────────────────────────────────────
+  const refetch = useCallback(async () => {
+    if (!studentId) { setIsLoading(false); return; }
+    const rows = await fetchSanctionsByStudent(studentId);
+    setServerRows(rows.map(mapSanctionToScreenRow));
+    setIsLoading(false);
+  }, [studentId]);
+
+  // Initial load
+  useEffect(() => { void refetch(); }, [refetch]);
+
+  // Realtime: when admin approves a proof, the sanction row updates.
+  // Refetch AND clear that sanction's optimistic bump (server is now authoritative).
+  useEffect(() => {
+    if (!studentId) return;
+    const unsubscribe = subscribeMySanctions(studentId, (row) => {
+      setPendingHours((prev) => {
+        if (!(row.id in prev)) return prev;
+        const { [row.id]: _omit, ...rest } = prev;
+        return rest;
+      });
+      void refetch();
+    });
+    return unsubscribe;
+  }, [studentId, refetch]);
+
+  // On focus: drain the submit-queue and apply an optimistic bump + toast.
   useFocusEffect(
     useCallback(() => {
+      void refetch();
       const updates = sanctionsProgressStore.drain();
       if (updates.length === 0) return;
-      setSanctions((prev) =>
-        prev.map((s) => {
-          const upd = updates.find((u) => u.sanctionId === s.id);
-          if (!upd || !s.progress) return s;
-          const newCurrent = Math.min(
-            s.progress.total,
-            s.progress.current + upd.additionalHours,
-          );
-          return { ...s, progress: { ...s.progress, current: newCurrent } };
-        }),
-      );
+
+      setPendingHours((prev) => {
+        const next = { ...prev };
+        for (const u of updates) {
+          next[u.sanctionId] = (next[u.sanctionId] ?? 0) + u.additionalHours;
+        }
+        return next;
+      });
+
       const totalAdded = updates.reduce((sum, u) => sum + u.additionalHours, 0);
       toast.show({
         variant: 'success',
         placement: 'top',
         duration: 4200,
-        label: 'Admin approved!',
-        description: `${totalAdded.toFixed(2)} hrs added to your community service progress.`,
+        label: 'Submitted for review',
+        description: `${totalAdded.toFixed(2)} hrs logged. You'll be credited once admin approves.`,
         icon: (
           <View style={{ paddingTop: 2 }}>
             <Ionicons name="checkmark-circle" size={26} color="#079455" />
           </View>
         ),
       });
-    }, [toast]),
+    }, [toast, refetch]),
   );
 
-  const handleBack = () => {
-    if (router.canGoBack()) {
-      router.back();
-    } else {
-      router.replace(HOME_TABS_ROUTE);
-    }
-  };
+  // Merge optimistic pending hours into the server rows for display
+  const sanctions: SanctionRow[] = serverRows.map((row) => {
+    const pending = pendingHours[row.id];
+    if (!pending || !row.progress || row.sanctionType !== 'community_service') return row;
+    const nextCurrent = Math.min(row.progress.total, row.progress.current + pending);
+    return { ...row, progress: { ...row.progress, current: nextCurrent } };
+  });
 
-  const handleUploadProof = (sanction: MockSanction) => {
+  const handleUploadProof = (sanction: SanctionRow) => {
     router.push({
       pathname: '/discipline-office/upload-proof',
       params: {
@@ -152,27 +141,24 @@ export default function MySanctionsScreen() {
       ? sanctions
       : sanctions.filter((s) => s.status === activeFilter);
 
+  // Counts now derive from live `sanctions` state, not a static mock
+  const counts: Record<FilterKey, number> = {
+    all:         sanctions.length,
+    in_progress: sanctions.filter((s) => s.status === 'in_progress').length,
+    pending:     sanctions.filter((s) => s.status === 'pending').length,
+    in_review:   sanctions.filter((s) => s.status === 'in_review').length,
+    case_closed: sanctions.filter((s) => s.status === 'case_closed').length,
+  };
+
   return (
     <DisciplineOfficeScreenShell>
       <View style={{ flex: 1 }}>
-        {/* ── Header ── */}
-        <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
-            hitSlop={12}
-            onPress={handleBack}
-            className="active:opacity-70"
-            style={styles.backBtn}>
-            <IconsaxArrowLeftIcon size={20} color="#181D27" />
-          </Pressable>
-          <View style={styles.headerText}>
-            <Text style={styles.headerTitle}>Your Sanctions</Text>
-            <Text style={styles.headerSubtitle}>
-              Track your assigned sanctions and upload proof of compliance for review.
-            </Text>
-          </View>
-        </View>
+        <ScreenHeader
+          title="Your Sanctions"
+          subtitle="Track your assigned sanctions and upload proof of compliance for review."
+          paddingBottom={16}
+          align="flex-start"
+        />
 
         {/* ── Filter chips ── */}
         <ScrollView
@@ -183,10 +169,7 @@ export default function MySanctionsScreen() {
           bounces={false}>
           {FILTERS.map((f) => {
             const isActive = activeFilter === f.key;
-            const count =
-              f.key === 'all'
-                ? MOCK_SANCTIONS.length
-                : MOCK_SANCTIONS.filter((s) => s.status === f.key).length;
+            const count = counts[f.key];
             return (
               <Pressable
                 key={f.key}
@@ -236,7 +219,9 @@ export default function MySanctionsScreen() {
             styles.listContent,
             { paddingBottom: Math.max(insets.bottom, 20) + 24 },
           ]}>
-          {filtered.length === 0 ? (
+          {isLoading ? (
+            <ActivityIndicator style={{ marginTop: 32 }} />
+          ) : filtered.length === 0 ? (
             <View style={styles.emptyState}>
               <Text style={styles.emptyTitle}>No sanctions found</Text>
               <Text style={styles.emptySubtitle}>
@@ -271,38 +256,6 @@ export default function MySanctionsScreen() {
 }
 
 const styles = StyleSheet.create({
-  header: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 16,
-    paddingHorizontal: 20,
-    paddingBottom: 16,
-  },
-  backBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#F5F5F5',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerText: {
-    flex: 1,
-    gap: 4,
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: '600',
-    color: '#000000',
-    letterSpacing: -0.48,
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    fontWeight: '300',
-    color: '#535862',
-    letterSpacing: -0.28,
-    lineHeight: 20,
-  },
   // Filter row
   filterScroll: {
     flexGrow: 0,

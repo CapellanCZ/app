@@ -41,9 +41,9 @@ import {
 
 import { AppInput } from '@/components/ui/AppInput';
 
-import { DisciplineOfficeScreenShell } from '@/components/discipline-office';
+import { FormField, DisciplineOfficeScreenShell, ScreenHeader } from '@/components/discipline-office';
+import { submitIncidentReport, type AttachmentFile } from '@/lib/discipline-office/disciplineApi';
 import { IconsaxArrowDownIcon } from '@/components/icons/IconsaxArrowDownIcon';
-import { IconsaxArrowLeftIcon } from '@/components/icons/IconsaxArrowLeftIcon';
 import { IconsaxCalendarIcon } from '@/components/icons/IconsaxCalendarIcon';
 import { IconsaxClockIcon } from '@/components/icons/IconsaxClockIcon';
 import { IconsaxLocationIcon } from '@/components/icons/IconsaxLocationIcon';
@@ -51,7 +51,6 @@ import { IconsaxPeopleIcon } from '@/components/icons/IconsaxPeopleIcon';
 
 const TOAST_SUCCESS_ICON = '#079455';
 const SUBMIT_BRAND = '#2970FF';
-const MOCK_SUBMIT_MS = 1400;
 const ICON_SUFFIX = '#717680';
 const UPLOAD_SIM_MS = 900;
 const MAX_PHOTOS = 24;
@@ -97,8 +96,8 @@ function formatDuration(seconds: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-type PhotoItem = { id: string; uri: string; uploading?: boolean };
-type VideoItem = { id: string; uri: string; durationLabel?: string; uploading?: boolean };
+type PhotoItem = { id: string; uri: string; fileName?: string; mimeType?: string | null; size?: number; uploading?: boolean };
+type VideoItem = { id: string; uri: string; fileName?: string; mimeType?: string | null; size?: number; durationLabel?: string; uploading?: boolean };
 
 function UploadingTile() {
   const opacity = useSharedValue(0.9);
@@ -238,6 +237,9 @@ export default function IncidentReportScreen() {
     const newPhotos: PhotoItem[] = result.assets.slice(0, remaining).map((asset) => ({
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       uri: asset.uri,
+      fileName: asset.fileName ?? `photo_${Date.now()}.jpg`,
+      mimeType: asset.mimeType ?? 'image/jpeg',
+      size: asset.fileSize,
       uploading: true,
     }));
     setPhotos((prev) => [...prev, ...newPhotos]);
@@ -264,7 +266,15 @@ export default function IncidentReportScreen() {
     const asset = result.assets[0];
     const durationLabel = asset.duration != null ? formatDuration(asset.duration) : undefined;
     const newId = `${Date.now()}`;
-    setVideos([{ id: newId, uri: asset.uri, durationLabel, uploading: true }]);
+    setVideos([{
+      id: newId,
+      uri: asset.uri,
+      fileName: asset.fileName ?? `video_${Date.now()}.mp4`,
+      mimeType: asset.mimeType ?? 'video/mp4',
+      size: asset.fileSize,
+      durationLabel,
+      uploading: true,
+    }]);
     setTimeout(() => {
       setVideos((prev) =>
         prev.map((v) => (v.id === newId ? { ...v, uploading: false } : v)),
@@ -342,7 +352,60 @@ export default function IncidentReportScreen() {
     submitLockedRef.current = true;
     setIsSubmitting(true);
     try {
-      await new Promise<void>((resolve) => setTimeout(resolve, MOCK_SUBMIT_MS));
+      // Combine date + time into one timestamp if both supplied
+      let incidentAt: Date | null = null;
+      if (incidentDate) {
+        incidentAt = new Date(incidentDate);
+        if (incidentTime) {
+          incidentAt.setHours(incidentTime.getHours(), incidentTime.getMinutes(), 0, 0);
+        }
+      }
+
+      const subject = incidentType === INCIDENT_TYPE_OTHER
+        ? (incidentTypeOther.trim() || 'Other')
+        : incidentType;
+
+      const involvedParties = personsInvolved
+        .split(/[,\n;]+/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+
+      const files: AttachmentFile[] = [
+        ...photos.filter((p) => !p.uploading).map((p) => ({
+          uri: p.uri,
+          fileName: p.fileName ?? `photo_${p.id}.jpg`,
+          mimeType: p.mimeType ?? 'image/jpeg',
+          size: p.size,
+        })),
+        ...videos.filter((v) => !v.uploading).map((v) => ({
+          uri: v.uri,
+          fileName: v.fileName ?? `video_${v.id}.mp4`,
+          mimeType: v.mimeType ?? 'video/mp4',
+          size: v.size,
+        })),
+      ];
+
+      const description = reporterPhone.trim()
+        ? `${whatHappened.trim()}\n\nReporter contact: ${reporterPhone.trim()}`
+        : whatHappened.trim();
+
+      const { error } = await submitIncidentReport({
+        subject,
+        description,
+        incidentAt,
+        location: location.trim(),
+        involvedParties,
+        reporterPhone: reporterPhone.trim(),
+        files,
+      });
+
+      if (error) {
+        submitLockedRef.current = false;
+        setIsSubmitting(false);
+        Alert.alert('Submission failed', error);
+        return;
+      }
+
       toast.show({
         variant: 'success',
         placement: 'top',
@@ -358,84 +421,55 @@ export default function IncidentReportScreen() {
       });
       await new Promise<void>((resolve) => setTimeout(resolve, 400));
       router.replace('/discipline-office');
-    } catch {
+    } catch (e) {
       submitLockedRef.current = false;
       setIsSubmitting(false);
+      Alert.alert('Submission failed', e instanceof Error ? e.message : 'Unknown error');
     }
-  }, [router, toast]);
+  }, [
+    router, toast,
+    incidentType, incidentTypeOther, incidentDate, incidentTime,
+    location, reporterPhone, personsInvolved, whatHappened,
+    photos, videos,
+  ]);
 
   const filledBars = step - 1;
 
   return (
     <DisciplineOfficeScreenShell>
       <View style={{ flex: 1, backgroundColor: '#FDFDFD' }}>
-        {/* ── Header + Progress Bars ── */}
-        <View style={{ paddingTop: insets.top + 16, paddingHorizontal: 20, gap: 28 }}>
-          {/* Title row */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Go back"
-              hitSlop={12}
-              onPress={handleBack}
-              className="active:opacity-70"
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: 22,
-                backgroundColor: '#F5F5F5',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}>
-              <IconsaxArrowLeftIcon size={20} color="#181D27" />
-            </Pressable>
-            <View style={{ flex: 1, gap: 4 }}>
-              <Text
-                style={{
-                  fontSize: 24,
-                  fontWeight: '600',
-                  color: '#000000',
-                  letterSpacing: -0.48,
-                }}>
-                Report an Incident
-              </Text>
-              <Text
-                style={{
-                  fontSize: 14,
-                  fontWeight: '300',
-                  color: '#535862',
-                  letterSpacing: -0.28,
-                }}>
-                View reports filed for your disciplinary concerns and track their status.
-              </Text>
-            </View>
-          </View>
+        {/* ── Header ── */}
+        <ScreenHeader
+          title="Report an Incident"
+          subtitle="View reports filed for your disciplinary concerns and track their status."
+          onBack={handleBack}
+          paddingBottom={0}
+        />
 
-          {/* Progress bars */}
-          <View style={{ flexDirection: 'row', gap: 28 }}>
-            {[0, 1, 2].map((i) => (
-              <View
-                key={i}
-                style={{
-                  flex: 1,
-                  height: 8,
-                  borderRadius: 4,
-                  backgroundColor: i < filledBars ? '#006FFD' : '#E8E9F1',
-                  overflow: 'hidden',
-                }}>
-                {i < filledBars && (
-                  <View
-                    style={{
-                      position: 'absolute',
-                      inset: 0,
-                      backgroundColor: '#006FFD',
-                      borderRadius: 8,
-                    }}
-                  />
-                )}
-              </View>
-            ))}
-          </View>
+        {/* ── Progress Bars ── */}
+        <View style={{ paddingHorizontal: 20, marginTop: 28, flexDirection: 'row', gap: 28 }}>
+          {[0, 1, 2].map((i) => (
+            <View
+              key={i}
+              style={{
+                flex: 1,
+                height: 8,
+                borderRadius: 4,
+                backgroundColor: i < filledBars ? '#006FFD' : '#E8E9F1',
+                overflow: 'hidden',
+              }}>
+              {i < filledBars && (
+                <View
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    backgroundColor: '#006FFD',
+                    borderRadius: 8,
+                  }}
+                />
+              )}
+            </View>
+          ))}
         </View>
 
         {/* ── Form Content ── */}
@@ -457,8 +491,7 @@ export default function IncidentReportScreen() {
           {step === 1 && (
             <Animated.View key="step-1" entering={FadeIn.duration(220)} style={{ gap: 20 }}>
               {/* Incident Type */}
-              <View style={{ gap: 8 }}>
-                <Text style={styles.fieldLabel}>Incident Type</Text>
+              <FormField label="Incident Type">
                 <View style={{ width: '100%' }}>
                   <BottomSheet
                     className="w-full shrink-0"
@@ -507,16 +540,15 @@ export default function IncidentReportScreen() {
                     placeholder="Briefly describe what type of incident this is"
                     value={incidentTypeOther}
                     onChangeText={setIncidentTypeOther}
-                    containerStyle={{ marginTop: 8 }}
                   />
                 )}
-              </View>
+              </FormField>
 
               {/* Date + Time row */}
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                 {/* Date */}
-                <View style={{ width: '46%', gap: 8 }}>
-                  <Text style={styles.fieldLabel}>Date</Text>
+                <View style={{ width: '46%' }}>
+                  <FormField label="Date">
                   <BottomSheet
                     className="w-full shrink-0"
                     isOpen={dateSheetOpen}
@@ -562,11 +594,12 @@ export default function IncidentReportScreen() {
                       </BottomSheet.Content>
                     </BottomSheet.Portal>
                   </BottomSheet>
+                  </FormField>
                 </View>
 
                 {/* Time */}
-                <View style={{ width: '46%', gap: 8 }}>
-                  <Text style={styles.fieldLabel}>Time</Text>
+                <View style={{ width: '46%' }}>
+                  <FormField label="Time">
                   <BottomSheet
                     className="w-full shrink-0"
                     isOpen={timeSheetOpen}
@@ -608,23 +641,30 @@ export default function IncidentReportScreen() {
                       </BottomSheet.Content>
                     </BottomSheet.Portal>
                   </BottomSheet>
+                  </FormField>
                 </View>
               </View>
 
               {/* Location */}
-              <View style={{ gap: 8 }}>
-                <Text style={styles.fieldLabel}>Location</Text>
+              <FormField label="Location">
                 <AppInput
                   placeholder="Where did it happen?"
                   value={location}
                   onChangeText={setLocation}
                   suffix={<IconsaxLocationIcon size={16} color={ICON_SUFFIX} />}
                 />
-              </View>
+              </FormField>
 
               {/* Phone Number */}
-              <View style={{ gap: 8 }}>
-                <Text style={styles.fieldLabel}>Phone Number</Text>
+              <FormField
+                label="Phone Number"
+                hint={
+                  <Text style={{ fontSize: 12, color: '#717680', lineHeight: 16 }}>
+                    Phone number is{' '}
+                    <Text style={{ color: '#414651', textDecorationLine: 'underline' }}>optional</Text>
+                    {' '}but it can help the discipline staff so they reach you about this report.
+                  </Text>
+                }>
                 <AppInput
                   keyboardType="phone-pad"
                   placeholder="9XX XXX XXXX"
@@ -634,12 +674,7 @@ export default function IncidentReportScreen() {
                   prefix={<Text style={{ fontSize: 14, color: '#717680', fontWeight: '400' }}>63+</Text>}
                   prefixDivider
                 />
-                <Text style={{ fontSize: 12, color: '#717680', lineHeight: 16 }}>
-                  Phone number is{' '}
-                  <Text style={{ color: '#414651', textDecorationLine: 'underline' }}>optional</Text>
-                  {' '}but it can help the discipline staff so they reach you about this report.
-                </Text>
-              </View>
+              </FormField>
             </Animated.View>
           )}
 
@@ -647,22 +682,20 @@ export default function IncidentReportScreen() {
           {step === 2 && (
             <Animated.View key="step-2" entering={FadeIn.duration(220)} style={{ gap: 20 }}>
               {/* Person(s) Involved */}
-              <View style={{ gap: 8 }}>
-                <Text style={styles.fieldLabel}>Person(s) Involved</Text>
+              <FormField label="Person(s) Involved" hint="Leave blank if unknown">
                 <AppInput
                   placeholder="Who are the persons involved in this case?"
                   value={personsInvolved}
                   onChangeText={setPersonsInvolved}
                   suffix={<IconsaxPeopleIcon size={16} color={ICON_SUFFIX} />}
                 />
-                <Text style={{ fontSize: 12, color: '#717680', lineHeight: 13 }}>
-                  Leave blank if unknown
-                </Text>
-              </View>
+              </FormField>
 
               {/* What happened */}
-              <View style={{ gap: 6 }}>
-                <Text style={styles.fieldLabel}>What happened?</Text>
+              <FormField
+                label="What happened?"
+                gap={6}
+                hint={`Characters: ${whatHappened.length}/${MAX_DESC_CHARS}`}>
                 <View style={styles.textareaField}>
                   <TextInput
                     multiline
@@ -679,10 +712,7 @@ export default function IncidentReportScreen() {
                     style={styles.textareaInput}
                   />
                 </View>
-                <Text style={{ fontSize: 12, color: '#71717A', lineHeight: 16 }}>
-                  Characters: {whatHappened.length}/{MAX_DESC_CHARS}
-                </Text>
-              </View>
+              </FormField>
             </Animated.View>
           )}
 
@@ -692,7 +722,7 @@ export default function IncidentReportScreen() {
               {/* Photos section */}
               <View style={{ gap: 4 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <Text style={styles.fieldLabel}>Photos</Text>
+                  <Text style={{ fontSize: 16, fontWeight: '400', color: '#000000', lineHeight: 20 }}>Photos</Text>
                   <Text style={{ fontSize: 16, fontWeight: '400', color: '#717680' }}>
                     ({photos.length}/{MAX_PHOTOS})
                   </Text>
@@ -746,7 +776,7 @@ export default function IncidentReportScreen() {
               {/* Videos section */}
               <View style={{ gap: 4, marginTop: 8 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <Text style={styles.fieldLabel}>Videos</Text>
+                  <Text style={{ fontSize: 16, fontWeight: '400', color: '#000000', lineHeight: 20 }}>Videos</Text>
                   <Text style={{ fontSize: 16, fontWeight: '400', color: '#717680' }}>
                     ({videos.length}/1)
                   </Text>
@@ -944,12 +974,6 @@ export default function IncidentReportScreen() {
 }
 
 const styles = StyleSheet.create({
-  fieldLabel: {
-    fontSize: 16,
-    fontWeight: '400',
-    color: '#000000',
-    lineHeight: 20,
-  },
   textareaField: {
     borderWidth: 1,
     borderColor: '#E9EAEB',

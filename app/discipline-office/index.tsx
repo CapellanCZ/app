@@ -1,4 +1,4 @@
-import { useNavigation, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
@@ -6,16 +6,18 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/lib/auth/AuthProvider';
 import {
+  fetchCasesByStudent,
   fetchNTEsByStudent,
+  fetchSanctionsByStudent,
   mapNTEToCardProps,
 } from '@/lib/discipline-office/disciplineApi';
 
 import {
   DisciplineOfficeScreenShell,
+  ScreenHeader,
   NTECard,
 } from '@/components/discipline-office';
 import { IconsaxArrowDownIcon } from '@/components/icons/IconsaxArrowDownIcon';
-import { IconsaxArrowLeftIcon } from '@/components/icons/IconsaxArrowLeftIcon';
 import { IconsaxArrowUpIcon } from '@/components/icons/IconsaxArrowUpIcon';
 import { IconsaxBriefcaseIcon } from '@/components/icons/IconsaxBriefcaseIcon';
 import { IconsaxPaperIcon } from '@/components/icons/IconsaxPaperIcon';
@@ -26,77 +28,6 @@ import { SCHEDULE_PARTNER } from '@/lib/health-service/bookingScheduleTheme';
 import { HOME_SCROLL_PADDING_H } from '@/lib/ui/screenGradients';
 
 const T = SCHEDULE_PARTNER;
-
-// ── Custom Header ─────────────────────────────────────────────────────────────
-
-function DisciplineOfficeHeader() {
-  const router = useRouter();
-  const navigation = useNavigation();
-  const insets = useSafeAreaInsets();
-
-  const handleBack = () => {
-    if (navigation.canGoBack()) {
-      navigation.goBack();
-    } else {
-      router.replace('/(tabs)');
-    }
-  };
-
-  return (
-    <View
-      style={{
-        paddingTop: insets.top,
-        paddingHorizontal: HOME_SCROLL_PADDING_H,
-      }}>
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: 16,
-          paddingVertical: 12,
-        }}>
-        <Pressable
-          accessibilityLabel="Go back"
-          accessibilityRole="button"
-          onPress={handleBack}
-          className="active:opacity-70">
-          <View
-            style={{
-              width: 44,
-              height: 44,
-              borderRadius: 999,
-              backgroundColor: '#F5F5F5',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}>
-            <IconsaxArrowLeftIcon size={20} color="#717680" />
-          </View>
-        </Pressable>
-        <View style={{ flex: 1, gap: 4 }}>
-          <Text
-            style={{
-              fontSize: 24,
-              fontWeight: '600',
-              color: '#000000',
-              letterSpacing: -0.48,
-            }}>
-            Discipline Office
-          </Text>
-          <Text
-            style={{
-              fontSize: 14,
-              fontWeight: '300',
-              color: '#535862',
-              letterSpacing: -0.28,
-              lineHeight: 20,
-            }}>
-            Reports are reviewed fairly. You can track your case and sanctions here.
-          </Text>
-        </View>
-      </View>
-    </View>
-  );
-}
 
 // ── Stats Strip ───────────────────────────────────────────────────────────────
 
@@ -366,6 +297,8 @@ export default function DisciplineOfficeScreen() {
   const casesSectionY = useRef<number>(0);
 
   const [ntes, setNtes] = useState<ReturnType<typeof mapNTEToCardProps>[]>([]);
+  const [openCasesCount, setOpenCasesCount] = useState(0);
+  const [sanctionsCount, setSanctionsCount] = useState(0);
 
   const studentId = (session?.user?.user_metadata?.student_id as string | undefined) ?? '';
 
@@ -373,9 +306,15 @@ export default function DisciplineOfficeScreen() {
     if (!studentId) { setIsLoading(false); return; }
     let cancelled = false;
     setIsLoading(true);
-    fetchNTEsByStudent(studentId).then((rawNTEs) => {
+    Promise.all([
+      fetchNTEsByStudent(studentId),
+      fetchCasesByStudent(studentId),
+      fetchSanctionsByStudent(studentId),
+    ]).then(([rawNTEs, rawCases, rawSanctions]) => {
       if (cancelled) return;
       setNtes(rawNTEs.map(mapNTEToCardProps));
+      setOpenCasesCount(rawCases.length);
+      setSanctionsCount(rawSanctions.length);
       setIsLoading(false);
     });
     return () => { cancelled = true; };
@@ -383,11 +322,15 @@ export default function DisciplineOfficeScreen() {
 
   const nteCount = ntes.length;
   const pendingNTECount = ntes.filter((n) => n.status === 'pending_response').length;
-  const isClean = !isLoading && nteCount === 0;
+  const isClean = !isLoading && nteCount === 0 && openCasesCount === 0 && sanctionsCount === 0;
 
   return (
     <DisciplineOfficeScreenShell>
-      <DisciplineOfficeHeader />
+      <ScreenHeader
+        title="Discipline Office"
+        subtitle="Reports are reviewed fairly. You can track your case and sanctions here."
+        paddingBottom={12}
+      />
 
       <ScrollView
         ref={scrollRef}
@@ -408,8 +351,8 @@ export default function DisciplineOfficeScreen() {
         ) : (
           <StatsStrip
             noticeCount={nteCount}
-            openCases={0}
-            sanctions={0}
+            openCases={openCasesCount}
+            sanctions={sanctionsCount}
           />
         )}
 

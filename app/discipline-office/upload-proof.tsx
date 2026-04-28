@@ -19,23 +19,22 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useToast } from 'heroui-native';
-
-import { DisciplineOfficeScreenShell } from '@/components/discipline-office';
+import { DisciplineOfficeScreenShell, ScreenHeader } from '@/components/discipline-office';
 import { IconDocumentUploadIcon } from '@/components/icons/IconDocumentUploadIcon';
-import { IconsaxArrowLeftIcon } from '@/components/icons/IconsaxArrowLeftIcon';
 import { UploadedFileListRow } from '@/components/UploadedFileListRow';
 import { sanctionsProgressStore } from '@/features/discipline/sanctionsProgressStore';
+import { submitProofOfCompliance } from '@/lib/discipline-office/disciplineApi';
 
-// ── Constants ─────────────────────────────────────────────────────────────────
+// ── Constants ─────────────────────────────────────────────────────────────────────
 const BLUE = '#2970FF';
-const MOCK_SUBMIT_MS = 1200;
-const HOME_TABS_ROUTE = '/(tabs)';
 
-// ── Types ─────────────────────────────────────────────────────────────────────
+// ── Types ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 type UploadFileRow = {
   id: string;
   fileName: string;
+  uri: string;
   mimeType?: string | null;
+  size?: number;
   progress: number;
 };
 
@@ -88,7 +87,9 @@ export default function UploadProofScreen() {
   /** Which field is actively being picked ('in' | 'out' | null) */
   const [activeField, setActiveField] = useState<'in' | 'out' | null>(null);
   /** iOS spinner temp value before "Done" is confirmed */
-  const [pickerTemp, setPickerTemp] = useState<Date>(new Date());
+  const [pickerTemp, setPickerTemp] = useState<Date>(() => new Date());
+  /** Ref to track the actual selected value during onChange (prevents re-render issues) */
+  const pickerValueRef = useRef<Date>(pickerTemp);
 
   // ── File upload state ──────────────────────────────────────────────────────
   const tickers              = useRef<Record<string, ReturnType<typeof setInterval>>>({});
@@ -111,16 +112,13 @@ export default function UploadProofScreen() {
   const timeValid = !isCommunityService || (!!timeIn && !!timeOut && calculatedHours > 0);
   const submitDisabled = !allUploadsComplete || !timeValid || isSubmitting;
 
-  // ── Navigation ─────────────────────────────────────────────────────────────
-  const handleBack = () => {
-    if (router.canGoBack()) router.back();
-    else router.replace(HOME_TABS_ROUTE);
-  };
-
   // ── Time picker handlers ───────────────────────────────────────────────────
   const openTimePicker = (field: 'in' | 'out') => {
     const current = field === 'in' ? timeIn : timeOut;
-    setPickerTemp(current ?? new Date());
+    // Use existing value or default to current time
+    const initialValue = current ?? new Date();
+    setPickerTemp(initialValue);
+    pickerValueRef.current = initialValue;
     setActiveField(field);
   };
 
@@ -133,15 +131,21 @@ export default function UploadProofScreen() {
           else setTimeOut(selectedDate);
         }
       } else {
-        if (selectedDate) setPickerTemp(selectedDate);
+        // For iOS spinner mode, update ref instead of state to prevent re-render
+        // This prevents the picker from resetting to a default value while scrolling
+        if (selectedDate) {
+          pickerValueRef.current = selectedDate;
+        }
       }
     },
     [activeField],
   );
 
   const handleIOSConfirm = () => {
-    if (activeField === 'in') setTimeIn(pickerTemp);
-    else setTimeOut(pickerTemp);
+    // Use the ref value which has been tracking changes without causing re-renders
+    const confirmedValue = pickerValueRef.current;
+    if (activeField === 'in') setTimeIn(confirmedValue);
+    else setTimeOut(confirmedValue);
     setActiveField(null);
   };
 
@@ -156,13 +160,20 @@ export default function UploadProofScreen() {
   }, [clearTicker]);
 
   const addFilesWithProgress = useCallback(
-    (items: { fileName: string; size?: number; mimeType?: string | null }[]) => {
+    (items: { fileName: string; uri: string; size?: number; mimeType?: string | null }[]) => {
       if (items.length === 0) return;
       for (const item of items) {
         const id = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
         setFiles((prev) => [
           ...prev,
-          { id, fileName: item.fileName, mimeType: item.mimeType ?? null, progress: 0 },
+          {
+            id,
+            fileName: item.fileName,
+            uri: item.uri,
+            mimeType: item.mimeType ?? null,
+            size: item.size,
+            progress: 0,
+          },
         ]);
         tickers.current[id] = setInterval(() => {
           setFiles((prev) =>
@@ -195,6 +206,7 @@ export default function UploadProofScreen() {
     addFilesWithProgress(
       result.assets.map((a) => ({
         fileName: (a.fileName?.trim()) || (a.type === 'video' ? 'Video.mp4' : 'Photo.jpg'),
+        uri: a.uri,
         size: a.fileSize,
         mimeType: a.mimeType ?? null,
       })),
@@ -219,7 +231,12 @@ export default function UploadProofScreen() {
       }
       if (result.canceled || !result.assets?.length) return;
       addFilesWithProgress(
-        result.assets.map((a) => ({ fileName: a.name ?? 'document', size: a.size, mimeType: a.mimeType ?? null })),
+        result.assets.map((a) => ({
+          fileName: a.name ?? 'document',
+          uri: a.uri,
+          size: a.size,
+          mimeType: a.mimeType ?? null,
+        })),
       );
     } catch (e) {
       Alert.alert('Could not open files', e instanceof Error ? e.message : 'Unknown error');
@@ -237,15 +254,38 @@ export default function UploadProofScreen() {
     [clearTicker, isSubmitting],
   );
 
-  // ── Submit ─────────────────────────────────────────────────────────────────
+  // ── Submit (real Supabase) ─────────────────────────────────────────────────────────────────────
   const onSubmit = useCallback(async () => {
     if (submitDisabled || submitLockedRef.current) return;
+    if (!sanctionId) {
+      Alert.alert('Missing sanction', 'No sanction was selected for this upload.');
+      return;
+    }
     submitLockedRef.current = true;
     setIsSubmitting(true);
     try {
-      await new Promise<void>((res) => setTimeout(res, MOCK_SUBMIT_MS));
+      const { error } = await submitProofOfCompliance({
+        sanctionId,
+        timeIn:        isCommunityService ? timeIn  : null,
+        timeOut:       isCommunityService ? timeOut : null,
+        computedHours: isCommunityService ? calculatedHours : undefined,
+        files: files.map((f) => ({
+          uri:      f.uri,
+          fileName: f.fileName,
+          mimeType: f.mimeType,
+          size:     f.size,
+        })),
+      });
 
-      if (isCommunityService && calculatedHours > 0 && sanctionId) {
+      if (error) {
+        submitLockedRef.current = false;
+        setIsSubmitting(false);
+        Alert.alert('Submission failed', error);
+        return;
+      }
+
+      // Optimistic toast on the receiving screen (my-sanctions) consumes this
+      if (isCommunityService && calculatedHours > 0) {
         sanctionsProgressStore.enqueue({ sanctionId, additionalHours: calculatedHours });
       }
 
@@ -264,32 +304,23 @@ export default function UploadProofScreen() {
         ),
       });
       router.back();
-    } catch {
+    } catch (e) {
       submitLockedRef.current = false;
       setIsSubmitting(false);
+      Alert.alert('Submission failed', e instanceof Error ? e.message : 'Unknown error');
     }
-  }, [submitDisabled, isCommunityService, calculatedHours, sanctionId, router, toast]);
+  }, [submitDisabled, isCommunityService, calculatedHours, sanctionId, router, toast, files, timeIn, timeOut]);
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <DisciplineOfficeScreenShell>
 
-      {/* ── Header ── */}
-      <View style={[s.header, { paddingTop: insets.top + 16 }]}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
-          hitSlop={12}
-          onPress={handleBack}
-          className="active:opacity-70"
-          style={s.backBtn}>
-          <IconsaxArrowLeftIcon size={20} color="#181D27" />
-        </Pressable>
-        <View style={s.headerText}>
-          <Text style={s.title}>{sanctionTitle}</Text>
-          <Text style={s.subtitle} numberOfLines={2}>{sanctionDesc}</Text>
-        </View>
-      </View>
+      <ScreenHeader
+        title={sanctionTitle}
+        subtitle={sanctionDesc}
+        paddingBottom={8}
+        subtitleLines={2}
+      />
 
       {/* ── Scrollable body ── */}
       <ScrollView
@@ -434,7 +465,9 @@ export default function UploadProofScreen() {
             {/* Dim backdrop — tap to dismiss */}
             <Pressable
               style={StyleSheet.absoluteFillObject}
-              onPress={() => setActiveField(null)}
+              onPress={() => {
+                setActiveField(null);
+              }}
             />
             {/* Bottom sheet */}
             <View style={[s.pickerSheet, { paddingBottom: Math.max(insets.bottom, 24) }]}>
@@ -459,6 +492,7 @@ export default function UploadProofScreen() {
                 display="spinner"
                 onChange={handleTimeChange}
                 style={s.iosSpinner}
+                key={activeField} // Force remount when switching between 'in' and 'out'
               />
             </View>
           </View>
@@ -481,39 +515,6 @@ export default function UploadProofScreen() {
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
-  // Header
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-    paddingHorizontal: 20,
-    paddingBottom: 8,
-  },
-  backBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#F5F5F5',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerText: {
-    flex: 1,
-    gap: 4,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '600',
-    color: '#000000',
-    letterSpacing: -0.48,
-  },
-  subtitle: {
-    fontSize: 14,
-    fontWeight: '300',
-    color: '#717680',
-    letterSpacing: -0.28,
-    lineHeight: 20,
-  },
   // Scroll
   scroll: {
     flex: 1,

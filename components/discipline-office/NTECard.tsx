@@ -35,8 +35,10 @@ export function NTECard({
       style={{
         borderRadius: variant === 'nested' ? 12 : 16,
         backgroundColor: '#FAFAFA',
-        padding: 12,
+        padding: 20,
         gap: 20,
+        borderWidth: 1,
+        borderColor: '#F5F5F5',
       }}>
       {/* Header section */}
       <View style={{ gap: 12 }}>
