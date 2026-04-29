@@ -1,6 +1,7 @@
 import { Pressable, Text, View } from 'react-native';
 
 import { IconsaxTimerIcon } from '@/components/icons/IconsaxTimerIcon';
+import { Ionicons } from '@expo/vector-icons';
 
 export type NTEStatus = 'pending_response' | 'responded' | 'waived' | 'escalated';
 
@@ -15,6 +16,10 @@ export type NTECardProps = {
   onRespond?: () => void;
   /** `nested` — soft tile on tinted list panel. `default` — outlined card. */
   variant?: 'default' | 'nested';
+  /** Formatted label showing when the response was submitted */
+  respondedAtLabel?: string;
+  /** Formatted label showing when the NTE was waived */
+  waivedAtLabel?: string;
 };
 
 export function NTECard({
@@ -27,6 +32,8 @@ export function NTECard({
   isOverdue,
   onRespond,
   variant = 'default',
+  respondedAtLabel,
+  waivedAtLabel,
 }: NTECardProps) {
   const isPending = status === 'pending_response';
 
@@ -158,6 +165,36 @@ export function NTECard({
             Explain my side
           </Text>
         </Pressable>
+      )}
+
+      {/* Submitted footer */}
+      {status === 'responded' && respondedAtLabel && (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <Ionicons name="checkmark" size={16} color="#717680" />
+          <Text
+            style={{
+              fontSize: 12,
+              fontWeight: '400',
+              color: '#717680',
+            }}>
+            Submitted at {respondedAtLabel}
+          </Text>
+        </View>
+      )}
+
+      {/* Waived footer */}
+      {status === 'waived' && waivedAtLabel && (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <Ionicons name="checkmark" size={16} color="#717680" />
+          <Text
+            style={{
+              fontSize: 12,
+              fontWeight: '400',
+              color: '#717680',
+            }}>
+            Waived at {waivedAtLabel}
+          </Text>
+        </View>
       )}
     </View>
   );

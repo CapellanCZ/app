@@ -210,7 +210,12 @@ export default function StatementOfExplanationScreen() {
           </View>
         ),
       });
-      router.back();
+
+      // Navigate back with parameter to trigger optimistic UI update
+      router.replace({
+        pathname: '/discipline-office',
+        params: { respondedNTEId: nteId },
+      });
     } catch (e) {
       setIsSubmitting(false);
       submitLockedRef.current = false;

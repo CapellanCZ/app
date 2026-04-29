@@ -40,10 +40,10 @@ import {
 } from 'heroui-native';
 
 import { AppInput } from '@/components/ui/AppInput';
+import { InlineSelect } from '@/components/ui/InlineSelect';
 
 import { FormField, DisciplineOfficeScreenShell, ScreenHeader } from '@/components/discipline-office';
 import { submitIncidentReport, type AttachmentFile } from '@/lib/discipline-office/disciplineApi';
-import { IconsaxArrowDownIcon } from '@/components/icons/IconsaxArrowDownIcon';
 import { IconsaxCalendarIcon } from '@/components/icons/IconsaxCalendarIcon';
 import { IconsaxClockIcon } from '@/components/icons/IconsaxClockIcon';
 import { IconsaxLocationIcon } from '@/components/icons/IconsaxLocationIcon';
@@ -126,7 +126,6 @@ export default function IncidentReportScreen() {
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
 
-  const [incidentTypeOpen, setIncidentTypeOpen] = useState(false);
   const [incidentType, setIncidentType] = useState('');
   const [incidentTypeOther, setIncidentTypeOther] = useState('');
   const [incidentDate, setIncidentDate] = useState<Date | null>(null);
@@ -143,6 +142,7 @@ export default function IncidentReportScreen() {
   const [reporterPhone, setReporterPhone] = useState('');
   const [personsInvolved, setPersonsInvolved] = useState('');
   const [whatHappened, setWhatHappened] = useState('');
+  const [locationError, setLocationError] = useState('');
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
   const [videos, setVideos] = useState<VideoItem[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -156,7 +156,6 @@ export default function IncidentReportScreen() {
   const selectIncidentType = useCallback((value: string) => {
     setIncidentType(value);
     if (value !== INCIDENT_TYPE_OTHER) setIncidentTypeOther('');
-    setIncidentTypeOpen(false);
   }, []);
 
   const onDateSheetOpenChange = useCallback(
@@ -294,6 +293,14 @@ export default function IncidentReportScreen() {
     incidentType.length > 0 &&
     (incidentType !== INCIDENT_TYPE_OTHER || incidentTypeOther.trim().length > 0);
 
+  const locationComplete = location.trim().length > 0;
+
+  const step1Complete =
+    incidentTypeComplete &&
+    incidentDate != null &&
+    incidentTime != null &&
+    locationComplete;
+
   const hasUnsavedChanges = useMemo(
     () =>
       incidentType.length > 0 ||
@@ -349,6 +356,13 @@ export default function IncidentReportScreen() {
 
   const onSubmit = useCallback(async () => {
     if (submitLockedRef.current) return;
+    
+    // Validate location is required
+    if (!location.trim()) {
+      setLocationError('Location is required');
+      return;
+    }
+    
     submitLockedRef.current = true;
     setIsSubmitting(true);
     try {
@@ -492,48 +506,12 @@ export default function IncidentReportScreen() {
             <Animated.View key="step-1" entering={FadeIn.duration(220)} style={{ gap: 20 }}>
               {/* Incident Type */}
               <FormField label="Incident Type">
-                <View style={{ width: '100%' }}>
-                  <BottomSheet
-                    className="w-full shrink-0"
-                    isOpen={incidentTypeOpen}
-                    onOpenChange={setIncidentTypeOpen}>
-                    <BottomSheet.Trigger className="w-full" accessibilityLabel="Select type of incident">
-                      <AppInput
-                        editable={false}
-                        pointerEvents="none"
-                        showSoftInputOnFocus={false}
-                        placeholder="Select type of incident"
-                        value={incidentType}
-                        suffix={<IconsaxArrowDownIcon size={12} color={ICON_SUFFIX} />}
-                      />
-                    </BottomSheet.Trigger>
-                    <BottomSheet.Portal>
-                      <BottomSheet.Overlay isCloseOnPress />
-                      <BottomSheet.Content snapPoints={['50%', '75%']} index={0}>
-                        <BottomSheet.Title className="mb-2 px-1 text-base font-semibold leading-6 text-[#181D27]">
-                          Type of Incident
-                        </BottomSheet.Title>
-                        <ScrollView
-                          className="flex-1"
-                          keyboardShouldPersistTaps="handled"
-                          showsVerticalScrollIndicator={false}>
-                          {INCIDENT_TYPES.map((opt) => (
-                            <Pressable
-                              key={opt}
-                              accessibilityRole="button"
-                              className="rounded-xl px-3 py-3.5 active:bg-[#FAFAFA]"
-                              onPress={() => selectIncidentType(opt)}>
-                              <Text
-                                className={`text-sm leading-5 ${incidentType === opt ? 'font-semibold text-[#2970FF]' : 'text-[#181D27]'}`}>
-                                {opt}
-                              </Text>
-                            </Pressable>
-                          ))}
-                        </ScrollView>
-                      </BottomSheet.Content>
-                    </BottomSheet.Portal>
-                  </BottomSheet>
-                </View>
+                <InlineSelect
+                  placeholder="Select type of incident"
+                  value={incidentType}
+                  options={INCIDENT_TYPES}
+                  onChange={selectIncidentType}
+                />
                 {incidentType === INCIDENT_TYPE_OTHER && (
                   <AppInput
                     editable={!isSubmitting}
@@ -650,7 +628,11 @@ export default function IncidentReportScreen() {
                 <AppInput
                   placeholder="Where did it happen?"
                   value={location}
-                  onChangeText={setLocation}
+                  onChangeText={(text) => {
+                    setLocation(text);
+                    if (locationError) setLocationError('');
+                  }}
+                  error={locationError}
                   suffix={<IconsaxLocationIcon size={16} color={ICON_SUFFIX} />}
                 />
               </FormField>
@@ -853,13 +835,13 @@ export default function IncidentReportScreen() {
           {step === 1 && (
             <Pressable
               accessibilityRole="button"
-              disabled={!incidentTypeComplete}
+              disabled={!step1Complete}
               onPress={() => setStep(2)}
               className="active:opacity-90"
               style={{
                 height: 48,
                 borderRadius: 24,
-                backgroundColor: incidentTypeComplete ? '#2970FF' : '#A8C4FF',
+                backgroundColor: step1Complete ? '#2970FF' : '#A8C4FF',
                 borderWidth: 2,
                 borderColor: '#84ADFF',
                 alignItems: 'center',
@@ -916,13 +898,13 @@ export default function IncidentReportScreen() {
           {step === 3 && (
             <Pressable
               accessibilityRole="button"
-              disabled={isSubmitting}
+              disabled={isSubmitting || !locationComplete}
               onPress={onSubmit}
               className="active:opacity-90"
               style={{
                 height: 48,
                 borderRadius: 24,
-                backgroundColor: SUBMIT_BRAND,
+                backgroundColor: isSubmitting || !locationComplete ? '#A8C4FF' : SUBMIT_BRAND,
                 borderWidth: 2,
                 borderColor: '#84ADFF',
                 alignItems: 'center',

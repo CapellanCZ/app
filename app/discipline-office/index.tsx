@@ -1,7 +1,9 @@
 import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View, LayoutAnimation, Platform, UIManager } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/lib/auth/AuthProvider';
@@ -10,9 +12,6 @@ import {
   fetchNTEsByStudent,
   fetchSanctionsByStudent,
   mapNTEToCardProps,
-  subscribeMyNTEs,
-  subscribeMyCases,
-  subscribeMySanctions,
 } from '@/lib/discipline-office/disciplineApi';
 
 import {
@@ -21,7 +20,6 @@ import {
   NTECard,
 } from '@/components/discipline-office';
 import { IconsaxArrowDownIcon } from '@/components/icons/IconsaxArrowDownIcon';
-import { IconsaxArrowUpIcon } from '@/components/icons/IconsaxArrowUpIcon';
 import { IconsaxBriefcaseIcon } from '@/components/icons/IconsaxBriefcaseIcon';
 import { IconsaxPaperIcon } from '@/components/icons/IconsaxPaperIcon';
 import { IconsaxCloseCircleIcon } from '@/components/icons/IconsaxCloseCircleIcon';
@@ -253,11 +251,29 @@ function CollapsibleSection({
   defaultExpanded?: boolean;
 }) {
   const [expanded, setExpanded] = useState(defaultExpanded);
+  const chevronAngle = useSharedValue(defaultExpanded ? 180 : 0);
+
+  const chevronStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${chevronAngle.value}deg` }],
+  }));
+
+  const toggle = () => {
+    const next = !expanded;
+    chevronAngle.value = withTiming(next ? 180 : 0, { duration: 220 });
+    if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+      UIManager.setLayoutAnimationEnabledExperimental(true);
+    }
+    LayoutAnimation.configureNext({
+      duration: 220,
+      update: { type: 'easeInEaseOut' },
+    });
+    setExpanded(next);
+  };
 
   return (
     <View style={{ gap: 16 }}>
       <Pressable
-        onPress={() => setExpanded((v) => !v)}
+        onPress={toggle}
         accessibilityRole="button"
         accessibilityLabel={`${expanded ? 'Collapse' : 'Expand'} ${title}`}
         style={{
@@ -276,11 +292,9 @@ function CollapsibleSection({
           }}>
           {title}
         </Text>
-        <View style={{ width: 24, height: 24, alignItems: 'center', justifyContent: 'center' }}>
-          {expanded
-            ? <IconsaxArrowUpIcon size={20} color={T.textMuted} />
-            : <IconsaxArrowDownIcon size={20} color={T.textMuted} />}
-        </View>
+        <Animated.View style={[{ width: 24, height: 24, alignItems: 'center', justifyContent: 'center' }, chevronStyle]}>
+          <IconsaxArrowDownIcon size={20} color="#717680" />
+        </Animated.View>
       </Pressable>
       {expanded && <View>{children}</View>}
     </View>
@@ -315,7 +329,7 @@ export default function DisciplineOfficeScreen() {
       fetchSanctionsByStudent(studentId),
     ]).then(([rawNTEs, rawCases, rawSanctions]) => {
       if (cancelled) return;
-      setNtes(rawNTEs.map(mapNTEToCardProps));
+      setNtes(rawNTEs.filter((n) => n.status !== 'escalated').map(mapNTEToCardProps));
       setOpenCasesCount(rawCases.length);
       setSanctionsCount(rawSanctions.length);
       setHasLoaded(true);
@@ -323,44 +337,47 @@ export default function DisciplineOfficeScreen() {
     return () => { cancelled = true; };
   }, [studentId]);
 
-  // Real-time subscription for NTEs
-  useEffect(() => {
-    if (!studentId) return;
-    const unsubscribe = subscribeMyNTEs(studentId, () => {
-      // Only refetch NTEs when they change
-      void (async () => {
-        const rawNTEs = await fetchNTEsByStudent(studentId);
-        setNtes(rawNTEs.map(mapNTEToCardProps));
-      })();
-    });
-    return unsubscribe;
-  }, [studentId]);
-
-  // Real-time subscription for cases
-  useEffect(() => {
-    if (!studentId) return;
-    const unsubscribe = subscribeMyCases(studentId, () => {
-      // Only refetch cases when they change
-      void (async () => {
-        const rawCases = await fetchCasesByStudent(studentId);
+  // Refetch data when screen is focused (e.g., after submitting statement of explanation)
+  useFocusEffect(
+    useCallback(() => {
+      if (!studentId) return;
+      let cancelled = false;
+      Promise.all([
+        fetchNTEsByStudent(studentId),
+        fetchCasesByStudent(studentId),
+        fetchSanctionsByStudent(studentId),
+      ]).then(([rawNTEs, rawCases, rawSanctions]) => {
+        if (cancelled) return;
+        setNtes(rawNTEs.filter((n) => n.status !== 'escalated').map(mapNTEToCardProps));
         setOpenCasesCount(rawCases.length);
-      })();
-    });
-    return unsubscribe;
-  }, [studentId]);
-
-  // Real-time subscription for sanctions
-  useEffect(() => {
-    if (!studentId) return;
-    const unsubscribe = subscribeMySanctions(studentId, () => {
-      // Only refetch sanctions when they change
-      void (async () => {
-        const rawSanctions = await fetchSanctionsByStudent(studentId);
         setSanctionsCount(rawSanctions.length);
-      })();
-    });
-    return unsubscribe;
-  }, [studentId]);
+      });
+      return () => { cancelled = true; };
+    }, [studentId]),
+  );
+
+  // Check if returning from statement explanation with responded NTE
+  useFocusEffect(
+    useCallback(() => {
+      const respondedNTEId = router.params?.respondedNTEId as string | undefined;
+      if (respondedNTEId) {
+        // Optimistically update the NTE status before refetching
+        setNtes((prev) =>
+          prev.map((nte) =>
+            nte.id === respondedNTEId
+              ? {
+                  ...nte,
+                  status: 'responded' as const,
+                  respondedAtLabel: formatDateLabel(new Date()),
+                }
+              : nte,
+          ),
+        );
+        // Clear the param to avoid re-triggering
+        router.setParams({ respondedNTEId: undefined });
+      }
+    }, [router]),
+  );
 
   const nteCount = ntes.length;
   const pendingNTECount = ntes.filter((n) => n.status === 'pending_response').length;
@@ -453,6 +470,8 @@ export default function DisciplineOfficeScreen() {
                   deadlineLabel={item.deadlineLabel}
                   status={item.status}
                   isOverdue={item.isOverdue}
+                  respondedAtLabel={item.respondedAtLabel}
+                  waivedAtLabel={item.waivedAtLabel}
                   onRespond={() =>
                     router.push({
                       pathname: '/discipline-office/statement-of-explanation',
@@ -461,6 +480,7 @@ export default function DisciplineOfficeScreen() {
                         caseType: item.caseType,
                         issuedAtLabel: item.issuedAtLabel,
                         deadlineLabel: item.deadlineLabel,
+                        onResponded: item.id, // Pass NTE ID to identify which one was responded to
                       },
                     })
                   }

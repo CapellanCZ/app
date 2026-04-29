@@ -17,7 +17,6 @@ export type DBCase = {
   reported_at: string;
   created_at: string;
   student_id: string;
-  student_name: string;
 };
 
 export type DBSanction = {
@@ -35,7 +34,6 @@ export type DBSanction = {
   review_days_max: number | null;
   review_status_label: string | null;
   student_id: string;
-  student_name: string;
   created_at: string;
   updated_at: string;
   completion_date: string;
@@ -52,7 +50,6 @@ export type DBNTE = {
   responded_at: string | null;
   case_id: string | null;
   student_id: string;
-  student_name: string;
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -344,6 +341,8 @@ export function mapNTEToCardProps(n: DBNTE) {
     deadlineLabel: deadlineAt ? formatDateLabel(n.deadline_at!) : undefined,
     status: n.status,
     isOverdue,
+    respondedAtLabel: n.responded_at ? formatDateLabel(n.responded_at) : undefined,
+    waivedAtLabel: n.status === 'waived' && n.escalated_at ? formatDateLabel(n.escalated_at) : undefined,
   };
 }
 
@@ -423,12 +422,12 @@ export function mapSanctionToScreenRow(s: DBSanction) {
     title,
     description: s.description || s.notes || '',
     sanctionType,
-    dueDateLabel: s.due_date ? `Due ${s.due_date}` : 'No due date',
+    dueDateLabel: s.due_date ? `Due ${formatDateLabel(s.due_date)}` : 'No due date',
     progress,
     timeAgoLabel:     relativeTime(s.created_at),
     submittedAtLabel: status === 'in_review' ? formatDateLabel(s.updated_at) : undefined,
     completedAtLabel: status === 'case_closed' && s.completion_date
-      ? s.completion_date
+      ? formatDateLabel(s.completion_date)
       : status === 'case_closed' ? formatDateLabel(s.updated_at) : undefined,
   };
 }
@@ -583,67 +582,13 @@ export function subscribeMySanctions(
         if (payload.new) onChange(payload.new as DBSanction);
       },
     )
-    .subscribe();
-  return () => {
-    sb.removeChannel(channel);
-  };
-}
-
-/**
- * Subscribe to INSERT/UPDATE/DELETE on the student's own NTEs (RLS protects the filter).
- * Returns an unsubscribe function.
- */
-export function subscribeMyNTEs(
-  studentId: string,
-  onChange: () => void,
-): () => void {
-  if (!supabase || !studentId) return () => {};
-  const sb = supabase;
-  const channel = sb
-    .channel(`my-ntes-${studentId}`)
-    .on(
-      'postgres_changes',
-      {
-        event: '*', // INSERT, UPDATE, DELETE
-        schema: 'public',
-        table:  'discipline_nte',
-        filter: `student_id=eq.${studentId}`,
-      },
-      () => {
-        onChange();
-      },
-    )
-    .subscribe();
-  return () => {
-    sb.removeChannel(channel);
-  };
-}
-
-/**
- * Subscribe to INSERT/UPDATE/DELETE on the student's own cases (RLS protects the filter).
- * Returns an unsubscribe function.
- */
-export function subscribeMyCases(
-  studentId: string,
-  onChange: () => void,
-): () => void {
-  if (!supabase || !studentId) return () => {};
-  const sb = supabase;
-  const channel = sb
-    .channel(`my-cases-${studentId}`)
-    .on(
-      'postgres_changes',
-      {
-        event: '*', // INSERT, UPDATE, DELETE
-        schema: 'public',
-        table:  'discipline_cases',
-        filter: `student_id=eq.${studentId}`,
-      },
-      () => {
-        onChange();
-      },
-    )
-    .subscribe();
+    .subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        console.log('[disciplineApi] Realtime subscription active for sanctions');
+      } else if (status === 'CHANNEL_ERROR') {
+        console.error('[disciplineApi] Realtime subscription error for sanctions');
+      }
+    });
   return () => {
     sb.removeChannel(channel);
   };
