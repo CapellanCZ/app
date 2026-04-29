@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/lib/auth/AuthProvider';
@@ -10,6 +10,9 @@ import {
   fetchNTEsByStudent,
   fetchSanctionsByStudent,
   mapNTEToCardProps,
+  subscribeMyNTEs,
+  subscribeMyCases,
+  subscribeMySanctions,
 } from '@/lib/discipline-office/disciplineApi';
 
 import {
@@ -290,8 +293,8 @@ export default function DisciplineOfficeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { session } = useAuth();
-  const [isLoading, setIsLoading] = useState(true);
   const [bannerDismissed, setBannerDismissed] = useState(false);
+  const [hasLoaded, setHasLoaded] = useState(false);
 
   const scrollRef = useRef<ScrollView>(null);
   const casesSectionY = useRef<number>(0);
@@ -302,10 +305,10 @@ export default function DisciplineOfficeScreen() {
 
   const studentId = (session?.user?.user_metadata?.student_id as string | undefined) ?? '';
 
+  // Initial fetch
   useEffect(() => {
-    if (!studentId) { setIsLoading(false); return; }
+    if (!studentId) return;
     let cancelled = false;
-    setIsLoading(true);
     Promise.all([
       fetchNTEsByStudent(studentId),
       fetchCasesByStudent(studentId),
@@ -315,14 +318,53 @@ export default function DisciplineOfficeScreen() {
       setNtes(rawNTEs.map(mapNTEToCardProps));
       setOpenCasesCount(rawCases.length);
       setSanctionsCount(rawSanctions.length);
-      setIsLoading(false);
+      setHasLoaded(true);
     });
     return () => { cancelled = true; };
   }, [studentId]);
 
+  // Real-time subscription for NTEs
+  useEffect(() => {
+    if (!studentId) return;
+    const unsubscribe = subscribeMyNTEs(studentId, () => {
+      // Only refetch NTEs when they change
+      void (async () => {
+        const rawNTEs = await fetchNTEsByStudent(studentId);
+        setNtes(rawNTEs.map(mapNTEToCardProps));
+      })();
+    });
+    return unsubscribe;
+  }, [studentId]);
+
+  // Real-time subscription for cases
+  useEffect(() => {
+    if (!studentId) return;
+    const unsubscribe = subscribeMyCases(studentId, () => {
+      // Only refetch cases when they change
+      void (async () => {
+        const rawCases = await fetchCasesByStudent(studentId);
+        setOpenCasesCount(rawCases.length);
+      })();
+    });
+    return unsubscribe;
+  }, [studentId]);
+
+  // Real-time subscription for sanctions
+  useEffect(() => {
+    if (!studentId) return;
+    const unsubscribe = subscribeMySanctions(studentId, () => {
+      // Only refetch sanctions when they change
+      void (async () => {
+        const rawSanctions = await fetchSanctionsByStudent(studentId);
+        setSanctionsCount(rawSanctions.length);
+      })();
+    });
+    return unsubscribe;
+  }, [studentId]);
+
   const nteCount = ntes.length;
   const pendingNTECount = ntes.filter((n) => n.status === 'pending_response').length;
-  const isClean = !isLoading && nteCount === 0 && openCasesCount === 0 && sanctionsCount === 0;
+  const isClean = openCasesCount === 0 && sanctionsCount === 0;
 
   return (
     <DisciplineOfficeScreenShell>
@@ -346,23 +388,19 @@ export default function DisciplineOfficeScreen() {
         }}>
 
         {/* ── Stats Strip ── */}
-        {isLoading ? (
-          <ActivityIndicator style={{ marginVertical: 24 }} />
-        ) : (
-          <StatsStrip
-            noticeCount={nteCount}
-            openCases={openCasesCount}
-            sanctions={sanctionsCount}
-          />
-        )}
+        <StatsStrip
+          noticeCount={nteCount}
+          openCases={openCasesCount}
+          sanctions={sanctionsCount}
+        />
 
         {/* ── Clean Record Banner ── */}
-        {isClean && !bannerDismissed && (
+        {hasLoaded && isClean && !bannerDismissed && (
           <CleanRecordBanner onDismiss={() => setBannerDismissed(true)} />
         )}
 
         {/* ── Pending NTE Urgent Banner ── */}
-        {!isLoading && pendingNTECount > 0 && (
+        {pendingNTECount > 0 && (
           <PendingNTEBanner
             count={pendingNTECount}
             onPress={() =>
@@ -402,9 +440,7 @@ export default function DisciplineOfficeScreen() {
 
         {/* ── Notice to Explain ── */}
         <CollapsibleSection title="Notice to Explain" defaultExpanded>
-          {isLoading ? (
-            <ActivityIndicator style={{ marginVertical: 16 }} />
-          ) : ntes.length > 0 ? (
+          {ntes.length > 0 ? (
             <View style={{ gap: 12 }}>
               {ntes.map((item) => (
                 <NTECard

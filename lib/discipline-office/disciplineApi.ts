@@ -588,3 +588,63 @@ export function subscribeMySanctions(
     sb.removeChannel(channel);
   };
 }
+
+/**
+ * Subscribe to INSERT/UPDATE/DELETE on the student's own NTEs (RLS protects the filter).
+ * Returns an unsubscribe function.
+ */
+export function subscribeMyNTEs(
+  studentId: string,
+  onChange: () => void,
+): () => void {
+  if (!supabase || !studentId) return () => {};
+  const sb = supabase;
+  const channel = sb
+    .channel(`my-ntes-${studentId}`)
+    .on(
+      'postgres_changes',
+      {
+        event: '*', // INSERT, UPDATE, DELETE
+        schema: 'public',
+        table:  'discipline_nte',
+        filter: `student_id=eq.${studentId}`,
+      },
+      () => {
+        onChange();
+      },
+    )
+    .subscribe();
+  return () => {
+    sb.removeChannel(channel);
+  };
+}
+
+/**
+ * Subscribe to INSERT/UPDATE/DELETE on the student's own cases (RLS protects the filter).
+ * Returns an unsubscribe function.
+ */
+export function subscribeMyCases(
+  studentId: string,
+  onChange: () => void,
+): () => void {
+  if (!supabase || !studentId) return () => {};
+  const sb = supabase;
+  const channel = sb
+    .channel(`my-cases-${studentId}`)
+    .on(
+      'postgres_changes',
+      {
+        event: '*', // INSERT, UPDATE, DELETE
+        schema: 'public',
+        table:  'discipline_cases',
+        filter: `student_id=eq.${studentId}`,
+      },
+      () => {
+        onChange();
+      },
+    )
+    .subscribe();
+  return () => {
+    sb.removeChannel(channel);
+  };
+}
