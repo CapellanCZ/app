@@ -1,129 +1,20 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, Image, Modal, Pressable, ScrollView, Text, View } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
 
 import { useAuth } from '@/lib/auth/AuthProvider';
 import { fetchStudentProfile, pickAndUploadAvatar, type StudentProfile } from '@/lib/profile/profileApi';
 import { useScholarshipStore } from '@/lib/scholarships/scholarshipStore';
 import { SCHEDULE_PARTNER } from '@/lib/health-service/bookingScheduleTheme';
-import {
-  HOME_BG_GRADIENT_COLORS,
-  HOME_BG_GRADIENT_LOCATIONS,
-  HOME_SCROLL_PADDING_H,
-} from '@/lib/ui/screenGradients';
-import profileCirclePlaceholder from '@/assets/profile-circle.png';
-
-const BRAND = SCHEDULE_PARTNER.brand;
-const ICON_BG = SCHEDULE_PARTNER.segmentTrackBg;
-const ICON_COLOR = SCHEDULE_PARTNER.textPrimary;
-const DIVIDER = SCHEDULE_PARTNER.divider;
-const SURFACE = SCHEDULE_PARTNER.surface;
-
-type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
-
-type RowProps = {
-  icon: IoniconName;
-  label: string;
-  onPress?: () => void;
-  value?: string;
-  isFirst?: boolean;
-  isLast?: boolean;
-  variant?: 'default' | 'danger';
-};
-
-function Row({ icon, label, onPress, value, isFirst, isLast, variant = 'default' }: RowProps) {
-  const isDanger = variant === 'danger';
-  const isDisplay = !onPress;
-
-  const content = (
-    <View
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: 13,
-        paddingHorizontal: 14,
-        borderBottomWidth: isLast ? 0 : 1,
-        borderBottomColor: DIVIDER,
-        backgroundColor: SURFACE,
-        gap: 12,
-        borderTopLeftRadius: isFirst ? 16 : 0,
-        borderTopRightRadius: isFirst ? 16 : 0,
-        borderBottomLeftRadius: isLast ? 16 : 0,
-        borderBottomRightRadius: isLast ? 16 : 0,
-      }}>
-      <View
-        style={{
-          width: 34,
-          height: 34,
-          borderRadius: 9,
-          backgroundColor: isDanger ? 'rgba(239,68,68,0.1)' : ICON_BG,
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}>
-        <Ionicons name={icon} size={20} color={isDanger ? '#EF4444' : ICON_COLOR} />
-      </View>
-      <Text
-        style={{
-          flex: 1,
-          fontSize: 16,
-          color: isDanger ? '#EF4444' : SCHEDULE_PARTNER.textPrimary,
-        }}>
-        {label}
-      </Text>
-      {value ? (
-        <Text style={{ fontSize: 14, color: SCHEDULE_PARTNER.textMuted }}>{value}</Text>
-      ) : !isDisplay ? (
-        <Ionicons name="chevron-forward" size={18} color={isDanger ? '#EF4444' : SCHEDULE_PARTNER.textDisabled} />
-      ) : null}
-    </View>
-  );
-
-  if (isDisplay) return content;
-
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      className="active:opacity-60">
-      {content}
-    </Pressable>
-  );
-}
-
-function SectionLabel({ title }: { title: string }) {
-  return (
-    <Text
-      style={{
-        marginTop: 24,
-        marginBottom: 8,
-        marginLeft: 4,
-        fontSize: 15,
-        fontWeight: '500',
-        color: SCHEDULE_PARTNER.textMuted,
-      }}>
-      {title}
-    </Text>
-  );
-}
-
-function Card({ children }: { children: React.ReactNode }) {
-  return (
-    <View
-      style={{
-        borderRadius: 16,
-        borderWidth: 1,
-        borderColor: SCHEDULE_PARTNER.cardBorder,
-        overflow: 'hidden',
-        backgroundColor: SURFACE,
-      }}>
-      {children}
-    </View>
-  );
-}
+import { IconsaxNotificationIcon } from '@/components/icons/IconsaxNotificationIcon';
+import { IconsaxInfoCircleIcon } from '@/components/icons/IconsaxInfoCircleIcon';
+import { IconsaxMedalIcon } from '@/components/icons/IconsaxMedalIcon';
+import { IconsaxArrowRightIcon } from '@/components/icons/IconsaxArrowRightIcon';
+import { UserEditIcon } from '@/components/icons/UserEditIcon';
+import { ShieldSecurityIcon } from '@/components/icons/ShieldSecurityIcon';
+import { MessageQuestionIcon } from '@/components/icons/MessageQuestionIcon';
+import { LogoutIcon } from '@/components/icons/LogoutIcon';
 
 function maskEmail(email: string): string {
   const [local, domain] = email.split('@');
@@ -134,175 +25,148 @@ function maskEmail(email: string): string {
 
 // ── Scholarship status card ──────────────────────────────────────────────────
 
-const SCHOLARSHIP_STATUS_META: Record<string, { label: string; dot: string; bg: string; text: string }> = {
-  active:     { label: 'Active',     dot: '#47CD89', bg: '#ECFDF3', text: '#067647' },
-  compliant:  { label: 'Compliant',  dot: '#47CD89', bg: '#ECFDF3', text: '#067647' },
-  at_risk:    { label: 'At Risk',    dot: '#F79009', bg: '#FFFAEB', text: '#B54708' },
-  probation:  { label: 'Probation',  dot: '#F04438', bg: '#FEF3F2', text: '#B42318' },
-  suspended:  { label: 'Suspended',  dot: '#F04438', bg: '#FEF3F2', text: '#B42318' },
-  terminated: { label: 'Terminated', dot: '#98A2B3', bg: '#F2F4F7', text: '#475467' },
-  completed:  { label: 'Completed',  dot: '#47CD89', bg: '#ECFDF3', text: '#067647' },
-};
-
 function ScholarshipStatusCard({ onPress }: { onPress: () => void }) {
-  const { myEnrollment, fetchMyEnrollment } = useScholarshipStore();
-
-  useEffect(() => {
-    fetchMyEnrollment();
-  }, [fetchMyEnrollment]);
+  const { myEnrollment } = useScholarshipStore();
 
   if (!myEnrollment) return null;
 
-  const meta = SCHOLARSHIP_STATUS_META[myEnrollment.status] ?? SCHOLARSHIP_STATUS_META.active;
   const programName = myEnrollment.program?.name ?? 'Scholarship';
-  const gpa = myEnrollment.currentGpa != null ? myEnrollment.currentGpa.toFixed(2) : null;
-
   const totalItems = myEnrollment.complianceItems.length;
-  const verifiedItems = myEnrollment.complianceItems.filter(
-    (i) => i.status === 'verified' || i.status === 'waived',
-  ).length;
   const pendingActionable = myEnrollment.complianceItems.filter(
     (i) => i.status === 'pending' || i.status === 'overdue' || i.status === 'rejected',
   ).length;
+  const verifiedItems = myEnrollment.complianceItems.filter(
+    (i) => i.status === 'verified' || i.status === 'waived',
+  ).length;
 
   return (
-    <>
-      <SectionLabel title="My Scholarship" />
+    <View style={{ marginTop: 24, marginBottom: 24 }}>
       <Pressable
         onPress={onPress}
         accessibilityRole="button"
         accessibilityLabel={`View ${programName} status`}
         className="active:opacity-80">
-        <LinearGradient
-          colors={['#2970FF', '#155EEF', '#1248E8']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
+        <View
           style={{
+            backgroundColor: '#FFFFFF',
             borderRadius: 16,
             padding: 16,
-            gap: 14,
+            gap: 18,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.04,
+            shadowRadius: 4,
+            elevation: 2,
           }}>
-          {/* Header row */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-            <View
+          {/* Header with medal icon and See All button */}
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+            <View style={{ flex: 1, flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}>
+              {/* Medal icon */}
+              <View
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 8,
+                  backgroundColor: 'rgba(255, 193, 7, 0.15)',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginTop: 2,
+                }}>
+                <IconsaxMedalIcon size={24} color="#FFC107" />
+              </View>
+              {/* Scholarship info */}
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text
+                  numberOfLines={1}
+                  style={{
+                    fontSize: 16,
+                    fontWeight: '600',
+                    color: '#181D27',
+                    marginBottom: 2,
+                  }}>
+                  {programName}
+                </Text>
+                <Text
+                  style={{
+                    fontSize: 12,
+                    fontStyle: 'italic',
+                    color: '#A4A7AE',
+                  }}>
+                  Expires on Dec 3 2027
+                </Text>
+              </View>
+            </View>
+            {/* See All button */}
+            <Pressable
+              onPress={onPress}
               style={{
-                width: 40,
-                height: 40,
-                borderRadius: 10,
-                backgroundColor: 'rgba(255,255,255,0.18)',
+                backgroundColor: '#2970FF',
+                paddingHorizontal: 12,
+                paddingVertical: 6,
+                borderRadius: 20,
                 alignItems: 'center',
                 justifyContent: 'center',
+                marginLeft: 12,
               }}>
-              <Ionicons name="ribbon" size={22} color="#FFFFFF" />
-            </View>
-            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={{ fontSize: 12, fontWeight: '500', color: '#FFFFFF' }}>
+                See All
+              </Text>
+            </Pressable>
+          </View>
+
+          {/* Divider */}
+          <View
+            style={{
+              height: 1,
+              backgroundColor: '#E5E7EB',
+            }}
+          />
+
+          {/* Stats row */}
+          <View style={{ flexDirection: 'row', gap: 32 }}>
+            {/* Pending Requirements */}
+            <View>
               <Text
-                numberOfLines={1}
-                style={{ fontSize: 15, fontWeight: '700', color: '#FFFFFF' }}>
-                {programName}
+                style={{
+                  fontSize: 20,
+                  fontWeight: '600',
+                  color: '#181D27',
+                  marginBottom: 2,
+                }}>
+                {pendingActionable}
               </Text>
               <Text
                 style={{
-                  marginTop: 2,
                   fontSize: 12,
-                  color: 'rgba(255,255,255,0.85)',
+                  color: '#717680',
                 }}>
-                {myEnrollment.yearLevel} · AY {myEnrollment.academicYear}
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.9)" />
-          </View>
-
-          {/* Status + stats row */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 6,
-                backgroundColor: meta.bg,
-                paddingHorizontal: 10,
-                paddingVertical: 4,
-                borderRadius: 999,
-              }}>
-              <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: meta.dot }} />
-              <Text style={{ fontSize: 12, fontWeight: '600', color: meta.text }}>
-                {meta.label}
+                Pending Requirements
               </Text>
             </View>
 
-            {gpa ? (
-              <View
+            {/* Progress Percentage */}
+            <View>
+              <Text
                 style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 6,
-                  backgroundColor: 'rgba(255,255,255,0.18)',
-                  paddingHorizontal: 10,
-                  paddingVertical: 4,
-                  borderRadius: 999,
+                  fontSize: 20,
+                  fontWeight: '600',
+                  color: '#181D27',
+                  marginBottom: 2,
                 }}>
-                <Ionicons name="school-outline" size={12} color="#FFFFFF" />
-                <Text style={{ fontSize: 12, fontWeight: '600', color: '#FFFFFF' }}>GPA {gpa}</Text>
-              </View>
-            ) : null}
-
-            {pendingActionable > 0 ? (
-              <View
+                {totalItems > 0 ? `${Math.round((verifiedItems / totalItems) * 100)}%` : '0%'}
+              </Text>
+              <Text
                 style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 6,
-                  backgroundColor: 'rgba(255,255,255,0.18)',
-                  paddingHorizontal: 10,
-                  paddingVertical: 4,
-                  borderRadius: 999,
+                  fontSize: 12,
+                  color: '#717680',
                 }}>
-                <Ionicons name="alert-circle-outline" size={12} color="#FFFFFF" />
-                <Text style={{ fontSize: 12, fontWeight: '600', color: '#FFFFFF' }}>
-                  {pendingActionable} pending
-                </Text>
-              </View>
-            ) : null}
-          </View>
-
-          {/* Progress bar */}
-          {totalItems > 0 ? (
-            <View style={{ gap: 6 }}>
-              <View
-                style={{
-                  flexDirection: 'row',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                }}>
-                <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.85)' }}>
-                  Compliance progress
-                </Text>
-                <Text style={{ fontSize: 12, fontWeight: '600', color: '#FFFFFF' }}>
-                  {verifiedItems} / {totalItems}
-                </Text>
-              </View>
-              <View
-                style={{
-                  height: 6,
-                  borderRadius: 3,
-                  backgroundColor: 'rgba(255,255,255,0.22)',
-                  overflow: 'hidden',
-                }}>
-                <View
-                  style={{
-                    height: '100%',
-                    width: `${Math.round((verifiedItems / totalItems) * 100)}%`,
-                    backgroundColor: '#FFFFFF',
-                    borderRadius: 3,
-                  }}
-                />
-              </View>
+                Progress Percentage
+              </Text>
             </View>
-          ) : null}
-        </LinearGradient>
+          </View>
+        </View>
       </Pressable>
-    </>
+    </View>
   );
 }
 
@@ -310,16 +174,52 @@ export default function ProfileTab() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { session } = useAuth();
+  const { myEnrollment, fetchMyEnrollment } = useScholarshipStore();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [profile, setProfile] = useState<StudentProfile | null>(null);
+  const [loading, setLoading] = useState(true);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const scrimOpacity = useRef(new Animated.Value(0)).current;
   const sheetTranslateY = useRef(new Animated.Value(400)).current;
 
   useEffect(() => {
-    if (!session?.user?.id) return;
-    fetchStudentProfile(session.user.id).then(setProfile);
-  }, [session?.user?.id]);
+    if (!session?.user?.id) {
+      console.log('[Profile] No session user ID');
+      return;
+    }
+    console.log('[Profile] Fetching profile for user:', session.user.id);
+    console.log('[Profile] User email:', session.user.email);
+    console.log('[Profile] User metadata:', session.user.user_metadata);
+    setLoading(true);
+    Promise.all([
+      fetchStudentProfile(session.user.id),
+      fetchMyEnrollment(),
+    ])
+      .then(([profileData]) => {
+        console.log('[Profile] Fetched profile:', profileData);
+        // Fallback to auth metadata if no students table row exists
+        if (!profileData && session.user.user_metadata) {
+          const meta = session.user.user_metadata;
+          const fallbackProfile: StudentProfile = {
+            id: session.user.id,
+            email: session.user.email ?? meta.email ?? '',
+            first_name: meta.first_name ?? '',
+            last_name: meta.last_name ?? '',
+            program: meta.program ?? '',
+            student_id: meta.student_id ?? '',
+            avatar_url: meta.avatar_url ?? null,
+          };
+          console.log('[Profile] Using metadata fallback:', fallbackProfile);
+          setProfile(fallbackProfile);
+        } else {
+          setProfile(profileData);
+        }
+      })
+      .catch((err) => {
+        console.error('[Profile] Error fetching profile:', err);
+      })
+      .finally(() => setLoading(false));
+  }, [session?.user?.id, fetchMyEnrollment]);
 
   const handleChangeAvatar = useCallback(async () => {
     if (!session?.user?.id || avatarUploading) return;
@@ -353,23 +253,17 @@ export default function ProfileTab() {
   const name = profile
     ? `${profile.first_name} ${profile.last_name}`.trim() || 'Nationalian'
     : 'Nationalian';
-  const email = profile?.email ? maskEmail(profile.email) : '—';
+  const email = profile?.email ?? '—';
   const avatarUrl = profile?.avatar_url ?? null;
 
   return (
-    <LinearGradient
-      colors={[...HOME_BG_GRADIENT_COLORS]}
-      locations={[...HOME_BG_GRADIENT_LOCATIONS]}
-      start={{ x: 0.5, y: 1 }}
-      end={{ x: 0.5, y: 0 }}
-      style={{ flex: 1 }}>
+    <View style={{ flex: 1, backgroundColor: '#FDFDFD' }}>
       <ScrollView
-        className="flex-1 bg-transparent"
         keyboardDismissMode="on-drag"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
-          paddingTop: 10,
-          paddingHorizontal: HOME_SCROLL_PADDING_H,
+          paddingTop: insets.top + 16,
+          paddingHorizontal: 20,
           paddingBottom: Math.max(insets.bottom, 16) + 28,
         }}>
 
@@ -378,38 +272,33 @@ export default function ProfileTab() {
           style={{
             fontSize: 32,
             fontWeight: '700',
-            letterSpacing: -0.35,
-            color: SCHEDULE_PARTNER.textPrimary,
+            letterSpacing: -0.64,
+            color: '#000',
+            marginBottom: 24,
           }}>
           Profile
         </Text>
 
-        {/* Identity row */}
+        {/* User info card */}
         <View
           style={{
-            marginTop: 20,
+            backgroundColor: '#FAFAFA',
             borderRadius: 16,
-            borderWidth: 1,
-            borderColor: SCHEDULE_PARTNER.cardBorder,
-            backgroundColor: SURFACE,
-            paddingVertical: 14,
-            paddingHorizontal: 14,
-            flexDirection: 'row',
-            alignItems: 'center',
+            paddingHorizontal: 8,
+            paddingVertical: 12,
+            marginBottom: 24,
             gap: 12,
           }}>
-          <Pressable
-            onPress={handleChangeAvatar}
-            accessibilityLabel="Change profile picture"
-            style={{
-              width: 52,
-              height: 52,
-              borderRadius: 26,
-              borderWidth: 2,
-              borderColor: BRAND,
-              flexShrink: 0,
-            }}>
-            <View style={{ flex: 1, borderRadius: 24, overflow: 'hidden' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <Pressable
+              onPress={handleChangeAvatar}
+              style={{
+                width: 52,
+                height: 52,
+                borderRadius: 26,
+                backgroundColor: '#E5E7EB',
+                overflow: 'hidden',
+              }}>
               {avatarUrl ? (
                 <Image
                   source={{ uri: avatarUrl }}
@@ -417,106 +306,200 @@ export default function ProfileTab() {
                   resizeMode="cover"
                 />
               ) : (
-                <Image
-                  source={profileCirclePlaceholder}
-                  style={{ width: '100%', height: '100%' }}
-                  resizeMode="cover"
-                />
+                <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={{ fontSize: 20, fontWeight: '600', color: '#9CA3AF' }}>
+                    {name.charAt(0).toUpperCase()}
+                  </Text>
+                </View>
               )}
+            </Pressable>
+            <View style={{ flex: 1, gap: 4 }}>
+              <Text
+                numberOfLines={1}
+                style={{
+                  fontSize: 20,
+                  fontWeight: '500',
+                  color: '#000',
+                  letterSpacing: -0.8,
+                }}>
+                {name}
+              </Text>
+              <Text
+                numberOfLines={1}
+                style={{
+                  fontSize: 12,
+                  color: '#717680',
+                  letterSpacing: -0.2,
+                }}>
+                {email}
+              </Text>
             </View>
-            {avatarUploading && (
-              <View style={{
-                position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-                borderRadius: 24, backgroundColor: 'rgba(0,0,0,0.35)',
-                alignItems: 'center', justifyContent: 'center',
-              }}>
-                <Ionicons name="cloud-upload-outline" size={20} color="#fff" />
-              </View>
-            )}
-          </Pressable>
+          </View>
 
-          <View style={{ flex: 1 }}>
+          {/* Apply for Scholarship button */}
+          <Pressable
+            onPress={() => router.push('/student-development-affairs/apply')}
+            style={{
+              backgroundColor: '#2970FF',
+              borderRadius: 24,
+              paddingVertical: 12,
+              paddingHorizontal: 16,
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderWidth: 1,
+              borderColor: '#b2ccff',
+            }}
+            className="active:opacity-80">
             <Text
               style={{
                 fontSize: 16,
-                fontWeight: '700',
-                color: SCHEDULE_PARTNER.textPrimary,
-                letterSpacing: -0.1,
-              }}
-              numberOfLines={1}>
-              {name}
+                fontWeight: '500',
+                color: '#FFFFFF', 
+                letterSpacing: -0.40,
+              }}>
+              Apply for Scholarship
             </Text>
-            <Text
-              style={{ fontSize: 13, color: SCHEDULE_PARTNER.textMuted, marginTop: 1 }}
-              numberOfLines={1}>
-              {email}
-            </Text>
-          </View>
-
-          <Pressable
-            onPress={() => router.push('/personal-info')}
-            accessibilityRole="button"
-            accessibilityLabel="View personal information"
-            hitSlop={8}
-            className="active:opacity-60"
-            style={{
-              width: 34,
-              height: 34,
-              borderRadius: 10,
-              backgroundColor: ICON_BG,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}>
-            <Ionicons name="person-outline" size={18} color={ICON_COLOR} />
           </Pressable>
         </View>
 
-        {/* Scholarship status (hidden if user has no enrollment) */}
-        <ScholarshipStatusCard onPress={() => router.push('/my-scholarship')} />
+        {/* Scholarship section   {myEnrollment && <ScholarshipStatusCard onPress={() => router.push('/my-scholarship')} />}*/}
+       
 
-        {/* Combined card — all menu items */}
-        <SectionLabel title="Account & Settings" />
-        <Card>
-          <Row
-            icon="notifications-outline"
-            label="Notification Settings"
-            isFirst
+        {/* Account */}
+        <Text
+          style={{
+            fontSize: 14,
+            fontWeight: '400',
+            color: '#717680',
+            marginBottom: 12,
+          }}>
+          Account
+        </Text>
+        <View style={{ marginBottom: 24, gap: 16 }}>
+          <Pressable
+            onPress={() => router.push('/personal-info')}
+            style={{
+              backgroundColor: '#FAFAFA',
+              borderRadius: 16,
+              padding: 16,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 12,
+            }}>
+            <View style={{ width: 24, height: 24 }}>
+              <UserEditIcon size={24} color="#000" />
+            </View>
+            <Text style={{ flex: 1, fontSize: 16, fontWeight: '400', color: '#000' }}>
+              Edit Profile
+            </Text>
+            <IconsaxArrowRightIcon size={20} color="#A4A7AE" />
+          </Pressable>
+
+          <Pressable
             onPress={() => router.push('/notification-settings')}
-          />
-          <Row
-            icon="help-circle-outline"
-            label="Help Center"
-            onPress={() => router.push('/help-center')}
-          />
-          <Row
-            icon="document-text-outline"
-            label="Terms & Conditions"
-            onPress={() => router.push('/terms')}
-          />
-          <Row
-            icon="shield-checkmark-outline"
-            label="Privacy Policy"
-            onPress={() => router.push('/privacy')}
-          />
-          <Row
-            icon="information-circle-outline"
-            label="About CampusCare"
-            onPress={() => router.push('/about')}
-            isLast
-          />
-        </Card>
+            style={{
+              backgroundColor: '#FAFAFA',
+              borderRadius: 16,
+              padding: 16,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 12,
+            }}>
+            <View style={{ width: 24, height: 24 }}>
+              <IconsaxNotificationIcon size={24} color="#000" />
+            </View>
+            <Text style={{ flex: 1, fontSize: 16, fontWeight: '400', color: '#000' }}>
+              Notifications
+            </Text>
+            <IconsaxArrowRightIcon size={20} color="#A4A7AE" />
+          </Pressable>
 
-        <View style={{ marginTop: 24 }} />
-        <Card>
-          <Row
-            icon="log-out-outline"
-            label="Log Out"
-            onPress={() => setShowLogoutModal(true)}
-            isFirst
-            isLast
-            variant="danger"
-          />
-        </Card>
+          <Pressable
+            onPress={() => router.push('/security')}
+            style={{
+              backgroundColor: '#FAFAFA',
+              borderRadius: 16,
+              padding: 16,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 12,
+            }}>
+            <View style={{ width: 24, height: 24 }}>
+              <ShieldSecurityIcon size={24} color="#000" />
+            </View>
+            <Text style={{ flex: 1, fontSize: 16, fontWeight: '400', color: '#000' }}>
+              Security & Privacy
+            </Text>
+            <IconsaxArrowRightIcon size={20} color="#A4A7AE" />
+          </Pressable>
+        </View>
+
+        {/* Support & About */}
+        <Text
+          style={{
+            fontSize: 14,
+            fontWeight: '400',
+            color: '#717680',
+            marginBottom: 12,
+          }}>
+          Support & About
+        </Text>
+        <View style={{ marginBottom: 24, gap: 16 }}>
+          <Pressable
+            onPress={() => router.push('/terms')}
+            style={{
+              backgroundColor: '#FAFAFA',
+              borderRadius: 16,
+              padding: 16,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 12,
+            }}>
+            <View style={{ width: 24, height: 24 }}>
+              <IconsaxInfoCircleIcon size={24} color="#000" />
+            </View>
+            <Text style={{ flex: 1, fontSize: 16, fontWeight: '400', color: '#000' }}>
+              Terms & Policies
+            </Text>
+            <IconsaxArrowRightIcon size={20} color="#A4A7AE" />
+          </Pressable>
+
+          <Pressable
+            onPress={() => router.push('/help-center')}
+            style={{
+              backgroundColor: '#FAFAFA',
+              borderRadius: 16,
+              padding: 16,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 12,
+            }}>
+            <View style={{ width: 24, height: 24 }}>
+              <MessageQuestionIcon size={24} color="#000" />
+            </View>
+            <Text style={{ flex: 1, fontSize: 16, fontWeight: '400', color: '#000' }}>
+              Help & Support
+            </Text>
+            <IconsaxArrowRightIcon size={20} color="#A4A7AE" />
+          </Pressable>
+        </View>
+
+        {/* Logout */}
+        <Pressable
+          onPress={() => setShowLogoutModal(true)}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8,
+            paddingVertical: 16,
+            backgroundColor: '#FAFAFA',
+          }}>
+          <LogoutIcon size={24} color="#D92D20" />
+          <Text style={{ fontSize: 16, fontWeight: '400', color: '#D92D20' }}>
+            Logout
+          </Text>
+        </Pressable>
 
         {/* Logout confirmation modal */}
         <Modal
@@ -525,7 +508,7 @@ export default function ProfileTab() {
           animationType="none"
           onRequestClose={() => closeModal()}>
 
-          {/* Scrim — fades independently, does NOT slide */}
+          {/* Scrim */}
           <Animated.View
             style={{
               flex: 1,
@@ -538,11 +521,11 @@ export default function ProfileTab() {
               onPress={() => closeModal()}
             />
 
-            {/* Sheet — slides up independently */}
+            {/* Sheet */}
             <Animated.View
               style={{
                 transform: [{ translateY: sheetTranslateY }],
-                backgroundColor: SURFACE,
+                backgroundColor: SCHEDULE_PARTNER.surface,
                 borderTopLeftRadius: 28,
                 borderTopRightRadius: 28,
                 paddingTop: 10,
@@ -582,7 +565,7 @@ export default function ProfileTab() {
                       alignItems: 'center',
                       justifyContent: 'center',
                     }}>
-                    <Ionicons name="log-out-outline" size={28} color="#EF4444" />
+                    <IconsaxArrowRightIcon size={28} color="#EF4444" />
                   </View>
                 </View>
               </View>
@@ -597,7 +580,7 @@ export default function ProfileTab() {
                   letterSpacing: -0.3,
                   marginBottom: 8,
                 }}>
-                Log Out
+                Logout
               </Text>
               <Text
                 style={{
@@ -625,7 +608,7 @@ export default function ProfileTab() {
                   marginBottom: 10,
                 }}>
                 <Text style={{ fontSize: 16, fontWeight: '700', color: '#FFFFFF', letterSpacing: -0.1 }}>
-                  Yes, Log Out
+                  Yes, Logout
                 </Text>
               </Pressable>
 
@@ -650,6 +633,6 @@ export default function ProfileTab() {
         </Modal>
 
       </ScrollView>
-    </LinearGradient>
+    </View>
   );
 }

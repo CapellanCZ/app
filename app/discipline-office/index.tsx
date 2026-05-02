@@ -25,6 +25,7 @@ import { IconsaxPaperIcon } from '@/components/icons/IconsaxPaperIcon';
 import { IconsaxCloseCircleIcon } from '@/components/icons/IconsaxCloseCircleIcon';
 import { IconsaxEditIcon } from '@/components/icons/IconsaxEditIcon';
 import { IconsaxLikeIcon } from '@/components/icons/IconsaxLikeIcon';
+import { IconsaxInfoCircleIcon } from '@/components/icons/IconsaxInfoCircleIcon';
 import { SCHEDULE_PARTNER } from '@/lib/health-service/bookingScheduleTheme';
 import { HOME_SCROLL_PADDING_H } from '@/lib/ui/screenGradients';
 
@@ -104,6 +105,8 @@ function CleanRecordBanner({ onDismiss }: { onDismiss: () => void }) {
         alignItems: 'center',
         gap: 16,
         backgroundColor: '#2970FF',
+        borderWidth: 1,
+        borderColor: '#B2CCFF',
         borderRadius: 9999,
         paddingLeft: 24,
         paddingRight: 20,
@@ -139,46 +142,38 @@ function CleanRecordBanner({ onDismiss }: { onDismiss: () => void }) {
 
 function PendingNTEBanner({
   count,
-  onPress,
 }: {
   count: number;
-  onPress: () => void;
 }) {
   return (
-    <Pressable
-      onPress={onPress}
+    <View
       style={{
-        borderRadius: 14,
-        borderWidth: 1,
-        borderColor: '#FCA5A5',
-        backgroundColor: '#FEF2F2',
-        paddingHorizontal: 14,
-        paddingVertical: 12,
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 10,
-      }}
-      className="active:opacity-80">
-      <View
-        style={{
-          width: 32,
-          height: 32,
-          borderRadius: 999,
-          backgroundColor: '#FCA5A5',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}>
-        <Text style={{ fontSize: 15, fontWeight: '700', color: '#DC2626' }}>!</Text>
+        gap: 16,
+        backgroundColor: '#FFFAEB',
+        borderRadius: 9999,
+        borderWidth: 1,
+        borderColor: '#FEF0C7',
+        paddingLeft: 20,
+        paddingRight: 18,
+        paddingVertical: 12,
+      }}>
+      <View style={{ width: 28, height: 28, alignItems: 'center', justifyContent: 'center' }}>
+        <IconsaxInfoCircleIcon size={28} color="#F79009" />
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={{ fontSize: 13, fontWeight: '700', color: '#DC2626' }}>
-          {count} Notice{count > 1 ? 's' : ''} Require{count === 1 ? 's' : ''} Your Response
-        </Text>
-        <Text style={{ fontSize: 12, color: '#B91C1C', marginTop: 1 }}>
-          See the Notice to Explain section below
+        <Text
+          style={{
+            fontSize: 14,
+            fontWeight: '400',
+            color: '#B45309',
+            lineHeight: 20,
+          }}>
+          A notice has been <Text style={{ fontWeight: '700' }}>issued</Text> on you and it requires your response immediately.
         </Text>
       </View>
-    </Pressable>
+    </View>
   );
 }
 
@@ -311,7 +306,6 @@ export default function DisciplineOfficeScreen() {
   const [hasLoaded, setHasLoaded] = useState(false);
 
   const scrollRef = useRef<ScrollView>(null);
-  const casesSectionY = useRef<number>(0);
 
   const [ntes, setNtes] = useState<ReturnType<typeof mapNTEToCardProps>[]>([]);
   const [openCasesCount, setOpenCasesCount] = useState(0);
@@ -399,7 +393,7 @@ export default function DisciplineOfficeScreen() {
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{
           paddingHorizontal: HOME_SCROLL_PADDING_H,
-          paddingTop: 16,
+          paddingTop: insets.top + 16,
           paddingBottom: Math.max(insets.bottom, 16) + 28,
           gap: 28,
         }}>
@@ -418,12 +412,7 @@ export default function DisciplineOfficeScreen() {
 
         {/* ── Pending NTE Urgent Banner ── */}
         {pendingNTECount > 0 && (
-          <PendingNTEBanner
-            count={pendingNTECount}
-            onPress={() =>
-              scrollRef.current?.scrollTo({ y: casesSectionY.current, animated: true })
-            }
-          />
+          <PendingNTEBanner count={pendingNTECount} />
         )}
 
         {/* ── Quick Actions ── */}

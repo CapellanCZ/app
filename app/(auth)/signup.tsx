@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
@@ -11,8 +11,9 @@ import { BottomSheetModal, type BottomSheetModalHandle } from '@/components/ui/B
 import { InlineSelect } from '@/components/ui/InlineSelect';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { IconsaxEnvelopeIcon } from '@/components/icons/IconsaxEnvelopeIcon';
-import { DEPARTMENT_OPTIONS, NU_DOMAIN, PROGRAM_OPTIONS } from '@/lib/auth/constants';
+import { NU_DOMAIN } from '@/lib/auth/constants';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { getDepartments, getProgramsByDepartment, type Department, type Program } from '@/lib/academic/academicApi';
 
 type Step = 'email' | 'info' | 'program';
 
@@ -33,8 +34,13 @@ export default function SignUp() {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [studentId, setStudentId] = useState('');
-  const [department, setDepartment] = useState<(typeof DEPARTMENT_OPTIONS)[number] | ''>('');
-  const [program, setProgram] = useState<(typeof PROGRAM_OPTIONS)[number] | ''>('');
+  const [department, setDepartment] = useState<Department | null>(null);
+  const [program, setProgram] = useState<Program | null>(null);
+
+  // Data from database
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [programs, setPrograms] = useState<Program[]>([]);
+  const [loadingData, setLoadingData] = useState(false);
 
   const [openPicker, setOpenPicker] = useState<'none' | 'department' | 'program'>('none');
 
@@ -48,6 +54,44 @@ export default function SignUp() {
   const [error, setError] = useState<{ tone: 'error' | 'warning'; message: string } | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [showSuccess, setShowSuccess] = useState(false);
+
+  // Fetch departments on mount
+  useEffect(() => {
+    const fetchDepartments = async () => {
+      try {
+        setLoadingData(true);
+        const data = await getDepartments();
+        setDepartments(data);
+      } catch (e) {
+        console.error('Failed to fetch departments:', e);
+        setError({ tone: 'warning', message: 'Failed to load departments. Please refresh.' });
+      } finally {
+        setLoadingData(false);
+      }
+    };
+    fetchDepartments();
+  }, []);
+
+  // Fetch programs when department changes
+  useEffect(() => {
+    if (!department) {
+      setPrograms([]);
+      return;
+    }
+    const fetchPrograms = async () => {
+      try {
+        setLoadingData(true);
+        const data = await getProgramsByDepartment(department.id);
+        setPrograms(data);
+      } catch (e) {
+        console.error('Failed to fetch programs:', e);
+        setError({ tone: 'warning', message: 'Failed to load programs. Please try again.' });
+      } finally {
+        setLoadingData(false);
+      }
+    };
+    fetchPrograms();
+  }, [department]);
 
   const clearFieldError = (field: string) =>
     setFieldErrors((prev) => {
@@ -104,8 +148,8 @@ export default function SignUp() {
           data: {
             first_name: firstName.trim(),
             last_name: lastName.trim(),
-            program,
-            department,
+            program: program?.name ?? '',
+            department: department?.code ?? '',
             student_id: studentId.trim(),
           },
         },
@@ -267,27 +311,32 @@ export default function SignUp() {
 
               <InlineSelect
                 placeholder="School Department"
-                options={DEPARTMENT_OPTIONS}
-                value={department}
+                options={departments.map((d) => d.full_name)}
+                value={department?.full_name ?? ''}
                 error={fieldErrors.department}
                 open={openPicker === 'department'}
                 onOpenChange={(o) => setOpenPicker(o ? 'department' : 'none')}
                 onChange={(v) => {
-                  setDepartment(v);
+                  const selected = departments.find((d) => d.full_name === v) || null;
+                  setDepartment(selected);
                   clearFieldError('department');
-                  setProgram('');
+                  setProgram(null);
                 }}
               />
 
               <InlineSelect
                 placeholder={department ? 'Program / Course' : 'Select a department first'}
-                options={PROGRAM_OPTIONS}
-                value={program}
+                options={programs.map((p) => p.name)}
+                value={program?.name ?? ''}
                 error={fieldErrors.program}
-                disabled={!department}
+                disabled={!department || loadingData}
                 open={openPicker === 'program'}
                 onOpenChange={(o) => setOpenPicker(o ? 'program' : 'none')}
-                onChange={(v) => { setProgram(v); clearFieldError('program'); }}
+                onChange={(v) => {
+                  const selected = programs.find((p) => p.name === v) || null;
+                  setProgram(selected);
+                  clearFieldError('program');
+                }}
               />
 
               <View style={{ gap: 4 }}>
