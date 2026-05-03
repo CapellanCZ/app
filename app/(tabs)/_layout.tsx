@@ -15,7 +15,7 @@ export default function TabLayout() {
         <Label>Notification</Label>
         <Icon sf={{ default: 'bell', selected: 'bell.fill' }} />
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="two">
+      <NativeTabs.Trigger name="profiles">
         <Label>Profile</Label>
         <Icon sf={{ default: 'person', selected: 'person.fill' }} />
       </NativeTabs.Trigger>

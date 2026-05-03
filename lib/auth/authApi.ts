@@ -1,4 +1,5 @@
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { friendlyAuthError } from './friendlyAuthError';
 
 type ApiResult = { ok: boolean; message: string };
 
@@ -18,7 +19,7 @@ export async function sendOtp(email: string): Promise<ApiResult> {
     options: { shouldCreateUser: true },
   });
 
-  if (error) return { ok: false, message: error.message };
+  if (error) return { ok: false, message: friendlyAuthError(error.message) };
   return { ok: true, message: 'OTP sent.' };
 }
 
@@ -34,6 +35,6 @@ export async function verifyOtp(email: string, token: string): Promise<ApiResult
     type: 'email',
   });
 
-  if (error) return { ok: false, message: error.message };
+  if (error) return { ok: false, message: friendlyAuthError(error.message) };
   return { ok: true, message: 'Verified.' };
 }

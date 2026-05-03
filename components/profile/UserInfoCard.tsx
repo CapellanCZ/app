@@ -1,60 +1,88 @@
 import { Image, Pressable, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { SCHEDULE_PARTNER } from '@/lib/health-service/bookingScheduleTheme';
-import profileCirclePlaceholder from '@/assets/profile-circle.png';
-
-const BRAND = SCHEDULE_PARTNER.brand;
-const ICON_BG = SCHEDULE_PARTNER.segmentTrackBg;
-const ICON_COLOR = SCHEDULE_PARTNER.textPrimary;
+import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 
 type UserInfoCardProps = {
   name: string;
   email: string;
   avatarUrl: string | null;
-  isAvatarUploading?: boolean;
   onAvatarPress: () => void;
-  onEditPress: () => void;
+  onApplyPress: () => void;
 };
 
 /**
- * User info card showing avatar, name, email, and quick actions.
- * Displays upload indicator during avatar upload.
+ * User info card with avatar, name, email, blue glow, and Apply button.
  */
 export function UserInfoCard({
   name,
   email,
   avatarUrl,
-  isAvatarUploading = false,
   onAvatarPress,
-  onEditPress,
+  onApplyPress,
 }: UserInfoCardProps) {
+  const initial = name.charAt(0).toUpperCase();
+
   return (
     <View
       style={{
-        marginTop: 20,
+        backgroundColor: '#FAFAFA',
         borderRadius: 16,
-        borderWidth: 1,
-        borderColor: SCHEDULE_PARTNER.cardBorder,
-        backgroundColor: SCHEDULE_PARTNER.surface,
-        paddingVertical: 14,
-        paddingHorizontal: 14,
-        flexDirection: 'row',
-        alignItems: 'center',
+        paddingHorizontal: 8,
+        paddingVertical: 12,
+        marginBottom: 24,
         gap: 12,
+        overflow: 'hidden',
       }}>
-      {/* Avatar */}
-      <Pressable
-        onPress={onAvatarPress}
-        accessibilityLabel="Change profile picture"
+      {/* Blue glow — top right */}
+      <View
+        pointerEvents="none"
         style={{
-          width: 52,
-          height: 52,
-          borderRadius: 26,
-          borderWidth: 2,
-          borderColor: BRAND,
-          flexShrink: 0,
+          position: 'absolute',
+          top: 0,
+          right: 0,
+          width: 200,
+          height: 200,
         }}>
-        <View style={{ flex: 1, borderRadius: 24, overflow: 'hidden' }}>
+        <Svg width={200} height={200} viewBox="0 0 200 200">
+          <Defs>
+            <RadialGradient
+              id="blueGlow"
+              cx="100%"
+              cy="0%"
+              r="100%"
+              fx="100%"
+              fy="0%">
+              <Stop offset="0%" stopColor="#2970FF" stopOpacity={0.35} />
+              <Stop offset="50%" stopColor="#2970FF" stopOpacity={0.08} />
+              <Stop offset="100%" stopColor="#2970FF" stopOpacity={0} />
+            </RadialGradient>
+            <RadialGradient
+              id="whiteSpot"
+              cx="100%"
+              cy="0%"
+              r="45%"
+              fx="100%"
+              fy="0%">
+              <Stop offset="0%" stopColor="#FFFFFF" stopOpacity={1} />
+              <Stop offset="30%" stopColor="#FFFFFF" stopOpacity={0.5} />
+              <Stop offset="100%" stopColor="#FFFFFF" stopOpacity={0} />
+            </RadialGradient>
+          </Defs>
+          <Rect x="0" y="0" width="200" height="200" fill="url(#blueGlow)" />
+          <Rect x="0" y="0" width="200" height="200" fill="url(#whiteSpot)" />
+        </Svg>
+      </View>
+
+      {/* Avatar + Name row */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+        <Pressable
+          onPress={onAvatarPress}
+          style={{
+            width: 52,
+            height: 52,
+            borderRadius: 26,
+            backgroundColor: '#E5E7EB',
+            overflow: 'hidden',
+          }}>
           {avatarUrl ? (
             <Image
               source={{ uri: avatarUrl }}
@@ -62,66 +90,59 @@ export function UserInfoCard({
               resizeMode="cover"
             />
           ) : (
-            <Image
-              source={profileCirclePlaceholder}
-              style={{ width: '100%', height: '100%' }}
-              resizeMode="cover"
-            />
+            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ fontSize: 20, fontWeight: '600', color: '#9CA3AF' }}>
+                {initial}
+              </Text>
+            </View>
           )}
-        </View>
-        {isAvatarUploading && (
-          <View
+        </Pressable>
+        <View style={{ flex: 1, gap: 4 }}>
+          <Text
+            numberOfLines={1}
             style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              borderRadius: 24,
-              backgroundColor: 'rgba(0,0,0,0.35)',
-              alignItems: 'center',
-              justifyContent: 'center',
+              fontSize: 20,
+              fontWeight: '500',
+              color: '#000',
+              letterSpacing: -0.8,
             }}>
-            <Ionicons name="cloud-upload-outline" size={20} color="#fff" />
-          </View>
-        )}
-      </Pressable>
+            {name}
+          </Text>
+          <Text
+            numberOfLines={1}
+            style={{
+              fontSize: 12,
+              color: '#717680',
+              letterSpacing: -0.2,
+            }}>
+            {email}
+          </Text>
+        </View>
+      </View>
 
-      {/* Name & Email */}
-      <View style={{ flex: 1 }}>
+      {/* Apply for Scholarship button */}
+      <Pressable
+        onPress={onApplyPress}
+        style={{
+          backgroundColor: '#181D27',
+          borderRadius: 24,
+          paddingVertical: 12,
+          paddingHorizontal: 16,
+          alignItems: 'center',
+          justifyContent: 'center',
+          borderWidth: 1,
+          borderColor: '#2A2F3D',
+        }}
+        className="active:opacity-80">
         <Text
           style={{
             fontSize: 16,
-            fontWeight: '700',
-            color: SCHEDULE_PARTNER.textPrimary,
-            letterSpacing: -0.1,
-          }}
-          numberOfLines={1}>
-          {name}
+            fontWeight: '300',
+            color: '#FFFFFF',
+            letterSpacing: -0.2,
+          }}>
+          Apply for Scholarship
         </Text>
-        <Text
-          style={{ fontSize: 13, color: SCHEDULE_PARTNER.textMuted, marginTop: 1 }}
-          numberOfLines={1}>
-          {email}
-        </Text>
-      </View>
-
-      {/* Edit button */}
-      <Pressable
-        onPress={onEditPress}
-        accessibilityRole="button"
-        accessibilityLabel="View personal information"
-        hitSlop={8}
-        className="active:opacity-60"
-        style={{
-          width: 34,
-          height: 34,
-          borderRadius: 10,
-          backgroundColor: ICON_BG,
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}>
-        <Ionicons name="person-outline" size={18} color={ICON_COLOR} />
       </Pressable>
     </View>
   );

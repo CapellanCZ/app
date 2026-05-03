@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import * as Crypto from 'expo-crypto';
 import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
 
@@ -12,6 +13,7 @@ import { InlineSelect } from '@/components/ui/InlineSelect';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { IconsaxEnvelopeIcon } from '@/components/icons/IconsaxEnvelopeIcon';
 import { NU_DOMAIN } from '@/lib/auth/constants';
+import { friendlyAuthError } from '@/lib/auth/friendlyAuthError';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { getDepartments, getProgramsByDepartment, type Department, type Program } from '@/lib/academic/academicApi';
 
@@ -140,9 +142,13 @@ export default function SignUp() {
     setLoading(true);
     try {
       const redirectTo = Linking.createURL('/login');
+      const randomBytes = await Crypto.getRandomBytesAsync(32);
+      const password = Array.from(randomBytes)
+        .map((b) => b.toString(16).padStart(2, '0'))
+        .join('');
       const { error: authError } = await supabase.auth.signUp({
         email: email.trim().toLowerCase(),
-        password: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        password,
         options: {
           emailRedirectTo: redirectTo,
           data: {
@@ -154,17 +160,11 @@ export default function SignUp() {
           },
         },
       });
-      if (authError) setError({ tone: 'warning', message: authError.message });
+      if (authError) setError({ tone: 'warning', message: friendlyAuthError(authError.message) });
       else setShowSuccess(true);
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message.toLowerCase() : '';
-      setError({
-        tone: 'warning',
-        message:
-          msg.includes('network') || msg.includes('fetch')
-            ? 'Network error — please check your internet and try again.'
-            : 'Something went wrong. Please try again.',
-      });
+      const raw = e instanceof Error ? e.message : '';
+      setError({ tone: 'warning', message: friendlyAuthError(raw) });
     } finally {
       setLoading(false);
     }

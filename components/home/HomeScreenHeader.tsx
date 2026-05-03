@@ -68,7 +68,7 @@ export function HomeScreenHeader({ title = 'Home', avatarUrl }: HomeScreenHeader
           accessibilityLabel="Profile"
           accessibilityRole="button"
           hitSlop={10}
-          onPress={() => router.push('/(tabs)/two')}
+          onPress={() => router.push('/(tabs)/profiles')}
           style={{ width: 44, height: 44, borderRadius: 24, borderWidth: 1, borderColor: '#FFFFFF' }}>
           <View style={{ flex: 1, borderRadius: 20, overflow: 'hidden' }}>
             <Image

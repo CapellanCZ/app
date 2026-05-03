@@ -48,6 +48,7 @@ export type DBNTE = {
   status: NTEStatus;
   response_text: string | null;
   responded_at: string | null;
+  escalated_at: string | null;
   case_id: string | null;
   student_id: string;
 };
@@ -119,21 +120,54 @@ export type AttachmentFile = {
  * errors so the caller's main flow is never broken by a logging failure.
  */
 async function notifySelf(opts: {
-  userId:   string;
-  title:    string;
-  body:     string;
-  href?:    string;
-  category?: 'discipline' | 'academic' | 'health' | 'system';
+  userId:           string;
+  title:            string;
+  body:             string;
+  href?:            string;
+  category?:        'discipline' | 'academic' | 'health' | 'system';
+  source?:          string;
+  notificationType?: 'success' | 'info' | 'error';
 }): Promise<void> {
   if (!supabase) return;
-  const { error } = await supabase.from('notifications').insert({
+
+  const baseRow = {
     user_id:  opts.userId,
     category: opts.category ?? 'discipline',
     title:    opts.title,
     body:     opts.body,
     href:     opts.href ?? '/discipline-office',
-  });
-  if (error) console.warn('[disciplineApi] notifySelf', error.message);
+  };
+
+  // Try the rich insert first (source + notification_type).
+  // If those columns don't exist in the DB, fall back to the legacy insert so
+  // the notification still appears — never break the user-facing flow.
+  const richRow = {
+    ...baseRow,
+    source:            opts.source ?? 'Discipline Office',
+    notification_type: opts.notificationType ?? 'info',
+  };
+
+  let { error } = await supabase.from('notifications').insert(richRow);
+
+  if (error) {
+    const msg = error.message?.toLowerCase() ?? '';
+    const isMissingCol =
+      msg.includes('source') ||
+      msg.includes('notification_type') ||
+      msg.includes('column') ||
+      msg.includes('schema');
+
+    if (isMissingCol) {
+      const { error: fallbackErr } = await supabase
+        .from('notifications')
+        .insert(baseRow);
+      if (fallbackErr) {
+        console.warn('[disciplineApi] notifySelf fallback', fallbackErr.message);
+      }
+    } else {
+      console.warn('[disciplineApi] notifySelf', error.message);
+    }
+  }
 }
 
 /** RN-safe Supabase Storage upload (FormData instead of fetch().blob()). */
@@ -203,9 +237,11 @@ export async function submitNTEResponse(
 
   await notifySelf({
     userId,
-    title: 'NTE response submitted',
-    body:  `Your statement for ${nteId} was sent to the Discipline Office for review.`,
-    href:  '/discipline-office',
+    title:            'Notice to Explain Response Submitted',
+    body:             'Thank you! Your explanation for the Notice to Explain has been submitted successfully. The disciplinary committee will review it.',
+    href:             '/discipline-office',
+    source:           'Discipline Office',
+    notificationType: 'success',
   });
 
   return { error: null };
@@ -286,9 +322,11 @@ export async function submitIncidentReport(
 
   await notifySelf({
     userId,
-    title: 'Incident report submitted',
-    body:  `Report ${reportId} was received and will be reviewed by the Discipline Office.`,
-    href:  '/discipline-office',
+    title:            'Incident Report Submitted',
+    body:             'Your incident report has been received and will be reviewed by the Discipline Office. You will be notified of any updates.',
+    href:             '/discipline-office',
+    source:           'Discipline Office',
+    notificationType: 'info',
   });
 
   return { error: null, reportId };
@@ -548,9 +586,11 @@ export async function submitProofOfCompliance(
 
   await notifySelf({
     userId,
-    title: 'Proof of compliance submitted',
-    body:  `Your submission is pending Discipline Office review. You'll be notified once it's approved.`,
-    href:  '/discipline-office/my-sanctions',
+    title:            'Proof of Compliance Submitted',
+    body:             'Your submission is pending Discipline Office review. You will be notified once it has been approved.',
+    href:             '/discipline-office/my-sanctions',
+    source:           'Discipline Office',
+    notificationType: 'info',
   });
 
   return { error: null, submissionId };

@@ -1,24 +1,22 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { Pressable, ScrollView, Text, View } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { NotificationListRow } from '@/components/notifications/NotificationListRow';
+import { Ionicons } from '@expo/vector-icons';
+import { SettingIcon } from '@/components/icons/SettingIcon';
 import { SCHEDULE_PARTNER } from '@/lib/health-service/bookingScheduleTheme';
 import { useAuth } from '@/lib/auth/AuthProvider';
 import { useNotificationStore } from '@/lib/notifications/notificationStore';
-import {
-  HOME_BG_GRADIENT_COLORS,
-  HOME_BG_GRADIENT_LOCATIONS,
-  HOME_SCROLL_PADDING_H,
-} from '@/lib/ui/screenGradients';
+import type { NotificationItem } from '@/lib/notifications/types';
+
 
 const BRAND = SCHEDULE_PARTNER.brand;
 
 type ReadFilter = 'all' | 'unread';
 
-type NotificationSection = 'today' | 'yesterday' | 'earlier';
+type NotificationSection = 'today' | 'yesterday' | 'last7' | 'last30';
 
 interface SectionHeaderProps {
   title: string;
@@ -34,13 +32,12 @@ function SectionHeader({ title, unreadCount, onMarkAllRead }: SectionHeaderProps
         alignItems: 'center',
         justifyContent: 'space-between',
         marginTop: 20,
-        marginBottom: 8,
+        marginBottom: 12,
       }}>
       <Text
         style={{
-          fontSize: 13,
-          fontWeight: '700',
-          letterSpacing: 0.5,
+          fontSize: 14,
+          fontWeight: '400',
           textTransform: 'uppercase',
           color: SCHEDULE_PARTNER.textMuted,
         }}>
@@ -52,8 +49,10 @@ function SectionHeader({ title, unreadCount, onMarkAllRead }: SectionHeaderProps
           accessibilityLabel={`Mark all ${title.toLowerCase()} notifications as read`}
           onPress={onMarkAllRead}
           hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
-          className="active:opacity-75">
-          <Text style={{ fontSize: 12, fontWeight: '600', color: BRAND }}>Mark all as read</Text>
+          className="active:opacity-75"
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <Ionicons name="checkmark-done" size={17} color={BRAND} />
+          <Text style={{ fontSize: 14, fontWeight: '500', color: BRAND }}>Mark all as read</Text>
         </Pressable>
       ) : null}
     </View>
@@ -67,6 +66,7 @@ export default function NotificationScreen() {
   const fetchAll = useNotificationStore((s) => s.fetchAll);
   const markAllReadInSection = useNotificationStore((s) => s.markAllReadInSection);
   const archiveNotification = useNotificationStore((s) => s.archive);
+  const markRead = useNotificationStore((s) => s.markRead);
   const [readFilter, setReadFilter] = useState<ReadFilter>('all');
 
   // Load mock data if not authenticated
@@ -94,12 +94,26 @@ export default function NotificationScreen() {
     return items;
   }, [items, readFilter]);
 
+  // Derive section from timeLabel for mock data without section field
+  const deriveSection = (n: NotificationItem): NotificationSection => {
+    if (n.section) return n.section;
+    const tl = n.timeLabel.toLowerCase();
+    if (tl.includes('h ago') || tl === 'just now') return 'today';
+    if (tl === 'yesterday') return 'yesterday';
+    if (tl.match(/\d+ days? ago/)) {
+      const days = parseInt(tl.match(/\d+/)?.[0] ?? '0');
+      if (days <= 6) return 'last7';
+    }
+    return 'last30';
+  };
+
   // Group notifications by section
-  const { today, yesterday, earlier } = useMemo(() => {
-    const t = filtered.filter((n) => n.section === 'today');
-    const y = filtered.filter((n) => n.section === 'yesterday');
-    const e = filtered.filter((n) => n.section === 'earlier');
-    return { today: t, yesterday: y, earlier: e };
+  const { today, yesterday, last7, last30 } = useMemo(() => {
+    const t = filtered.filter((n) => deriveSection(n) === 'today');
+    const y = filtered.filter((n) => deriveSection(n) === 'yesterday');
+    const l7 = filtered.filter((n) => deriveSection(n) === 'last7');
+    const l30 = filtered.filter((n) => deriveSection(n) === 'last30');
+    return { today: t, yesterday: y, last7: l7, last30: l30 };
   }, [filtered]);
 
   const segmentBtn = (selected: boolean) => ({
@@ -112,65 +126,51 @@ export default function NotificationScreen() {
   });
 
   return (
-    <LinearGradient
-      colors={[...HOME_BG_GRADIENT_COLORS]}
-      locations={[...HOME_BG_GRADIENT_LOCATIONS]}
-      start={{ x: 0.5, y: 1 }}
-      end={{ x: 0.5, y: 0 }}
-      style={{ flex: 1 }}>
+    <View style={{ flex: 1, backgroundColor: '#FDFDFD' }}>
       <ScrollView
-        className="flex-1 bg-transparent"
         keyboardDismissMode="on-drag"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
-          paddingTop: 12,
-          paddingHorizontal: HOME_SCROLL_PADDING_H,
+          paddingTop: insets.top + 16,
+          paddingHorizontal: 20,
           paddingBottom: Math.max(insets.bottom, 16) + 28,
         }}>
-        <Text
-          style={{
-            fontSize: 32,
-            fontWeight: '700',
-            letterSpacing: -0.35,
-            color: SCHEDULE_PARTNER.textPrimary,
-          }}>
-          Notifications
-        </Text>
-
         <View
           style={{
-            marginTop: 24,
             flexDirection: 'row',
-            borderRadius: 28,
-            borderWidth: 1,
-            borderColor: SCHEDULE_PARTNER.segmentTrackBorder,
-            backgroundColor: SCHEDULE_PARTNER.segmentTrackBg,
-            padding: 4,
-            gap: 4,
+            alignItems: 'flex-start',
+            justifyContent: 'space-between',
+            marginBottom: 16,
           }}>
-          {(['all', 'unread'] as const).map((id) => {
-            const selected = readFilter === id;
-            const label = id === 'all' ? 'All' : 'Unread';
-            return (
-              <Pressable
-                key={id}
-                accessibilityRole="button"
-                accessibilityState={{ selected }}
-                accessibilityLabel={label}
-                onPress={() => setReadFilter(id)}
-                style={segmentBtn(selected)}
-                className="active:opacity-90">
-                <Text
-                  style={{
-                    fontSize: 15,
-                    fontWeight: selected ? '600' : '500',
-                    color: selected ? '#FFFFFF' : SCHEDULE_PARTNER.textMuted,
-                  }}>
-                  {label}
-                </Text>
-              </Pressable>
-            );
-          })}
+          <View style={{ flex: 1 }}>
+            <Text
+              style={{
+                fontSize: 32,
+                fontWeight: '700',
+                letterSpacing: -0.64,
+                color: '#000',
+              }}>
+              Notifications
+            </Text>
+            {unreadCount > 0 && (
+              <Text style={{ marginTop: 4, fontSize: 14, color: '#717680', letterSpacing: -0.25 }}>
+                You have{' '}
+                <Text style={{ fontWeight: '700', color: '#2970FF' }}>
+                  {unreadCount} new
+                </Text>{' '}
+                notifications
+              </Text>
+            )}
+          </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Filter notifications"
+            hitSlop={10}
+            className="active:opacity-60"
+            style={{ marginTop: 4 }}
+            onPress={() => console.log('[Notification] Filter pressed')}>
+            <SettingIcon size={24} color="#1F2024" />
+          </Pressable>
         </View>
 
         {filtered.length === 0 ? (
@@ -196,6 +196,7 @@ export default function NotificationScreen() {
                       key={item.id}
                       item={item}
                       onArchive={archiveNotification}
+                      onMarkRead={markRead}
                       isLast={index === today.length - 1}
                     />
                   ))}
@@ -216,6 +217,7 @@ export default function NotificationScreen() {
                       key={item.id}
                       item={item}
                       onArchive={archiveNotification}
+                      onMarkRead={markRead}
                       isLast={index === yesterday.length - 1}
                     />
                   ))}
@@ -223,20 +225,42 @@ export default function NotificationScreen() {
               </>
             )}
 
-            {earlier.length > 0 && (
+            {last7.length > 0 && (
               <>
                 <SectionHeader
-                  title="Earlier"
-                  unreadCount={earlier.filter((n) => !n.read).length}
-                  onMarkAllRead={() => markAllReadInSection('earlier')}
+                  title="Last 7 Days"
+                  unreadCount={last7.filter((n) => !n.read).length}
+                  onMarkAllRead={() => markAllReadInSection('last7')}
                 />
                 <View>
-                  {earlier.map((item, index) => (
+                  {last7.map((item, index) => (
                     <NotificationListRow
                       key={item.id}
                       item={item}
                       onArchive={archiveNotification}
-                      isLast={index === earlier.length - 1}
+                      onMarkRead={markRead}
+                      isLast={index === last7.length - 1}
+                    />
+                  ))}
+                </View>
+              </>
+            )}
+
+            {last30.length > 0 && (
+              <>
+                <SectionHeader
+                  title="Last 30 Days"
+                  unreadCount={last30.filter((n) => !n.read).length}
+                  onMarkAllRead={() => markAllReadInSection('last30')}
+                />
+                <View>
+                  {last30.map((item, index) => (
+                    <NotificationListRow
+                      key={item.id}
+                      item={item}
+                      onArchive={archiveNotification}
+                      onMarkRead={markRead}
+                      isLast={index === last30.length - 1}
                     />
                   ))}
                 </View>
@@ -245,6 +269,6 @@ export default function NotificationScreen() {
           </>
         )}
       </ScrollView>
-    </LinearGradient>
+    </View>
   );
 }

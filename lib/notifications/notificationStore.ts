@@ -4,6 +4,7 @@ import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { MOCK_NOTIFICATIONS } from './mockNotifications';
 import {
   toNotificationItem,
+  isWithinDays,
   type NotificationItem,
   type NotificationRow,
   type NotificationSection,
@@ -60,8 +61,10 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
       set({ loading: false, error: error.message });
       return;
     }
+    const rows = (data ?? []) as NotificationRow[];
+    const within30 = rows.filter((r) => isWithinDays(r.created_at, 30));
     set({
-      items: ((data ?? []) as NotificationRow[]).map(toNotificationItem),
+      items: within30.map(toNotificationItem),
       loading: false,
     });
   },

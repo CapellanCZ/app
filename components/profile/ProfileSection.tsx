@@ -1,43 +1,27 @@
 import { Text, View } from 'react-native';
-import { SCHEDULE_PARTNER } from '@/lib/health-service/bookingScheduleTheme';
 
 type ProfileSectionProps = {
-  title?: string;
+  title: string;
   children: React.ReactNode;
 };
 
 /**
- * Section wrapper with label and card styling.
- * Groups related menu items or content with a consistent label above.
- * Title is optional - when omitted, only shows card without label.
+ * Section wrapper with label and gap container.
+ * Groups related menu items with a consistent label above.
  */
 export function ProfileSection({ title, children }: ProfileSectionProps) {
   return (
-    <View>
-      {title && (
-        <Text
-          style={{
-            marginTop: 24,
-            marginBottom: 8,
-            marginLeft: 4,
-            fontSize: 15,
-            fontWeight: '500',
-            color: SCHEDULE_PARTNER.textMuted,
-          }}>
-          {title}
-        </Text>
-      )}
-      <View
+    <View style={{ marginBottom: 24 }}>
+      <Text
         style={{
-          borderRadius: 16,
-          borderWidth: 1,
-          borderColor: SCHEDULE_PARTNER.cardBorder,
-          overflow: 'hidden',
-          backgroundColor: SCHEDULE_PARTNER.surface,
-          marginTop: !title ? 24 : 0,
+          fontSize: 14,
+          fontWeight: '400',
+          color: '#717680',
+          marginBottom: 12,
         }}>
-        {children}
-      </View>
+        {title}
+      </Text>
+      <View style={{ gap: 16 }}>{children}</View>
     </View>
   );
 }

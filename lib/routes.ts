@@ -10,7 +10,7 @@ export const ROUTES = {
   home: '/(tabs)',
   appointments: '/(tabs)/appointments',
   notifications: '/(tabs)/notification',
-  profile: '/(tabs)/two',
+  profile: '/(tabs)/profiles',
 
   // --- Auth ---
   login: '/login',
