@@ -382,7 +382,7 @@ export default function DisciplineOfficeScreen() {
       <ScreenHeader
         title="Discipline Office"
         subtitle="Reports are reviewed fairly. You can track your case and sanctions here."
-        paddingBottom={12}
+        paddingBottom={8}
       />
 
       <ScrollView
@@ -393,7 +393,7 @@ export default function DisciplineOfficeScreen() {
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{
           paddingHorizontal: HOME_SCROLL_PADDING_H,
-          paddingTop: insets.top + 16,
+          paddingTop: 16,
           paddingBottom: Math.max(insets.bottom, 16) + 28,
           gap: 28,
         }}>

@@ -460,30 +460,22 @@ export default function IncidentReportScreen() {
           paddingBottom={0}
         />
 
-        {/* ── Progress Bars ── */}
-        <View style={{ paddingHorizontal: 20, marginTop: 28, flexDirection: 'row', gap: 28 }}>
-          {[0, 1, 2].map((i) => (
+        {/* ── Progress Bar ── */}
+        <View style={{ marginTop: 20 }}>
+          <View
+            style={{
+              height: 4,
+              backgroundColor: '#E8E9F1',
+              overflow: 'hidden',
+            }}>
             <View
-              key={i}
               style={{
-                flex: 1,
-                height: 8,
-                borderRadius: 4,
-                backgroundColor: i < filledBars ? '#006FFD' : '#E8E9F1',
-                overflow: 'hidden',
-              }}>
-              {i < filledBars && (
-                <View
-                  style={{
-                    position: 'absolute',
-                    inset: 0,
-                    backgroundColor: '#006FFD',
-                    borderRadius: 8,
-                  }}
-                />
-              )}
-            </View>
-          ))}
+                height: '100%',
+                width: `${(filledBars / 3) * 100}%`,
+                backgroundColor: '#006FFD',
+              }}
+            />
+          </View>
         </View>
 
         {/* ── Form Content ── */}
@@ -928,25 +920,48 @@ export default function IncidentReportScreen() {
           <Dialog.Overlay className="bg-black/50" isCloseOnPress={false} />
           <Dialog.Content
             isSwipeable={false}
-            className="mx-6 w-full max-w-sm self-center rounded-3xl bg-white px-6 pb-7 pt-7">
-            <Dialog.Title className="text-center text-lg font-bold text-[#181D27]">
+            className="mx-6 w-full max-w-sm self-center rounded-3xl bg-white px-6 pb-6 pt-6">
+            <Dialog.Title className="text-center text-lg font-semibold text-[#181D27]" style={{ fontSize: 18, fontWeight: '600', letterSpacing: -0.36 }}>
               Leave this report?
             </Dialog.Title>
-            <Dialog.Description className="mt-3 text-center text-sm leading-5 text-[#535862]">
-              You have information on this screen that has not been submitted. If you go back now, your
-              answers will be cleared and the discipline office will not receive this report.
+            <Dialog.Description className="mt-3 text-center leading-5 text-[#535862]" style={{ fontSize: 14, fontWeight: '400', letterSpacing: -0.28, lineHeight: 20 }}>
+              You have information on this screen that has not been submitted. If you go back now, your answers will be cleared and the discipline office will not receive this report.
             </Dialog.Description>
             <View className="mt-6 flex-row gap-3">
-              <Button
-                variant="outline"
-                size="md"
-                className="h-11 flex-1 border-[1.5px] border-[#D0D5DD] bg-white"
-                onPress={() => setDiscardDialogOpen(false)}>
-                <Button.Label className="text-sm font-semibold text-[#344054]">Keep editing</Button.Label>
-              </Button>
-              <Button variant="danger" size="md" className="h-11 flex-1" onPress={confirmDiscardAndLeave}>
-                <Button.Label className="text-sm font-bold text-white">Leave without saving</Button.Label>
-              </Button>
+              <Pressable
+                onPress={() => setDiscardDialogOpen(false)}
+                className="active:opacity-80"
+                style={{
+                  flex: 1,
+                  height: 48,
+                  borderRadius: 24,
+                  borderWidth: 1,
+                  borderColor: '#528BFF',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: 'transparent',
+                }}>
+                <Text style={{ fontSize: 16, fontWeight: '500', color: '#2970FF', letterSpacing: -0.32 }}>
+                  Keep editing
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={confirmDiscardAndLeave}
+                className="active:opacity-90"
+                style={{
+                  flex: 1,
+                  height: 48,
+                  borderRadius: 24,
+                  backgroundColor: '#2970FF',
+                  borderWidth: 2,
+                  borderColor: '#84ADFF',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
+                <Text style={{ fontSize: 16, fontWeight: '500', color: '#FFFFFF', letterSpacing: -0.32 }}>
+                  Leave
+                </Text>
+              </Pressable>
             </View>
           </Dialog.Content>
         </Dialog.Portal>

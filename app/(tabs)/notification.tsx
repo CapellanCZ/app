@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -20,11 +20,10 @@ type NotificationSection = 'today' | 'yesterday' | 'last7' | 'last30';
 
 interface SectionHeaderProps {
   title: string;
-  unreadCount: number;
   onMarkAllRead: () => void;
 }
 
-function SectionHeader({ title, unreadCount, onMarkAllRead }: SectionHeaderProps) {
+function SectionHeader({ title, onMarkAllRead }: SectionHeaderProps) {
   return (
     <View
       style={{
@@ -43,18 +42,16 @@ function SectionHeader({ title, unreadCount, onMarkAllRead }: SectionHeaderProps
         }}>
         {title}
       </Text>
-      {unreadCount > 0 ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`Mark all ${title.toLowerCase()} notifications as read`}
-          onPress={onMarkAllRead}
-          hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
-          className="active:opacity-75"
-          style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <Ionicons name="checkmark-done" size={17} color={BRAND} />
-          <Text style={{ fontSize: 14, fontWeight: '500', color: BRAND }}>Mark all as read</Text>
-        </Pressable>
-      ) : null}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Mark all ${title.toLowerCase()} notifications as read`}
+        onPress={onMarkAllRead}
+        hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+        className="active:opacity-75"
+        style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+        <Ionicons name="checkmark-done" size={17} color={BRAND} />
+        <Text style={{ fontSize: 14, fontWeight: '500', color: BRAND }}>Mark all as read</Text>
+      </Pressable>
     </View>
   );
 }
@@ -68,6 +65,8 @@ export default function NotificationScreen() {
   const archiveNotification = useNotificationStore((s) => s.archive);
   const markRead = useNotificationStore((s) => s.markRead);
   const [readFilter, setReadFilter] = useState<ReadFilter>('all');
+  const [archivingIds, setArchivingIds] = useState<Map<string, number>>(new Map());
+  const archivingIdsRef = useRef<Map<string, number>>(new Map());
 
   // Load mock data if not authenticated
   useEffect(() => {
@@ -115,6 +114,15 @@ export default function NotificationScreen() {
     const l30 = filtered.filter((n) => deriveSection(n) === 'last30');
     return { today: t, yesterday: y, last7: l7, last30: l30 };
   }, [filtered]);
+
+  const triggerMarkAllArchive = useCallback((sectionItems: NotificationItem[]) => {
+    const newMap = new Map(archivingIdsRef.current);
+    sectionItems.forEach((item, index) => {
+      newMap.set(item.id, index * 80);
+    });
+    archivingIdsRef.current = newMap;
+    setArchivingIds(new Map(newMap));
+  }, []);
 
   const segmentBtn = (selected: boolean) => ({
     flex: 1,
@@ -187,8 +195,7 @@ export default function NotificationScreen() {
               <>
                 <SectionHeader
                   title="Today"
-                  unreadCount={today.filter((n) => !n.read).length}
-                  onMarkAllRead={() => markAllReadInSection('today')}
+                  onMarkAllRead={() => triggerMarkAllArchive(today)}
                 />
                 <View>
                   {today.map((item, index) => (
@@ -198,6 +205,7 @@ export default function NotificationScreen() {
                       onArchive={archiveNotification}
                       onMarkRead={markRead}
                       isLast={index === today.length - 1}
+                      animateOutDelay={archivingIds.get(item.id)}
                     />
                   ))}
                 </View>
@@ -208,8 +216,7 @@ export default function NotificationScreen() {
               <>
                 <SectionHeader
                   title="Yesterday"
-                  unreadCount={yesterday.filter((n) => !n.read).length}
-                  onMarkAllRead={() => markAllReadInSection('yesterday')}
+                  onMarkAllRead={() => triggerMarkAllArchive(yesterday)}
                 />
                 <View>
                   {yesterday.map((item, index) => (
@@ -219,6 +226,7 @@ export default function NotificationScreen() {
                       onArchive={archiveNotification}
                       onMarkRead={markRead}
                       isLast={index === yesterday.length - 1}
+                      animateOutDelay={archivingIds.get(item.id)}
                     />
                   ))}
                 </View>
@@ -229,8 +237,7 @@ export default function NotificationScreen() {
               <>
                 <SectionHeader
                   title="Last 7 Days"
-                  unreadCount={last7.filter((n) => !n.read).length}
-                  onMarkAllRead={() => markAllReadInSection('last7')}
+                  onMarkAllRead={() => triggerMarkAllArchive(last7)}
                 />
                 <View>
                   {last7.map((item, index) => (
@@ -240,6 +247,7 @@ export default function NotificationScreen() {
                       onArchive={archiveNotification}
                       onMarkRead={markRead}
                       isLast={index === last7.length - 1}
+                      animateOutDelay={archivingIds.get(item.id)}
                     />
                   ))}
                 </View>
@@ -250,8 +258,7 @@ export default function NotificationScreen() {
               <>
                 <SectionHeader
                   title="Last 30 Days"
-                  unreadCount={last30.filter((n) => !n.read).length}
-                  onMarkAllRead={() => markAllReadInSection('last30')}
+                  onMarkAllRead={() => triggerMarkAllArchive(last30)}
                 />
                 <View>
                   {last30.map((item, index) => (
@@ -261,6 +268,7 @@ export default function NotificationScreen() {
                       onArchive={archiveNotification}
                       onMarkRead={markRead}
                       isLast={index === last30.length - 1}
+                      animateOutDelay={archivingIds.get(item.id)}
                     />
                   ))}
                 </View>

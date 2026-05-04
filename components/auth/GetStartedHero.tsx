@@ -5,8 +5,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { AppButton } from '@/components/ui/AppButton';
 import { AppLogoIcon } from '@/components/icons/AppLogoIcon';
 
-const HERO_IMAGE_URI = 'https://www.figma.com/api/mcp/asset/49a36b8c-5a42-4cb6-b990-1275440cb77b';
-
 const BRAND_DARK = '#155EEF';
 const BG         = '#F5F5F5';
 
@@ -27,14 +25,14 @@ export function GetStartedHero({ onSignIn, onSignUp, onTerms, onPrivacy }: GetSt
       {/* ── Gray image area — flex:1 fills all space above panel ── */}
       <View style={styles.imageArea}>
         <Image
-          source={{ uri: HERO_IMAGE_URI }}
+          source={require('../../assets/hero_students.png')}
           style={{
-            width: screenW * 0.88,
-            height: '88%',
+            width: screenW * 0.82,
+            height: '78%',
             position: 'absolute',
             bottom: 0,
             alignSelf: 'center',
-            left: screenW * 0.06,
+            left: screenW * 0.09,
           }}
           resizeMode="contain"
         />

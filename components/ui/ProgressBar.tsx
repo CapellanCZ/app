@@ -1,49 +1,46 @@
-import { useEffect, useRef } from 'react';
-import { Animated, Easing, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 type Props = {
   /** Value from 0 to 1 */
   value: number;
-  height?: number;
   trackColor?: string;
   fillColor?: string;
 };
 
-/** Animated horizontal progress bar. */
+/** Discrete progress bar with 3 steps. */
 export function ProgressBar({
   value,
-  height = 7,
-  trackColor = '#FAFAFA',
+  trackColor = '#E8E9F1',
   fillColor = '#2970FF',
 }: Props) {
-  const anim = useRef(new Animated.Value(value)).current;
-
-  useEffect(() => {
-    Animated.timing(anim, {
-      toValue: Math.max(0, Math.min(1, value)),
-      duration: 260,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: false,
-    }).start();
-  }, [anim, value]);
-
-  const width = anim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] });
+  // Convert 0-1 value to step count (0, 1, 2, or 3)
+  const filledSteps = Math.ceil(value * 3);
 
   return (
-    <View style={[styles.track, { height, backgroundColor: trackColor }]}>
-      <Animated.View style={[styles.fill, { width, backgroundColor: fillColor }]} />
+    <View style={styles.container}>
+      {[0, 1, 2].map((i) => (
+        <View
+          key={i}
+          style={[
+            styles.bar,
+            {
+              backgroundColor: i < filledSteps ? fillColor : trackColor,
+            },
+          ]}
+        />
+      ))}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  track: {
-    width: '100%',
-    borderRadius: 4,
-    overflow: 'hidden',
+  container: {
+    flexDirection: 'row',
+    gap: 8,
   },
-  fill: {
-    height: '100%',
-    borderRadius: 8,
+  bar: {
+    flex: 1,
+    height: 8,
+    borderRadius: 4,
   },
 });

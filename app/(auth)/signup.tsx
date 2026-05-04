@@ -250,7 +250,7 @@ export default function SignUp() {
                     autoCorrect={false}
                     autoCapitalize="words"
                     value={firstName}
-                    onChangeText={(v) => { setFirstName(v); clearFieldError('firstName'); }}
+                    onChangeText={(v) => { setFirstName(v.replace(/[0-9]/g, '')); clearFieldError('firstName'); }}
                   />
                 </View>
                 <View style={styles.rowCell}>
@@ -260,7 +260,7 @@ export default function SignUp() {
                     autoCorrect={false}
                     autoCapitalize="words"
                     value={lastName}
-                    onChangeText={(v) => { setLastName(v); clearFieldError('lastName'); }}
+                    onChangeText={(v) => { setLastName(v.replace(/[0-9]/g, '')); clearFieldError('lastName'); }}
                   />
                 </View>
               </View>

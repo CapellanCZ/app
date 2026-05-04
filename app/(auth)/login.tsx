@@ -25,6 +25,7 @@ export default function Login() {
   const router = useRouter();
   const { session } = useAuth();
   const sheetRef = useRef<BottomSheetModalHandle>(null);
+  const isMountedRef = useRef(true);
   const goToSignup = () => sheetRef.current?.dismiss(() => router.replace('/signup'));
 
   const [email, setEmail] = useState('');
@@ -38,6 +39,10 @@ export default function Login() {
   const [otpCode, setOtpCode] = useState('');
   const [cooldown, setCooldown] = useState(0);
   const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    return () => { isMountedRef.current = false; };
+  }, []);
 
   useEffect(() => {
     if (session) router.replace('/(tabs)');
@@ -72,10 +77,12 @@ export default function Login() {
   }, [email]);
 
   const handleVerify = useCallback(async (code: string) => {
+    if (!isMountedRef.current) return;
     setVerifying(true);
     setOtpError(false);
     setError(null);
     const result = await apiVerifyOtp(email.trim().toLowerCase(), code);
+    if (!isMountedRef.current) return;
     setVerifying(false);
     if (!result.ok) { setOtpError(true); setError({ tone: 'error', message: result.message }); }
   }, [email]);
@@ -165,7 +172,7 @@ export default function Login() {
               <View style={{ gap: 4 }}>
                 <AppButton
                   label="Continue"
-                  onPress={() => handleVerify(otpCode)}
+                  onPress={() => { if (otpCode.length === 6) handleVerify(otpCode); }}
                   loading={verifying}
                   variant="primary"
                   disabled={otpCode.length !== 6}

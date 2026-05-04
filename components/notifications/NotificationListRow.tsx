@@ -1,16 +1,28 @@
-import { useState } from 'react';
-import { Modal, Pressable, Text, TouchableOpacity, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Dimensions, Modal, Pressable, Text, TouchableOpacity, View } from 'react-native';
+import Animated, {
+  Easing,
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withTiming,
+} from 'react-native-reanimated';
 import Svg, { Circle } from 'react-native-svg';
 
 import { StatusIcon } from '@/components/icons/StatusIcon';
 import { DEFAULT_SOURCE_BY_CATEGORY } from '@/lib/notifications/types';
 import type { NotificationItem, NotificationStatusType } from '@/lib/notifications/types';
 
+const SCREEN_WIDTH = Dimensions.get('window').width;
+
 export type NotificationListRowProps = {
   item: NotificationItem;
   onArchive: (id: string) => void;
   onMarkRead: (id: string) => void;
   isLast: boolean;
+  /** When set, the card slides out to the left after this delay (ms), then calls onArchive */
+  animateOutDelay?: number;
 };
 
 function resolveVariant(type?: NotificationStatusType): 'success' | 'info' | 'error' {
@@ -34,8 +46,28 @@ export function NotificationListRow({
   onArchive,
   onMarkRead,
   isLast,
+  animateOutDelay,
 }: NotificationListRowProps) {
   const [menuVisible, setMenuVisible] = useState(false);
+  const translateX = useSharedValue(0);
+
+  useEffect(() => {
+    if (animateOutDelay === undefined) return;
+    translateX.value = withDelay(
+      animateOutDelay,
+      withTiming(
+        -SCREEN_WIDTH,
+        { duration: 300, easing: Easing.in(Easing.cubic) },
+        (finished) => {
+          if (finished) runOnJS(onArchive)(item.id);
+        },
+      ),
+    );
+  }, [animateOutDelay]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: translateX.value }],
+  }));
 
   const handleMarkRead = () => {
     setMenuVisible(false);
@@ -52,6 +84,7 @@ export function NotificationListRow({
   return (
     <>
       {/* ── Card ── */}
+      <Animated.View style={animatedStyle}>
       <View
         style={{
           marginBottom: isLast ? 0 : 8,
@@ -127,6 +160,7 @@ export function NotificationListRow({
 
         </View>
       </View>
+      </Animated.View>
 
       {/* ── Three-dot bottom-sheet modal ── */}
       <Modal
