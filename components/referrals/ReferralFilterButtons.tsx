@@ -1,6 +1,5 @@
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
-import { HOME_SCROLL_PADDING_H } from '@/lib/ui/screenGradients';
 import { SCHEDULE_PARTNER } from '@/lib/ui/theme';
 
 const T = SCHEDULE_PARTNER;
@@ -31,7 +30,7 @@ export function ReferralFilterButtons({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 8,
-        paddingHorizontal: HOME_SCROLL_PADDING_H,
+        paddingHorizontal: 16,
       }}>
       {filters.map((filter) => {
         const isActive = filter.key === activeFilter;

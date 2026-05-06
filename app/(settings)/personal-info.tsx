@@ -1,13 +1,7 @@
 import { ScrollView, Text, View } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 
 import { ScreenNavbar } from '@/components/ScreenNavbar';
 import { SCHEDULE_PARTNER } from '@/lib/health-service/bookingScheduleTheme';
-import {
-  HOME_BG_GRADIENT_COLORS,
-  HOME_BG_GRADIENT_LOCATIONS,
-  HOME_SCROLL_PADDING_H,
-} from '@/lib/ui/screenGradients';
 
 const FIELDS: { label: string; value: string }[] = [
   { label: 'Full Name', value: 'Juan Dela Cruz' },
@@ -42,17 +36,12 @@ function InfoRow({ label, value, isLast }: { label: string; value: string; isLas
 
 export default function PersonalInfoScreen() {
   return (
-    <LinearGradient
-      colors={[...HOME_BG_GRADIENT_COLORS]}
-      locations={[...HOME_BG_GRADIENT_LOCATIONS]}
-      start={{ x: 0.5, y: 1 }}
-      end={{ x: 0.5, y: 0 }}
-      style={{ flex: 1 }}>
+    <View style={{ flex: 1, backgroundColor: '#FDFDFD' }}>
       <ScreenNavbar title="Personal Information" />
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
-          paddingHorizontal: HOME_SCROLL_PADDING_H,
+          paddingHorizontal: 16,
           paddingTop: 16,
           paddingBottom: 40,
         }}>
@@ -91,6 +80,6 @@ export default function PersonalInfoScreen() {
           To update your personal information, please coordinate with the Registrar's Office.
         </Text>
       </ScrollView>
-    </LinearGradient>
+    </View>
   );
 }

@@ -9,7 +9,6 @@ import { ScreenNavbar } from '../../components/ScreenNavbar';
 import { formatAppointmentWhen } from '../../lib/health-service/appointmentDisplay';
 import { SCHEDULE_PARTNER } from '../../lib/health-service/bookingScheduleTheme';
 import { staffNameForAppointment, useHealthServiceStore } from '../../lib/health-service/healthServiceStore';
-import { HOME_SCROLL_PADDING_H } from '../../lib/ui/screenGradients';
 
 type AppointmentFilter = 'all' | 'pending' | 'confirmed';
 
@@ -51,7 +50,7 @@ export default function HealthServiceAppointmentsScreen() {
         keyboardDismissMode="on-drag"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
-          paddingHorizontal: HOME_SCROLL_PADDING_H,
+          paddingHorizontal: 16,
           paddingBottom: Math.max(insets.bottom, 12) + 24,
         }}>
         <View className="gap-4 pt-2">

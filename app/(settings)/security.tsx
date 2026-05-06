@@ -1,14 +1,8 @@
 import { useState } from 'react';
 import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 
 import { ScreenNavbar } from '@/components/ScreenNavbar';
 import { SCHEDULE_PARTNER } from '@/lib/health-service/bookingScheduleTheme';
-import {
-  HOME_BG_GRADIENT_COLORS,
-  HOME_BG_GRADIENT_LOCATIONS,
-  HOME_SCROLL_PADDING_H,
-} from '@/lib/ui/screenGradients';
 
 const BRAND = SCHEDULE_PARTNER.brand;
 
@@ -83,18 +77,13 @@ export default function SecurityScreen() {
   };
 
   return (
-    <LinearGradient
-      colors={[...HOME_BG_GRADIENT_COLORS]}
-      locations={[...HOME_BG_GRADIENT_LOCATIONS]}
-      start={{ x: 0.5, y: 1 }}
-      end={{ x: 0.5, y: 0 }}
-      style={{ flex: 1 }}>
+    <View style={{ flex: 1, backgroundColor: '#FDFDFD' }}>
       <ScreenNavbar title="Security & Password" />
       <ScrollView
         keyboardDismissMode="on-drag"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
-          paddingHorizontal: HOME_SCROLL_PADDING_H,
+          paddingHorizontal: 16,
           paddingTop: 16,
           paddingBottom: 40,
         }}>
@@ -143,6 +132,6 @@ export default function SecurityScreen() {
           Choose a strong password with at least 8 characters, including letters and numbers.
         </Text>
       </ScrollView>
-    </LinearGradient>
+    </View>
   );
 }

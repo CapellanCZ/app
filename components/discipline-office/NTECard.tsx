@@ -55,7 +55,7 @@ export function NTECard({
             <Text
               style={{
                 flex: 1,
-                fontSize: 16,
+                fontSize: 20,
                 fontWeight: '600',
                 color: '#000000',
                 letterSpacing: -0.32,

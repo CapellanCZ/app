@@ -5,6 +5,7 @@ import type { Session } from '@supabase/supabase-js';
 
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { registerPushToken } from '@/lib/notifications/registerPushToken';
+import { useScholarshipStore } from '@/lib/scholarships/scholarshipStore';
 
 /** Extract tokens from a Supabase magic-link redirect URL hash fragment. */
 function extractTokensFromUrl(url: string) {
@@ -86,6 +87,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (session?.user?.id) {
       registerPushToken(session.user.id);
+    }
+  }, [session?.user?.id]);
+
+  // Pre-fetch scholarship data right after login so detail screen opens instantly.
+  const { fetchPrograms, fetchMyApplications, reset: resetScholarships } = useScholarshipStore();
+  useEffect(() => {
+    if (session?.user?.id) {
+      fetchPrograms();
+      fetchMyApplications();
+    } else if (session === null && !isLoading) {
+      resetScholarships();
     }
   }, [session?.user?.id]);
 

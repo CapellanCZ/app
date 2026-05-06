@@ -1,7 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -313,7 +312,7 @@ export default function MyScholarshipScreen() {
 
   if (isLoadingEnrollment) {
     return (
-      <View className="flex-1 bg-[#FAFAFA]">
+      <View className="flex-1 bg-[#FDFDFD]">
         <ScreenNavbar
           title="My Scholarship"
           showMenu={false}
@@ -329,7 +328,7 @@ export default function MyScholarshipScreen() {
 
   if (!myEnrollment) {
     return (
-      <View className="flex-1 bg-[#FAFAFA]">
+      <View className="flex-1 bg-[#FDFDFD]">
         <ScreenNavbar
           title="My Scholarship"
           showMenu={false}
@@ -374,11 +373,8 @@ export default function MyScholarshipScreen() {
           <View
             className="w-full overflow-hidden rounded-3xl"
             style={{ borderWidth: 1, borderColor: HERO_BORDER }}>
-            <LinearGradient
-              colors={[...HERO_GRADIENT]}
-              start={{ x: 0.5, y: 0 }}
-              end={{ x: 0.5, y: 1 }}
-              style={{ paddingHorizontal: 20, paddingVertical: 24 }}>
+            <View
+              style={{ backgroundColor: '#2970FF', paddingHorizontal: 20, paddingVertical: 24 }}>
               <View className="items-center">
                 <View
                   className="flex-row items-center gap-2 rounded-[20px] px-3 py-2"
@@ -434,7 +430,7 @@ export default function MyScholarshipScreen() {
                   </>
                 ) : null}
               </View>
-            </LinearGradient>
+            </View>
           </View>
         </View>
 
@@ -455,11 +451,9 @@ export default function MyScholarshipScreen() {
 
           {/* Overdue alert banner */}
           {hasOverdue ? (
-            <LinearGradient
-              colors={['#F04438', '#D92D20']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
+            <View
               style={{
+                backgroundColor: '#F04438',
                 borderRadius: 12,
                 flexDirection: 'row',
                 alignItems: 'center',
@@ -472,13 +466,11 @@ export default function MyScholarshipScreen() {
               <Text className="ml-3 flex-1 text-sm leading-6 text-white">
                 You have {overdueItems.length} overdue submission{overdueItems.length > 1 ? 's' : ''}. Upload immediately.
               </Text>
-            </LinearGradient>
+            </View>
           ) : hasPending ? (
-            <LinearGradient
-              colors={['#2970FF', '#00359E']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
+            <View
               style={{
+                backgroundColor: '#2970FF',
                 borderRadius: 12,
                 flexDirection: 'row',
                 alignItems: 'center',
@@ -491,7 +483,7 @@ export default function MyScholarshipScreen() {
               <Text className="ml-3 flex-1 text-sm leading-6 text-white">
                 Kindly complete your pending requirements to maintain your scholarship.
               </Text>
-            </LinearGradient>
+            </View>
           ) : null}
 
           {/* Compliance item cards */}

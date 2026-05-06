@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from 'expo-router';
 
 import { ReferralCard } from '@/components/referrals/ReferralCard';
@@ -9,7 +8,6 @@ import { ReferralsScreenHeader } from '@/components/referrals/ReferralsScreenHea
 import { type FilterOption } from '@/components/referrals/ReferralFilterButtons';
 import { useReferralStore } from '@/lib/referrals/referralStore';
 import { useAuth } from '@/lib/auth/AuthProvider';
-import { HOME_BG_GRADIENT_COLORS, HOME_BG_GRADIENT_LOCATIONS, HOME_SCROLL_PADDING_H } from '@/lib/ui/screenGradients';
 import { SCHEDULE_PARTNER } from '@/lib/ui/theme';
 
 const T = SCHEDULE_PARTNER;
@@ -75,12 +73,7 @@ export default function ReferralsScreen() {
   }, [activeFilter, items]);
 
   return (
-    <LinearGradient
-      colors={[...HOME_BG_GRADIENT_COLORS]}
-      locations={[...HOME_BG_GRADIENT_LOCATIONS]}
-      start={{ x: 0.5, y: 1 }}
-      end={{ x: 0.5, y: 0 }}
-      style={{ flex: 1 }}>
+    <View style={{ flex: 1, backgroundColor: '#FDFDFD' }}>
         
       <ReferralsScreenHeader
         filters={filterOptions}
@@ -92,7 +85,7 @@ export default function ReferralsScreen() {
         className="flex-1 bg-transparent"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
-          paddingHorizontal: HOME_SCROLL_PADDING_H,
+          paddingHorizontal: 16,
           paddingTop: 10,
           paddingBottom: Math.max(insets.bottom, 16) + 28,
           gap: 12,
@@ -111,6 +104,6 @@ export default function ReferralsScreen() {
           ))
         )}
       </ScrollView>
-    </LinearGradient>
+    </View>
   );
 }

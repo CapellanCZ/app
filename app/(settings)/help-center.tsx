@@ -1,16 +1,10 @@
 import { useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 
 import { IconsaxArrowDownIcon } from '@/components/icons/IconsaxArrowDownIcon';
 import { IconsaxArrowUpIcon } from '@/components/icons/IconsaxArrowUpIcon';
 import { ScreenNavbar } from '@/components/ScreenNavbar';
 import { SCHEDULE_PARTNER } from '@/lib/health-service/bookingScheduleTheme';
-import {
-  HOME_BG_GRADIENT_COLORS,
-  HOME_BG_GRADIENT_LOCATIONS,
-  HOME_SCROLL_PADDING_H,
-} from '@/lib/ui/screenGradients';
 
 type FAQItem = { q: string; a: string };
 
@@ -104,17 +98,12 @@ function FAQRow({ item, isLast }: { item: FAQItem; isLast?: boolean }) {
 
 export default function HelpCenterScreen() {
   return (
-    <LinearGradient
-      colors={[...HOME_BG_GRADIENT_COLORS]}
-      locations={[...HOME_BG_GRADIENT_LOCATIONS]}
-      start={{ x: 0.5, y: 1 }}
-      end={{ x: 0.5, y: 0 }}
-      style={{ flex: 1 }}>
+    <View style={{ flex: 1, backgroundColor: '#FDFDFD' }}>
       <ScreenNavbar title="Help Center" />
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
-          paddingHorizontal: HOME_SCROLL_PADDING_H,
+          paddingHorizontal: 16,
           paddingTop: 16,
           paddingBottom: 40,
         }}>
@@ -154,6 +143,6 @@ export default function HelpCenterScreen() {
           </Text>
         </Text>
       </ScrollView>
-    </LinearGradient>
+    </View>
   );
 }

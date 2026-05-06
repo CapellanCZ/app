@@ -8,7 +8,10 @@ export default function StudentDevelopmentAffairsLayout() {
         headerShown: false,
         headerBackTitleVisible: false,
         animation: 'slide_from_right',
-      }}
-    />
+      }}>
+      <Stack.Screen name="index" />
+      <Stack.Screen name="apply" />
+      <Stack.Screen name="about-scholarship" />
+    </Stack>
   );
 }

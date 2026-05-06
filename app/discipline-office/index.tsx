@@ -27,7 +27,6 @@ import { IconsaxEditIcon } from '@/components/icons/IconsaxEditIcon';
 import { IconsaxLikeIcon } from '@/components/icons/IconsaxLikeIcon';
 import { IconsaxInfoCircleIcon } from '@/components/icons/IconsaxInfoCircleIcon';
 import { SCHEDULE_PARTNER } from '@/lib/health-service/bookingScheduleTheme';
-import { HOME_SCROLL_PADDING_H } from '@/lib/ui/screenGradients';
 
 const T = SCHEDULE_PARTNER;
 
@@ -392,7 +391,7 @@ export default function DisciplineOfficeScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{
-          paddingHorizontal: HOME_SCROLL_PADDING_H,
+          paddingHorizontal: 16,
           paddingTop: 16,
           paddingBottom: Math.max(insets.bottom, 16) + 28,
           gap: 28,
@@ -422,7 +421,7 @@ export default function DisciplineOfficeScreen() {
           contentContainerStyle={{
             flexDirection: 'row',
             gap: 12,
-            paddingRight: HOME_SCROLL_PADDING_H,
+            paddingRight: 16,
           }}>
           <QuickActionCard
             icon={<IconsaxEditIcon size={20} color="#0A0D12" />}

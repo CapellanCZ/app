@@ -18,7 +18,6 @@ import { isStaffWorkingOnDate } from '../../lib/health-service/slotUtils';
 import { formatAppointmentWhen } from '../../lib/health-service/appointmentDisplay';
 import { staffNameForAppointment, useHealthServiceStore } from '../../lib/health-service/healthServiceStore';
 import type { StaffRole } from '../../lib/health-service/types';
-import { HOME_SCROLL_PADDING_H } from '../../lib/ui/screenGradients';
 
 function startOfDay(d: Date): Date {
   const x = new Date(d);
@@ -40,7 +39,7 @@ const PROVIDER_GRID_GAP = 12;
 export default function HealthServiceScreen() {
   const insets = useSafeAreaInsets();
   const { width: windowWidth } = useWindowDimensions();
-  const providerCardWidth = (windowWidth - HOME_SCROLL_PADDING_H * 2 - PROVIDER_GRID_GAP) / 2;
+  const providerCardWidth = (windowWidth - 16 * 2 - PROVIDER_GRID_GAP) / 2;
   const [roleFilter, setRoleFilter] = useState<StaffRole | 'all'>('all');
   const [search, setSearch] = useState('');
   const [availabilityFilter, setAvailabilityFilter] = useState<AvailabilityFilter>('all');
@@ -128,7 +127,7 @@ export default function HealthServiceScreen() {
         keyboardDismissMode="on-drag"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
-          paddingHorizontal: HOME_SCROLL_PADDING_H,
+          paddingHorizontal: 16,
           paddingBottom: Math.max(insets.bottom, 12) + 24,
         }}>
         <View className="gap-5 pt-2">

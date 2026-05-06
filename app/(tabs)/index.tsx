@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
@@ -15,11 +14,6 @@ import {
 } from '@/components/home/UpcomingAppointmentsList';
 import { TextLinkButton } from '@/components/TextLinkButton';
 import { QuickActionGridTile } from '@/components/home/QuickActionGridTile';
-import {
-  HOME_BG_GRADIENT_COLORS,
-  HOME_BG_GRADIENT_LOCATIONS,
-  HOME_SCROLL_PADDING_H,
-} from '@/lib/ui/screenGradients';
 import { IconsaxHierarchyIcon } from '@/components/icons/IconsaxHierarchyIcon';
 import { IconsaxMedalStarFilledIcon } from '@/components/icons/IconsaxMedalStarFilledIcon';
 import { IconsaxSyringeFilledIcon } from '@/components/icons/IconsaxSyringeFilledIcon';
@@ -226,12 +220,7 @@ export default function Home() {
   );
 
   return (
-    <LinearGradient
-      colors={[...HOME_BG_GRADIENT_COLORS]}
-      locations={[...HOME_BG_GRADIENT_LOCATIONS]}
-      start={{ x: 0.5, y: 1 }}
-      end={{ x: 0.5, y: 0 }}
-      style={{ flex: 1 }}>
+    <View style={{ flex: 1, backgroundColor: '#FDFDFD' }}>
       <ScrollView
         className="flex-1 bg-transparent"
         keyboardDismissMode="on-drag"
@@ -239,8 +228,9 @@ export default function Home() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
           flexGrow: 1,
-          paddingHorizontal: HOME_SCROLL_PADDING_H,
-          paddingBottom: Math.max(insets.bottom, 12) + 24,
+          paddingTop: insets.top + 6,
+          paddingHorizontal: 20,
+          paddingBottom: Math.max(insets.bottom, 16) + 40,
         }}>
         <View className="gap-4">
           <HomeScreenHeader title="Home" avatarUrl={avatarUrl} />
@@ -299,6 +289,6 @@ export default function Home() {
           </View>
         </View>
       </ScrollView>
-    </LinearGradient>
+    </View>
   );
 }

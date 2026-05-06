@@ -1,20 +1,16 @@
-import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { BottomSheet } from 'heroui-native';
 
 import {
-  ScholarshipAnnouncementBanner,
   ScholarshipCard,
+  ScholarshipDetailModal,
   ScholarshipSearchBar,
+  type ScholarshipCardStatus,
 } from '@/components/student-development-affairs';
-import { ScreenNavbar } from '@/components/ScreenNavbar';
+import { ScreenHeader } from '@/components/layout/ScreenHeader';
 import { useScholarshipStore } from '@/lib/scholarships/scholarshipStore';
 import type { ScholarshipProgram } from '@/lib/scholarships/types';
-
-/** Matches home (`app/(tabs)/index.tsx`) powder blue → white backdrop. */
-const SCHOLARSHIP_BG_GRADIENT = ['#E8EFFF', '#F4F8FF', '#FFFFFF'] as const;
 
 type SortKey = 'name_asc' | 'name_desc' | 'closes_asc';
 
@@ -30,43 +26,43 @@ function normalize(s: string) {
 
 function formatCloseDate(dateStr: string): string {
   const d = new Date(dateStr);
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  return `Closes ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
 }
 
-function getDiscountLabel(program: ScholarshipProgram): string {
-  if (program.tuitionDiscountPercent === 100 && program.miscDiscountPercent === 100) {
-    return 'Full Scholarship';
-  }
-  if (program.tuitionDiscountPercent === program.miscDiscountPercent) {
-    return `${program.tuitionDiscountPercent}% Discount`;
-  }
-  return `${program.tuitionDiscountPercent}% Tuition`;
+function getCardStatus(program: ScholarshipProgram): ScholarshipCardStatus {
+  const slotsLeft = program.totalSlots - program.filledSlots;
+  const daysLeft = Math.ceil(
+    (new Date(program.applicationCloseDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24),
+  );
+  if (slotsLeft <= 5) return 'high_demand';
+  if (slotsLeft <= 10) return 'limited_slots';
+  if (daysLeft <= 7) return 'closing_soon';
+  return 'open';
 }
 
 /** Search band + white sheet on the same gradient shell as the home tab. */
 export default function StudentDevelopmentAffairsScreen() {
-  const router = useRouter();
   const { programs, isLoadingPrograms, error, fetchPrograms } = useScholarshipStore();
 
+  const [selectedProgram, setSelectedProgram] = useState<ScholarshipProgram | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('name_asc');
   const [academicYearFilter, setAcademicYearFilter] = useState<string | null>(null);
   const [sortSheetOpen, setSortSheetOpen] = useState(false);
 
+  // Programs are pre-fetched at login by AuthProvider.
+  // Only re-fetch if the store is empty (e.g. first cold load before AuthProvider fires).
   useEffect(() => {
-    fetchPrograms();
-  }, [fetchPrograms]);
+    if (programs.length === 0 && !isLoadingPrograms) {
+      fetchPrograms();
+    }
+  }, []);
 
   const academicYears = useMemo(
     () => [...new Set(programs.map((p) => p.academicYear))].sort((a, b) => b.localeCompare(a)),
     [programs],
   );
-
-  const openBanner = useMemo(() => {
-    const open = programs.find((p) => p.status === 'open');
-    if (!open) return null;
-    return `Scholarship applications for AY ${open.academicYear} ${open.term} are open until ${formatCloseDate(open.applicationCloseDate)}.`;
-  }, [programs]);
 
   const displayed = useMemo(() => {
     let list = [...programs];
@@ -95,16 +91,11 @@ export default function StudentDevelopmentAffairsScreen() {
   }, []);
 
   return (
-    <LinearGradient
-      colors={[...SCHOLARSHIP_BG_GRADIENT]}
-      locations={[0, 0.55, 1]}
-      start={{ x: 0.5, y: 1 }}
-      end={{ x: 0.5, y: 0 }}
-      style={{ flex: 1 }}>
-      <ScreenNavbar
+    <View style={{ flex: 1, backgroundColor: '#FDFDFD' }}>
+      <ScreenHeader
         title="Scholarship List"
-        titleNumberOfLines={2}
-        menuIconSize={32}
+        subtitle="Apply for scholarships and track your enrollment status."
+        paddingBottom={8}
       />
       <View className="mt-2 min-h-0 flex-1 bg-transparent px-0">
         <View className="gap-3 px-4 pt-1">
@@ -112,12 +103,13 @@ export default function StudentDevelopmentAffairsScreen() {
             value={query}
             onChangeText={setQuery}
             onSortPress={() => setSortSheetOpen(true)}
+            
           />
-          {openBanner ? (
+          {/*{openBanner ? (
             <View className="mb-2">
               <ScholarshipAnnouncementBanner message={openBanner} />
             </View>
-          ) : null}
+          ) : null} */}
         </View>
         <View className="min-h-0 flex-1 rounded-t-[30px] pb-12 pt-2">
           <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
@@ -150,15 +142,19 @@ export default function StudentDevelopmentAffairsScreen() {
                   <ScholarshipCard
                     key={program.id}
                     title={program.name}
-                    categoryLabel={`AY ${program.academicYear} · ${program.term}`}
-                    discountLabel={getDiscountLabel(program)}
-                    scheduleLabel={`Closes ${formatCloseDate(program.applicationCloseDate)}`}
-                    onApplyPress={() =>
-                      router.push({
-                        pathname: '/student-development-affairs/about-scholarship',
-                        params: { id: program.id, title: program.name },
-                      })
-                    }
+                    academicYear={program.academicYear}
+                    term={program.term}
+                    slotsLeft={program.totalSlots - program.filledSlots}
+                    tuitionPercent={program.tuitionDiscountPercent}
+                    miscPercent={program.miscDiscountPercent}
+                    minGpa={program.minGpa}
+                    closeDate={formatCloseDate(program.applicationCloseDate)}
+                    applicationCount={program.filledSlots}
+                    status={getCardStatus(program)}
+                    onPress={() => {
+                      setSelectedProgram(program);
+                      setModalOpen(true);
+                    }}
                   />
                 ))
               )}
@@ -167,66 +163,70 @@ export default function StudentDevelopmentAffairsScreen() {
         </View>
       </View>
 
-      <View className="absolute h-0 w-0 overflow-hidden opacity-0" pointerEvents="none">
-        <BottomSheet isOpen={sortSheetOpen} onOpenChange={setSortSheetOpen}>
-          <BottomSheet.Portal>
-            <BottomSheet.Overlay isCloseOnPress />
-            <BottomSheet.Content snapPoints={['52%', '72%']} index={0}>
-              <BottomSheet.Title className="mb-3 px-1 text-base font-semibold leading-6 text-[#181D27]">
-                Sort & filter
-              </BottomSheet.Title>
-              <ScrollView
-                className="max-h-[420px]"
-                keyboardShouldPersistTaps="handled"
-                showsVerticalScrollIndicator={false}>
-                <Text className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-[#8F9098]">
-                  Sort by
-                </Text>
-                {SORT_OPTIONS.map((opt) => (
+      <ScholarshipDetailModal
+        program={selectedProgram}
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+      />
+
+      <BottomSheet isOpen={sortSheetOpen} onOpenChange={setSortSheetOpen}>
+        <BottomSheet.Portal>
+          <BottomSheet.Overlay isCloseOnPress />
+          <BottomSheet.Content snapPoints={['52%', '72%']} index={0}>
+            <BottomSheet.Title className="mb-3 px-1 text-base font-semibold leading-6 text-[#181D27]">
+              Sort & filter
+            </BottomSheet.Title>
+            <ScrollView
+              className="max-h-[420px]"
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}>
+              <Text className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-[#8F9098]">
+                Sort by
+              </Text>
+              {SORT_OPTIONS.map((opt) => (
+                <Pressable
+                  key={opt.key}
+                  accessibilityRole="button"
+                  className="rounded-xl px-3 py-3.5 active:bg-[#FAFAFA]"
+                  onPress={() => selectSort(opt.key)}>
+                  <Text
+                    className={`text-sm leading-5 ${sortKey === opt.key ? 'font-semibold text-[#2970FF]' : 'text-[#181D27]'}`}>
+                    {opt.label}
+                  </Text>
+                </Pressable>
+              ))}
+              {academicYears.length > 0 ? (
+                <>
+                  <Text className="mb-2 mt-4 px-1 text-xs font-semibold uppercase tracking-wide text-[#8F9098]">
+                    Academic Year
+                  </Text>
                   <Pressable
-                    key={opt.key}
                     accessibilityRole="button"
                     className="rounded-xl px-3 py-3.5 active:bg-[#FAFAFA]"
-                    onPress={() => selectSort(opt.key)}>
+                    onPress={() => selectYear(null)}>
                     <Text
-                      className={`text-sm leading-5 ${sortKey === opt.key ? 'font-semibold text-[#2970FF]' : 'text-[#181D27]'}`}>
-                      {opt.label}
+                      className={`text-sm leading-5 ${academicYearFilter === null ? 'font-semibold text-[#2970FF]' : 'text-[#181D27]'}`}>
+                      All years
                     </Text>
                   </Pressable>
-                ))}
-                {academicYears.length > 0 ? (
-                  <>
-                    <Text className="mb-2 mt-4 px-1 text-xs font-semibold uppercase tracking-wide text-[#8F9098]">
-                      Academic Year
-                    </Text>
+                  {academicYears.map((year) => (
                     <Pressable
+                      key={year}
                       accessibilityRole="button"
                       className="rounded-xl px-3 py-3.5 active:bg-[#FAFAFA]"
-                      onPress={() => selectYear(null)}>
+                      onPress={() => selectYear(year)}>
                       <Text
-                        className={`text-sm leading-5 ${academicYearFilter === null ? 'font-semibold text-[#2970FF]' : 'text-[#181D27]'}`}>
-                        All years
+                        className={`text-sm leading-5 ${academicYearFilter === year ? 'font-semibold text-[#2970FF]' : 'text-[#181D27]'}`}>
+                        AY {year}
                       </Text>
                     </Pressable>
-                    {academicYears.map((year) => (
-                      <Pressable
-                        key={year}
-                        accessibilityRole="button"
-                        className="rounded-xl px-3 py-3.5 active:bg-[#FAFAFA]"
-                        onPress={() => selectYear(year)}>
-                        <Text
-                          className={`text-sm leading-5 ${academicYearFilter === year ? 'font-semibold text-[#2970FF]' : 'text-[#181D27]'}`}>
-                          AY {year}
-                        </Text>
-                      </Pressable>
-                    ))}
-                  </>
-                ) : null}
-              </ScrollView>
-            </BottomSheet.Content>
-          </BottomSheet.Portal>
-        </BottomSheet>
-      </View>
-    </LinearGradient>
+                  ))}
+                </>
+              ) : null}
+            </ScrollView>
+          </BottomSheet.Content>
+        </BottomSheet.Portal>
+      </BottomSheet>
+    </View>
   );
 }

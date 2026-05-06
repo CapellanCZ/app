@@ -1,6 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -18,7 +17,6 @@ import { ScreenNavbar } from '../../../../components/ScreenNavbar';
 import { SCHEDULE_PARTNER } from '../../../../lib/health-service/bookingScheduleTheme';
 import { getHealthServiceApi } from '../../../../lib/health-service/healthServiceApi';
 import { getStaffById } from '../../../../lib/health-service/mockStaff';
-import { HOME_SCROLL_PADDING_H } from '../../../../lib/ui/screenGradients';
 
 const BRAND = '#2970FF';
 const ICON_TINT = 'rgba(41, 112, 255, 0.12)';
@@ -127,7 +125,7 @@ export default function HealthServiceBookFeelingsScreen() {
           className="flex-1 bg-transparent"
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{
-            paddingHorizontal: HOME_SCROLL_PADDING_H,
+            paddingHorizontal: 16,
             paddingBottom: 120 + Math.max(insets.bottom, 8),
           }}>
           <View
@@ -261,13 +259,10 @@ export default function HealthServiceBookFeelingsScreen() {
             accessibilityLabel="Submit booking request"
             onPress={onSubmit}
             className="overflow-hidden rounded-2xl active:opacity-90">
-            <LinearGradient
-              colors={['#2970FF', '#1D4ED8']}
-              start={{ x: 0, y: 0.5 }}
-              end={{ x: 1, y: 0.5 }}
-              style={{ paddingVertical: 16, alignItems: 'center', justifyContent: 'center' }}>
+            <View
+              style={{ backgroundColor: '#2970FF', paddingVertical: 16, alignItems: 'center', justifyContent: 'center' }}>
               <Text className="text-base font-semibold text-white">Book Now</Text>
-            </LinearGradient>
+            </View>
           </Pressable>
         </View>
       </View>

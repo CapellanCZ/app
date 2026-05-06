@@ -1,36 +1,24 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
-import * as ImagePicker from 'expo-image-picker';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   BackHandler,
-  InteractionManager,
-  Keyboard,
   Pressable,
+  ScrollView,
+  StyleSheet,
   Text,
   View,
 } from 'react-native';
-import { KeyboardAwareScrollView, KeyboardStickyView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Button, Dialog, TextArea, TextField, useToast } from 'heroui-native';
+import { Button, Dialog, useToast } from 'heroui-native';
 
-import { ScreenNavbar } from '@/components/ScreenNavbar';
-import { IconPdfIcon } from '@/components/icons/IconPdfIcon';
-import { IconsaxCalendarIcon } from '@/components/icons/IconsaxCalendarIcon';
-import { UploadedFileListRow } from '@/components/ui/UploadedFileListRow';
 import { useScholarshipStore } from '@/lib/scholarships/scholarshipStore';
-import type { ScholarshipRequirement, ApplicationDocument } from '@/lib/scholarships/types';
+import type { ApplicationDocument } from '@/lib/scholarships/types';
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
-
-function formatSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
 
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('en-US', {
@@ -40,101 +28,195 @@ function formatDate(dateStr: string): string {
   });
 }
 
-function formatTime(dateStr: string): string {
-  return new Date(dateStr).toLocaleTimeString('en-US', {
-    hour: 'numeric',
-    minute: '2-digit',
-  });
+function formatSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function fileThumbnail(mimeType?: string) {
-  const mime = (mimeType ?? '').toLowerCase();
-  if (mime.startsWith('image/')) return <Ionicons name="image-outline" size={24} color="#2970FF" />;
-  return <IconPdfIcon size={24} />;
-}
+// ─── Styles ───────────────────────────────────────────────────────────────────
 
-const ICON_SUFFIX = '#717680';
-const SUBMIT_BRAND = '#2970FF';
+const S = StyleSheet.create({
+  root: { flex: 1, backgroundColor: '#FDFDFD' },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+  },
+  backBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 999,
+    backgroundColor: '#F5F5F5',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerName: {
+    fontSize: 24,
+    fontWeight: '600',
+    color: '#000000',
+    letterSpacing: -0.48,
+  },
+  headerSponsor: {
+    fontSize: 16,
+    color: '#717680',
+    letterSpacing: -0.32,
+  },
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingTop: 4,
+    paddingBottom: 32,
+    gap: 20,
+  },
+  pillsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
+  pill: {
+    backgroundColor: '#F5F5F5',
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  pillText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#717680',
+    letterSpacing: -0.24,
+  },
+  sectionRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  sectionTitle: { fontSize: 16, color: '#000000' },
+  uploadCount: { fontSize: 16, color: '#2970FF' },
+  bulletList: { gap: 16 },
+  bulletRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 4 },
+  bulletDot: { fontSize: 16, color: '#717680', marginTop: 1 },
+  bulletText: {
+    flex: 1,
+    fontSize: 16,
+    lineHeight: 24,
+    color: '#717680',
+    letterSpacing: -0.32,
+  },
+  dropzone: {
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: '#E9EAEB',
+    borderRadius: 16,
+    paddingVertical: 28,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    gap: 12,
+  },
+  dropzoneIconBg: {
+    width: 44,
+    height: 44,
+    borderRadius: 999,
+    backgroundColor: '#F5F5F5',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dropzoneText: {
+    fontSize: 14,
+    color: '#000000',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  dropzoneLink: { color: '#2970FF', fontWeight: '600' },
+  dropzoneHint: { fontSize: 12, color: '#717680', lineHeight: 20 },
+  fileRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FAFAFA',
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 16,
+    gap: 16,
+  },
+  fileIconBg: {
+    width: 32,
+    height: 32,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 2,
+  },
+  fileInfo: { flex: 1, gap: 4 },
+  fileNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  fileName: { fontSize: 16, color: '#000000', lineHeight: 20 },
+  fileProgress: { fontSize: 14, color: '#000000', fontWeight: '300' },
+  progressBarBg: {
+    height: 7,
+    backgroundColor: '#E9EAEB',
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  progressBarFill: { height: 7, backgroundColor: '#006FFD', borderRadius: 8 },
+  removeBtn: { width: 24, height: 24, alignItems: 'center', justifyContent: 'center' },
+  footer: {
+    paddingHorizontal: 20,
+    backgroundColor: '#FDFDFD',
+  },
+  submitBtn: {
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#2970FF',
+    borderWidth: 2,
+    borderColor: '#528BFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
+  },
+  submitBtnDisabled: { backgroundColor: '#A8C4FF', borderColor: '#A8C4FF' },
+  submitBtnText: { fontSize: 16, fontWeight: '500', color: '#FFFFFF', letterSpacing: -0.32 },
+});
 
-// ─── Requirement row ──────────────────────────────────────────────────────────
+// ─── File row component ───────────────────────────────────────────────────────
 
-type RequirementRowProps = {
-  requirement: ScholarshipRequirement;
-  uploadedDoc?: ApplicationDocument;
-  isUploading: boolean;
-  isSubmitting: boolean;
-  onUpload: (req: ScholarshipRequirement) => void;
-  onRemove: (doc: ApplicationDocument) => void;
-};
-
-function RequirementRow({
-  requirement,
-  uploadedDoc,
-  isUploading,
-  isSubmitting,
-  onUpload,
+function FileRow({
+  doc,
+  uploading,
+  progress,
   onRemove,
-}: RequirementRowProps) {
-  const disabled = isUploading || isSubmitting;
-
+}: {
+  doc: ApplicationDocument;
+  uploading?: boolean;
+  progress?: number;
+  onRemove: () => void;
+}) {
+  const isImage = (doc.mimeType ?? '').startsWith('image/');
   return (
-    <View className="rounded-2xl border border-[rgba(164,167,174,0.24)] bg-white p-4 gap-3">
-      {/* Header */}
-      <View className="flex-row items-start gap-3">
-        <View className="min-w-0 flex-1">
-          <Text className="text-sm font-semibold leading-5 text-[#181D27]">{requirement.name}</Text>
-          {requirement.description ? (
-            <Text className="mt-1 text-xs leading-4 text-[#717680]">{requirement.description}</Text>
+    <View style={S.fileRow}>
+      <View style={S.fileIconBg}>
+        <Ionicons
+          name={isImage ? 'image-outline' : 'document-outline'}
+          size={24}
+          color="#2970FF"
+        />
+      </View>
+      <View style={S.fileInfo}>
+        <View style={S.fileNameRow}>
+          <Text style={S.fileName} numberOfLines={1}>
+            {doc.originalFilename}
+          </Text>
+          {uploading && progress != null ? (
+            <Text style={S.fileProgress}>{Math.round(progress)}%</Text>
           ) : null}
         </View>
-        {requirement.isRequired ? (
-          <View className="shrink-0 rounded-full bg-[#FEF3F2] px-2.5 py-1">
-            <Text className="text-xs font-semibold text-[#D92D20]">Required</Text>
+        {uploading && progress != null ? (
+          <View style={S.progressBarBg}>
+            <View style={[S.progressBarFill, { width: `${progress}%` as any }]} />
           </View>
         ) : (
-          <View className="shrink-0 rounded-full bg-[#F2F4F7] px-2.5 py-1">
-            <Text className="text-xs font-semibold text-[#717680]">Optional</Text>
-          </View>
+          <Text style={{ fontSize: 12, color: '#717680' }}>{formatSize(doc.fileSizeBytes)}</Text>
         )}
       </View>
-
-      {/* Uploaded file */}
-      {uploadedDoc ? (
-        <View className="rounded-xl bg-[#F8F9FE]">
-          <UploadedFileListRow
-            fileName={uploadedDoc.originalFilename}
-            dateLabel={formatDate(uploadedDoc.createdAt)}
-            timeLabel={formatTime(uploadedDoc.createdAt)}
-            sizeLabel={formatSize(uploadedDoc.fileSizeBytes)}
-            progress={100}
-            fileThumbnail={fileThumbnail(uploadedDoc.mimeType ?? undefined)}
-            onRemove={disabled ? undefined : () => onRemove(uploadedDoc)}
-          />
-        </View>
-      ) : (
-        // Upload CTA
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`Upload ${requirement.name}`}
-          onPress={() => !disabled && onUpload(requirement)}
-          className={`flex-row items-center justify-center gap-2 rounded-xl border border-dashed border-[#C5C6CC] py-4 ${disabled ? 'opacity-50' : 'active:opacity-70'}`}>
-          {isUploading ? (
-            <ActivityIndicator size="small" color={SUBMIT_BRAND} />
-          ) : (
-            <>
-              <Ionicons name="cloud-upload-outline" size={20} color={SUBMIT_BRAND} />
-              <Text className="text-sm font-semibold text-[#2970FF]">Tap to upload</Text>
-            </>
-          )}
-        </Pressable>
-      )}
-
-      {/* Allowed types hint */}
-      {requirement.allowedFileTypes && requirement.allowedFileTypes.length > 0 ? (
-        <Text className="text-xs leading-4 text-[#98A2B3]">
-          Accepted: {requirement.allowedFileTypes.join(', ')} · Max {requirement.maxFileSizeMb ?? 10}MB
-        </Text>
-      ) : null}
+      <Pressable onPress={onRemove} style={S.removeBtn} hitSlop={8}>
+        <Ionicons name="close" size={20} color="#717680" />
+      </Pressable>
     </View>
   );
 }
@@ -155,21 +237,14 @@ export default function ApplyScholarshipScreen() {
     isSubmitting,
     fetchApplicationById,
     fetchProgramById,
-    updateApplication,
     submitApplication,
     uploadDocument,
     deleteDocument,
     subscribeToApplication,
   } = useScholarshipStore();
 
-  const [personalStatement, setPersonalStatement] = useState('');
-  const [currentYearLevel, setCurrentYearLevel] = useState('');
-  const [currentProgramField, setCurrentProgramField] = useState('');
-  const [currentGpa, setCurrentGpa] = useState('');
   const [uploadingReqId, setUploadingReqId] = useState<string | null>(null);
   const [discardDialogOpen, setDiscardDialogOpen] = useState(false);
-
-  const pendingReqRef = useRef<ScholarshipRequirement | null>(null);
   const submitLockedRef = useRef(false);
   const docPickerBusyRef = useRef(false);
 
@@ -179,24 +254,7 @@ export default function ApplyScholarshipScreen() {
     fetchApplicationById(applicationId);
   }, [applicationId, fetchApplicationById]);
 
-  // ── Pre-fill saved draft fields ──
-  useEffect(() => {
-    if (!currentApplication) return;
-    if (currentApplication.personalStatement) {
-      setPersonalStatement(currentApplication.personalStatement);
-    }
-    if (currentApplication.currentYearLevel) {
-      setCurrentYearLevel(currentApplication.currentYearLevel);
-    }
-    if (currentApplication.currentProgram) {
-      setCurrentProgramField(currentApplication.currentProgram);
-    }
-    if (currentApplication.currentGpa != null) {
-      setCurrentGpa(String(currentApplication.currentGpa));
-    }
-  }, [currentApplication?.id]);
-
-  // ── Fetch program if not loaded ──
+  // ── Fetch program if not in store ──
   useEffect(() => {
     if (!currentApplication?.programId) return;
     if (!currentProgram || currentProgram.id !== currentApplication.programId) {
@@ -222,23 +280,17 @@ export default function ApplyScholarshipScreen() {
     return map;
   }, [currentApplication?.documents]);
 
-  const requiredReqs = useMemo(
-    () => requirements.filter((r) => r.isRequired),
-    [requirements],
+  const uploadedDocs = useMemo(
+    () => currentApplication?.documents ?? [],
+    [currentApplication?.documents],
   );
 
+  const requiredReqs = useMemo(() => requirements.filter((r) => r.isRequired), [requirements]);
   const uploadedRequiredCount = useMemo(
     () => requiredReqs.filter((r) => uploadedDocsByReqId.has(r.id)).length,
     [requiredReqs, uploadedDocsByReqId],
   );
-
-  const allRequiredUploaded = uploadedRequiredCount === requiredReqs.length;
-
-  const hasUnsavedChanges =
-    personalStatement.trim().length > 0 ||
-    currentYearLevel.trim().length > 0 ||
-    currentProgramField.trim().length > 0 ||
-    currentGpa.trim().length > 0;
+  const allRequiredUploaded = uploadedRequiredCount === requiredReqs.length && requiredReqs.length > 0;
 
   const canSubmit =
     allRequiredUploaded &&
@@ -246,115 +298,62 @@ export default function ApplyScholarshipScreen() {
     !isUploading &&
     currentApplication?.status === 'draft';
 
-  // ── Back handler ──
+  // ── Navigation ──
   const goBack = useCallback(() => {
     if (router.canGoBack()) router.back();
     else router.replace('/student-development-affairs');
   }, [router]);
 
-  const requestLeave = useCallback(() => {
-    if (hasUnsavedChanges) {
-      setDiscardDialogOpen(true);
-    } else {
-      goBack();
-    }
-  }, [goBack, hasUnsavedChanges]);
-
   useFocusEffect(
     useCallback(() => {
       const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-        if (hasUnsavedChanges) {
-          setDiscardDialogOpen(true);
-          return true;
-        }
         goBack();
         return true;
       });
       return () => sub.remove();
-    }, [goBack, hasUnsavedChanges]),
+    }, [goBack]),
   );
 
   // ── File picking ──
-  const pickAndUpload = useCallback(async (req: ScholarshipRequirement) => {
-    if (docPickerBusyRef.current || isUploading) return;
+  const pickAndUpload = useCallback(async () => {
+    if (docPickerBusyRef.current || isUploading || !requirements.length) return;
     docPickerBusyRef.current = true;
-    pendingReqRef.current = req;
-    setUploadingReqId(req.id);
-    Keyboard.dismiss();
+
+    // Find the first requirement without an uploaded doc
+    const nextReq = requirements.find((r) => !uploadedDocsByReqId.has(r.id));
+    if (!nextReq) {
+      docPickerBusyRef.current = false;
+      return;
+    }
+
+    setUploadingReqId(nextReq.id);
 
     try {
-      await new Promise<void>((resolve) => {
-        InteractionManager.runAfterInteractions(() => {
-          requestAnimationFrame(() => setTimeout(resolve, 120));
-        });
+      const result = await DocumentPicker.getDocumentAsync({
+        type: '*/*',
+        copyToCacheDirectory: true,
+        multiple: false,
       });
-
-      let result: Awaited<ReturnType<typeof DocumentPicker.getDocumentAsync>>;
-      try {
-        result = await DocumentPicker.getDocumentAsync({
-          type: '*/*',
-          copyToCacheDirectory: true,
-          multiple: false,
-        });
-      } catch {
-        // Fallback — shouldn't happen but guard it
-        setUploadingReqId(null);
-        return;
-      }
 
       if (result.canceled || !result.assets?.length) return;
 
       const asset = result.assets[0];
-      const uri = asset.uri;
-      const fileName = asset.name ?? 'document';
-      const mimeType = asset.mimeType ?? 'application/octet-stream';
-
-      // Convert URI to Blob for Supabase Storage
-      const blob = await fetch(uri).then((r) => r.blob());
-
-      await uploadDocument(applicationId, req.id, blob, fileName, mimeType);
+      const blob = await fetch(asset.uri).then((r) => r.blob());
+      await uploadDocument(
+        applicationId,
+        nextReq.id,
+        blob,
+        asset.name ?? 'document',
+        asset.mimeType ?? 'application/octet-stream',
+      );
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unknown error';
       Alert.alert('Upload failed', msg);
     } finally {
       setUploadingReqId(null);
-      pendingReqRef.current = null;
       docPickerBusyRef.current = false;
     }
-  }, [applicationId, isUploading, uploadDocument]);
-
-  const handlePickMedia = useCallback(async (req: ScholarshipRequirement) => {
-    if (isUploading) return;
-    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!perm.granted) {
-      Alert.alert(
-        'Photo access needed',
-        'Allow photo library access to attach images. You can change this in Settings.',
-      );
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsMultipleSelection: false,
-      quality: 0.85,
-    });
-
-    if (result.canceled || !result.assets?.length) return;
-
-    const asset = result.assets[0];
-    setUploadingReqId(req.id);
-    try {
-      const blob = await fetch(asset.uri).then((r) => r.blob());
-      const ext = asset.mimeType?.split('/')[1] ?? 'jpg';
-      await uploadDocument(applicationId, req.id, blob, `photo.${ext}`, asset.mimeType ?? 'image/jpeg');
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Unknown error';
-      Alert.alert('Upload failed', msg);
-    } finally {
-      setUploadingReqId(null);
-    }
-  }, [applicationId, isUploading, uploadDocument]);
+  }, [applicationId, isUploading, requirements, uploadedDocsByReqId, uploadDocument]);
 
   // ── Remove doc ──
   const handleRemove = useCallback(async (doc: ApplicationDocument) => {
@@ -375,29 +374,10 @@ export default function ApplyScholarshipScreen() {
     ]);
   }, [deleteDocument]);
 
-  // ── Save draft silently ──
-  const saveDraft = useCallback(async () => {
-    if (!applicationId || !hasUnsavedChanges) return;
-    try {
-      await updateApplication(applicationId, {
-        personalStatement: personalStatement.trim() || undefined,
-        currentYearLevel: currentYearLevel.trim() || undefined,
-        currentProgram: currentProgramField.trim() || undefined,
-        currentGpa: currentGpa.trim() ? parseFloat(currentGpa) : undefined,
-      });
-    } catch {
-      // Silent — user can retry on submit
-    }
-  }, [applicationId, hasUnsavedChanges, personalStatement, currentYearLevel, currentProgramField, currentGpa, updateApplication]);
-
   // ── Submit ──
   const onSubmit = useCallback(async () => {
     if (!canSubmit || submitLockedRef.current) return;
     submitLockedRef.current = true;
-
-    // Save draft fields first
-    await saveDraft();
-
     try {
       await submitApplication(applicationId);
       toast.show({
@@ -405,9 +385,9 @@ export default function ApplyScholarshipScreen() {
         placement: 'top',
         duration: 6000,
         label: 'Application submitted!',
-        description: `Your application for ${currentProgram?.name ?? 'this scholarship'} has been submitted. You will be notified of updates.`,
+        description: `Your application for ${currentProgram?.name ?? 'this scholarship'} has been submitted.`,
         icon: (
-          <View className="shrink-0 pt-0.5">
+          <View style={{ paddingTop: 2 }}>
             <Ionicons name="checkmark-circle" size={26} color="#079455" />
           </View>
         ),
@@ -419,232 +399,151 @@ export default function ApplyScholarshipScreen() {
       const msg = err instanceof Error ? err.message : 'Submission failed';
       Alert.alert('Submit failed', msg);
     }
-  }, [canSubmit, applicationId, saveDraft, submitApplication, currentProgram, toast, router]);
+  }, [canSubmit, applicationId, submitApplication, currentProgram, toast, router]);
 
   // ─────────────────────────────────────────────────────────────────────────────
 
   if (isLoadingApplication || !currentApplication) {
     return (
-      <View className="flex-1 bg-white">
-        <ScreenNavbar title="Apply for Scholarship" showMenu={false} onBackPress={goBack} />
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color={SUBMIT_BRAND} />
-          <Text className="mt-3 text-sm leading-5 text-[#717680]">Loading application…</Text>
-        </View>
+      <View style={[S.root, { alignItems: 'center', justifyContent: 'center' }]}>
+        <ActivityIndicator size="large" color="#2970FF" />
+        <Text style={{ marginTop: 12, fontSize: 14, color: '#717680' }}>Loading application…</Text>
       </View>
     );
   }
 
   const program = currentProgram;
   const slotsLeft =
-    program && program.totalSlots > 0
-      ? program.totalSlots - program.filledSlots
-      : null;
+    program && program.totalSlots > 0 ? program.totalSlots - program.filledSlots : null;
+
+  const pills: string[] = [];
+  if (program) {
+    if (program.tuitionDiscountPercent > 0) pills.push(`${program.tuitionDiscountPercent}% Tuition`);
+    if (program.miscDiscountPercent > 0) pills.push(`${program.miscDiscountPercent}% Misc`);
+    if (program.applicationCloseDate) pills.push(`Closes ${formatDate(program.applicationCloseDate)}`);
+    if (slotsLeft != null && slotsLeft > 0) pills.push(`${slotsLeft} slots left`);
+  }
 
   return (
-    <View className="flex-1 bg-white">
-      <ScreenNavbar
-        title={program ? `Apply — ${program.name}` : 'Scholarship Application'}
-        titleNumberOfLines={2}
-        showMenu={false}
-        onBackPress={requestLeave}
-      />
+    <View style={[S.root, { paddingTop: insets.top }]}>
 
-      <KeyboardAwareScrollView
-        className="flex-1"
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-        keyboardDismissMode="on-drag"
-        bottomOffset={100}
-        extraKeyboardSpace={24}
-        contentContainerStyle={{
-          paddingHorizontal: 20,
-          paddingTop: 12,
-          paddingBottom: 24,
-          flexGrow: 1,
-        }}>
-
-        {/* ── Program summary card ── */}
+      {/* ── Header ── */}
+      <View style={S.header}>
+        <Pressable onPress={goBack} style={S.backBtn} hitSlop={8}>
+          <Ionicons name="chevron-back" size={20} color="#181D27" />
+        </Pressable>
         {program ? (
-          <View className="mb-5 gap-3 rounded-2xl border border-[rgba(164,167,174,0.24)] bg-[#F8F9FE] p-4">
-            <Text className="text-xs font-semibold uppercase tracking-wide text-[#717680]">
-              {program.sponsorName}
-            </Text>
-            <Text className="text-lg font-bold leading-6 text-[#181D27]">{program.name}</Text>
-            <View className="flex-row flex-wrap gap-x-4 gap-y-1.5">
-              {slotsLeft != null ? (
-                <View className="flex-row items-center gap-1.5">
-                  <Ionicons name="people-outline" size={16} color={ICON_SUFFIX} />
-                  <Text className="text-sm leading-5 text-[#535862]">{slotsLeft} slots left</Text>
-                </View>
-              ) : null}
-              <View className="flex-row items-center gap-1.5">
-                <IconsaxCalendarIcon size={16} color={ICON_SUFFIX} />
-                <Text className="text-sm leading-5 text-[#535862]">
-                  Closes {formatDate(program.applicationCloseDate)}
-                </Text>
+          <View style={{ flex: 1 }}>
+            <Text style={S.headerName} numberOfLines={2}>{program.name}</Text>
+            <Text style={S.headerSponsor}>{program.sponsorName}</Text>
+          </View>
+        ) : null}
+      </View>
+
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={S.scrollContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled">
+
+        {/* ── Pills ── */}
+        {pills.length > 0 ? (
+          <View style={S.pillsRow}>
+            {pills.map((p) => (
+              <View key={p} style={S.pill}>
+                <Text style={S.pillText}>{p}</Text>
               </View>
-            </View>
-            {/* Reference number */}
-            {currentApplication.referenceNumber ? (
-              <View className="rounded-xl bg-[#EAF2FF] px-3 py-2">
-                <Text className="text-xs font-semibold text-[#2970FF]">
-                  Ref: {currentApplication.referenceNumber}
-                </Text>
-              </View>
-            ) : null}
+            ))}
           </View>
         ) : null}
 
-        {/* ── Student information ── */}
-        <View className="mb-5 gap-4">
-          <Text className="text-base font-semibold leading-6 text-[#181D27]">Your Information</Text>
-          <Text className="text-xs leading-4 text-[#717680]">
-            Optional — helps SDAO assess your application faster.
-          </Text>
-
-          <View className="gap-2">
-            <Text className="text-sm font-semibold leading-5 text-[#2A2A2A]">Year Level</Text>
-            <TextField className="w-full">
-              <TextArea
-                variant="primary"
-                className="w-full"
-                style={{ minHeight: 48, maxHeight: 48 }}
-                placeholder="e.g. 2nd Year"
-                placeholderColorClassName="text-[#8F9098]"
-                value={currentYearLevel}
-                onChangeText={setCurrentYearLevel}
-                editable={!isSubmitting}
-                multiline={false}
-              />
-            </TextField>
-          </View>
-
-          <View className="gap-2">
-            <Text className="text-sm font-semibold leading-5 text-[#2A2A2A]">Program / Course</Text>
-            <TextField className="w-full">
-              <TextArea
-                variant="primary"
-                className="w-full"
-                style={{ minHeight: 48, maxHeight: 48 }}
-                placeholder="e.g. BS Computer Science"
-                placeholderColorClassName="text-[#8F9098]"
-                value={currentProgramField}
-                onChangeText={setCurrentProgramField}
-                editable={!isSubmitting}
-                multiline={false}
-              />
-            </TextField>
-          </View>
-
-          <View className="gap-2">
-            <Text className="text-sm font-semibold leading-5 text-[#2A2A2A]">Current GPA</Text>
-            <TextField className="w-full">
-              <TextArea
-                variant="primary"
-                className="w-full"
-                style={{ minHeight: 48, maxHeight: 48 }}
-                placeholder="e.g. 1.75"
-                placeholderColorClassName="text-[#8F9098]"
-                value={currentGpa}
-                onChangeText={(t) => setCurrentGpa(t.replace(/[^0-9.]/g, ''))}
-                editable={!isSubmitting}
-                multiline={false}
-                keyboardType="decimal-pad"
-              />
-            </TextField>
-          </View>
-        </View>
-
-        {/* ── Personal statement ── */}
-        <View className="mb-5 gap-2">
-          <Text className="text-base font-semibold leading-6 text-[#181D27]">Personal Statement</Text>
-          <Text className="text-xs leading-4 text-[#717680]">
-            Tell SDAO why you deserve this scholarship. Describe your achievements, goals, and financial situation if applicable.
-          </Text>
-          <TextField className="w-full gap-2">
-            <TextArea
-              variant="primary"
-              className="min-h-[160px] w-full"
-              placeholder="Write your personal statement here…"
-              placeholderColorClassName="text-[#8F9098]"
-              value={personalStatement}
-              onChangeText={setPersonalStatement}
-              textAlignVertical="top"
-              editable={!isSubmitting}
-            />
-          </TextField>
-        </View>
-
-        {/* ── Requirements ── */}
-        <View className="mb-2 gap-4">
-          <View className="flex-row items-center justify-between gap-3">
-            <Text className="text-base font-semibold leading-6 text-[#181D27]">Requirements</Text>
-            <View className="rounded-full bg-[#EAF2FF] px-3 py-1">
-              <Text className="text-xs font-semibold text-[#2970FF]">
-                {uploadedRequiredCount} / {requiredReqs.length} required
+        {/* ── Requirements section ── */}
+        <View style={{ gap: 12 }}>
+          <View style={S.sectionRow}>
+            <Text style={S.sectionTitle}>Requirements</Text>
+            {requirements.length > 0 ? (
+              <Text style={S.uploadCount}>
+                ({uploadedDocs.length}/{requirements.length} Uploaded)
               </Text>
-            </View>
+            ) : null}
           </View>
 
-          {requirements.length === 0 ? (
-            <View className="items-center py-6">
-              <Text className="text-sm leading-5 text-[#717680]">No documents required for this scholarship.</Text>
+          {/* Bullet list */}
+          {requirements.length > 0 ? (
+            <View style={S.bulletList}>
+              {requirements.map((req) => (
+                <View key={req.id} style={S.bulletRow}>
+                  <Text style={S.bulletDot}>{'\u2022'}</Text>
+                  <Text style={S.bulletText}>
+                    {req.description ? `${req.name} — ${req.description}` : req.name}
+                  </Text>
+                </View>
+              ))}
             </View>
           ) : (
-            requirements.map((req) => (
-              <RequirementRow
-                key={req.id}
-                requirement={req}
-                uploadedDoc={uploadedDocsByReqId.get(req.id)}
-                isUploading={uploadingReqId === req.id}
-                isSubmitting={isSubmitting}
-                onUpload={pickAndUpload}
-                onRemove={handleRemove}
-              />
-            ))
+            <Text style={{ fontSize: 14, color: '#717680' }}>No documents required.</Text>
           )}
         </View>
-      </KeyboardAwareScrollView>
 
-      {/* ── Sticky submit bar ── */}
-      <KeyboardStickyView
-        className="border-t border-[#E8EFFF] bg-white/95 px-5 pt-3"
-        style={{ paddingBottom: Math.max(insets.bottom, 12) }}
-        offset={{ closed: 0, opened: 4 }}>
-        {!allRequiredUploaded && requirements.length > 0 ? (
-          <Text className="mb-2 px-0.5 text-center text-xs leading-4 text-[#D92D20]">
-            Upload all required documents before submitting.
-          </Text>
-        ) : (
-          <Text className="mb-2 px-0.5 text-center text-xs leading-4 text-[#6B7280]">
-            Review your documents before submitting. You cannot edit after submission.
-          </Text>
-        )}
+        {/* ── Upload dropzone ── */}
         <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={isSubmitting ? 'Submitting application' : 'Submit application'}
-          accessibilityState={{ disabled: !canSubmit, busy: isSubmitting }}
-          disabled={!canSubmit}
-          pointerEvents={!canSubmit ? 'none' : 'auto'}
+          onPress={pickAndUpload}
+          disabled={isUploading || !requirements.length || uploadedDocs.length >= requirements.length}
+          style={({ pressed }) => [
+            S.dropzone,
+            (isUploading || uploadedDocs.length >= requirements.length) && { opacity: 0.5 },
+            pressed && { opacity: 0.7 },
+          ]}>
+          <View style={S.dropzoneIconBg}>
+            {isUploading ? (
+              <ActivityIndicator size="small" color="#2970FF" />
+            ) : (
+              <Ionicons name="document-outline" size={24} color="#181D27" />
+            )}
+          </View>
+          <View style={{ alignItems: 'center', gap: 2 }}>
+            <Text style={S.dropzoneText}>
+              {'Tap to upload or '}
+              <Text style={S.dropzoneLink}>choose a file</Text>
+              {' to upload'}
+            </Text>
+            <Text style={S.dropzoneHint}>JPEG, PNG, PDF up to 20MB.</Text>
+          </View>
+        </Pressable>
+
+        {/* ── Uploaded files ── */}
+        {uploadedDocs.length > 0 ? (
+          <View style={{ gap: 16 }}>
+            {uploadedDocs.map((doc) => (
+              <FileRow
+                key={doc.id}
+                doc={doc}
+                uploading={uploadingReqId === doc.requirementId}
+                progress={uploadingReqId === doc.requirementId ? 50 : undefined}
+                onRemove={() => handleRemove(doc)}
+              />
+            ))}
+          </View>
+        ) : null}
+      </ScrollView>
+
+      {/* ── Submit button ── */}
+      <View style={[S.footer, { paddingBottom: Math.max(insets.bottom, 20), paddingTop: 12 }]}>
+        <Pressable
           onPress={onSubmit}
-          style={({ pressed }) => ({
-            opacity: !canSubmit ? 1 : pressed ? 0.9 : 1,
-            backgroundColor: !canSubmit && !isSubmitting ? '#A8C4FF' : SUBMIT_BRAND,
-            borderWidth: 1,
-            borderColor: 'rgba(0,0,0,0.1)',
-          })}
-          className="w-full flex-row items-center justify-center gap-2 rounded-full py-3">
+          disabled={!canSubmit}
+          style={({ pressed }) => [
+            S.submitBtn,
+            !canSubmit && S.submitBtnDisabled,
+            pressed && canSubmit && { opacity: 0.9 },
+          ]}>
           {isSubmitting ? (
-            <>
-              <ActivityIndicator color="#FFFFFF" size="small" />
-              <Text className="text-sm font-semibold text-white">Submitting…</Text>
-            </>
+            <ActivityIndicator color="#FFFFFF" size="small" />
           ) : (
-            <Text className="text-sm font-semibold text-white">Submit Application</Text>
+            <Text style={S.submitBtnText}>Submit Application</Text>
           )}
         </Pressable>
-      </KeyboardStickyView>
+      </View>
 
       {/* ── Discard dialog ── */}
       <Dialog isOpen={discardDialogOpen} onOpenChange={setDiscardDialogOpen}>
@@ -657,7 +556,7 @@ export default function ApplyScholarshipScreen() {
               Leave application?
             </Dialog.Title>
             <Dialog.Description className="mt-3 text-center text-sm leading-5 text-[#535862]">
-              Your uploaded documents are saved but unsaved text fields will be lost. You can return to continue later.
+              Your uploaded documents are saved. You can return to continue later.
             </Dialog.Description>
             <View className="mt-6 flex-row gap-3">
               <Button
@@ -665,16 +564,13 @@ export default function ApplyScholarshipScreen() {
                 size="md"
                 className="h-11 flex-1 border-[1.5px] border-[#D0D5DD] bg-white"
                 onPress={() => setDiscardDialogOpen(false)}>
-                <Button.Label className="text-sm font-semibold text-[#344054]">Keep editing</Button.Label>
+                <Button.Label className="text-sm font-semibold text-[#344054]">Stay</Button.Label>
               </Button>
               <Button
                 variant="danger"
                 size="md"
                 className="h-11 flex-1"
-                onPress={() => {
-                  setDiscardDialogOpen(false);
-                  goBack();
-                }}>
+                onPress={() => { setDiscardDialogOpen(false); goBack(); }}>
                 <Button.Label className="text-sm font-bold text-white">Leave</Button.Label>
               </Button>
             </View>

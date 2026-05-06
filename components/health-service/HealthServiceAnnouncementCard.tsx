@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Dimensions, NativeScrollEvent, NativeSyntheticEvent, ScrollView, Text, View } from 'react-native';
 
 import { SCHEDULE_PARTNER } from '../../lib/health-service/bookingScheduleTheme';
-import { HOME_SCROLL_PADDING_H } from '../../lib/ui/screenGradients';
 
 const BRAND = SCHEDULE_PARTNER.brand;
 
@@ -145,7 +144,7 @@ function SlidePanel({ slide, width }: { slide: Slide; width: number }) {
  */
 export function HealthServiceAnnouncementCard() {
   const scrollRef = useRef<ScrollView>(null);
-  const [width, setWidth] = useState(() => Math.max(0, Dimensions.get('window').width - HOME_SCROLL_PADDING_H * 2));
+  const [width, setWidth] = useState(() => Math.max(0, Dimensions.get('window').width - 16 * 2));
   const [index, setIndex] = useState(0);
   const indexRef = useRef(0);
 

@@ -195,17 +195,23 @@ const mapComplianceSubmissionRow = (row: ComplianceSubmissionRow): ComplianceSub
 // PROGRAMS
 // ============================================
 
-export async function getPrograms(): Promise<ScholarshipProgram[]> {
+export async function getPrograms(): Promise<(ScholarshipProgram & { requirements: ScholarshipRequirement[] })[]> {
   if (!supabase) throw new Error('Supabase not initialized');
 
   const { data, error } = await supabase
     .from('scholarship_programs')
-    .select('*')
+    .select('*, scholarship_requirements(*)')
     .eq('status', 'open')
     .order('application_close_date', { ascending: true });
 
   if (error) throw error;
-  return (data as ScholarshipProgramRow[] || []).map(mapProgramRow);
+
+  return (data || []).map((row: any) => ({
+    ...mapProgramRow(row as ScholarshipProgramRow),
+    requirements: ((row.scholarship_requirements as ScholarshipRequirementRow[]) || [])
+      .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+      .map(mapRequirementRow),
+  }));
 }
 
 export async function getProgramById(id: string): Promise<ScholarshipProgram & { requirements: ScholarshipRequirement[] }> {

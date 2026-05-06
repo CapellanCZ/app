@@ -9,7 +9,6 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -25,7 +24,6 @@ import {
   isStaffWorkingOnDate,
 } from '../../../../lib/health-service/slotUtils';
 import type { SlotPeriod, Staff, StaffRole } from '../../../../lib/health-service/types';
-import { HOME_SCROLL_PADDING_H } from '../../../../lib/ui/screenGradients';
 
 function startOfDay(d: Date): Date {
   const x = new Date(d);
@@ -289,7 +287,7 @@ export default function HealthServiceBookScreen() {
           className="flex-1 bg-transparent"
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{
-            paddingHorizontal: HOME_SCROLL_PADDING_H,
+            paddingHorizontal: 16,
             paddingBottom: 120 + Math.max(insets.bottom, 8),
           }}>
           <ProviderBookingCard staff={staff} selectedDay={selectedDay} working={working} rating={rating} />
@@ -354,13 +352,10 @@ export default function HealthServiceBookScreen() {
             disabled={!selectedSlot}
             className="overflow-hidden rounded-2xl active:opacity-90"
             style={{ opacity: selectedSlot ? 1 : 0.45 }}>
-            <LinearGradient
-              colors={['#2970FF', '#1D4ED8']}
-              start={{ x: 0, y: 0.5 }}
-              end={{ x: 1, y: 0.5 }}
-              style={{ paddingVertical: 16, alignItems: 'center', justifyContent: 'center' }}>
+            <View
+              style={{ backgroundColor: '#2970FF', paddingVertical: 16, alignItems: 'center', justifyContent: 'center' }}>
               <Text className="text-base font-semibold text-white">Book an Appointment</Text>
-            </LinearGradient>
+            </View>
           </Pressable>
         </View>
       </View>
