@@ -199,8 +199,13 @@ export const useScholarshipStore = create<ScholarshipState>((set, get) => ({
       
       console.log('[scholarships] Created application:', application.id);
       
-      // Add to list and refresh
-      await get().fetchMyApplications();
+      // Pre-set currentApplication so apply screen skips its fetch on mount
+      set({
+        currentApplication: { ...application, documents: [] },
+      });
+
+      // Refresh the list in background (don't await — screen is already navigating)
+      get().fetchMyApplications();
       set({ isSubmitting: false });
       
       return application.id;

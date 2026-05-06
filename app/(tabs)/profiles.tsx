@@ -119,7 +119,7 @@ export default function ProfileTab() {
           email={email}
           avatarUrl={avatarUrl}
           onAvatarPress={handleChangeAvatar}
-          onApplyPress={() => router.push('/student-development-affairs/apply')}
+          onApplyPress={() => router.push('/student-development-affairs')}
           style={{ marginBottom: 24 }}
         />
 

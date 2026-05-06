@@ -11,6 +11,7 @@ export { ScholarshipEligibilityChecklist, type ScholarshipEligibilityChecklistPr
 export { ScholarshipFeeSummaryCard, type ScholarshipFeeSummaryCardProps } from './ScholarshipFeeSummaryCard';
 export { ScholarshipInfoTagRow, type ScholarshipInfoTagRowProps } from './ScholarshipInfoTagRow';
 export { ScholarshipRequirementsList, type ScholarshipRequirementsListProps } from './ScholarshipRequirementsList';
+export { ActiveScholarshipCard } from './ActiveScholarshipCard';
 export { ScholarshipDetailModal } from './ScholarshipDetailModal';
 export { ScholarshipSearchBar, type ScholarshipSearchBarProps } from './ScholarshipSearchBar';
 export {

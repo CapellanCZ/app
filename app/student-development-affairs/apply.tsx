@@ -230,6 +230,8 @@ export default function ApplyScholarshipScreen() {
   const { applicationId } = useLocalSearchParams<{ applicationId: string }>();
 
   const {
+    programs,
+    myApplications,
     currentApplication,
     currentProgram,
     isLoadingApplication,
@@ -248,18 +250,27 @@ export default function ApplyScholarshipScreen() {
   const submitLockedRef = useRef(false);
   const docPickerBusyRef = useRef(false);
 
-  // ── Load data ──
+  // ── Load application — skip if already in store ──
   useEffect(() => {
     if (!applicationId) return;
+    // Already loaded with full documents shape
+    if (currentApplication?.id === applicationId) return;
     fetchApplicationById(applicationId);
-  }, [applicationId, fetchApplicationById]);
+  }, [applicationId]);
 
-  // ── Fetch program if not in store ──
+  // ── Resolve program — prefer pre-loaded programs array ──
   useEffect(() => {
-    if (!currentApplication?.programId) return;
-    if (!currentProgram || currentProgram.id !== currentApplication.programId) {
-      fetchProgramById(currentApplication.programId);
+    const programId = currentApplication?.programId;
+    if (!programId) return;
+    // Already have it with requirements
+    if (currentProgram?.id === programId && currentProgram.requirements?.length >= 0) return;
+    // Try from pre-loaded programs list first
+    const fromList = (programs as any[]).find((p) => p.id === programId);
+    if (fromList?.requirements !== undefined) {
+      useScholarshipStore.setState({ currentProgram: fromList });
+      return;
     }
+    fetchProgramById(programId);
   }, [currentApplication?.programId]);
 
   // ── Realtime subscription ──

@@ -3,6 +3,7 @@ import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-nati
 import { BottomSheet } from 'heroui-native';
 
 import {
+  ActiveScholarshipCard,
   ScholarshipCard,
   ScholarshipDetailModal,
   ScholarshipSearchBar,
@@ -42,7 +43,7 @@ function getCardStatus(program: ScholarshipProgram): ScholarshipCardStatus {
 
 /** Search band + white sheet on the same gradient shell as the home tab. */
 export default function StudentDevelopmentAffairsScreen() {
-  const { programs, isLoadingPrograms, error, fetchPrograms } = useScholarshipStore();
+  const { programs, myEnrollment, isLoadingPrograms, error, fetchPrograms } = useScholarshipStore();
 
   const [selectedProgram, setSelectedProgram] = useState<ScholarshipProgram | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -114,6 +115,9 @@ export default function StudentDevelopmentAffairsScreen() {
         <View className="min-h-0 flex-1 rounded-t-[30px] pb-12 pt-2">
           <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
             <View className="w-full gap-3 px-4 pb-4">
+              {myEnrollment ? (
+                <ActiveScholarshipCard enrollment={myEnrollment as any} />
+              ) : null}
               {isLoadingPrograms ? (
                 <View className="items-center justify-center py-16">
                   <ActivityIndicator size="large" color="#2970FF" />
