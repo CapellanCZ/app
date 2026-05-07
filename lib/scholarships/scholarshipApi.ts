@@ -4,6 +4,7 @@
 // ============================================
 
 import { supabase } from '@/lib/supabase';
+import { DOCUMENT_TYPES } from './types';
 import type {
   ScholarshipProgram,
   ScholarshipProgramRow,
@@ -24,6 +25,7 @@ import type {
   UploadDocumentInput,
   SubmitComplianceInput,
   ApplicationStatus,
+  DocumentType,
 } from './types';
 
 // ============================================
@@ -192,6 +194,59 @@ const mapComplianceSubmissionRow = (row: ComplianceSubmissionRow): ComplianceSub
 });
 
 // ============================================
+// HELPERS
+// ============================================
+
+async function notifySelf(opts: {
+  userId: string;
+  title: string;
+  body: string;
+  href?: string;
+  notificationType?: 'success' | 'info' | 'error';
+}): Promise<void> {
+  if (!supabase) return;
+  const baseRow = {
+    user_id: opts.userId,
+    category: 'scholarships',
+    title: opts.title,
+    body: opts.body,
+    href: opts.href ?? '/student-development-affairs',
+  };
+  const richRow = {
+    ...baseRow,
+    source: 'SDA Office',
+    notification_type: opts.notificationType ?? 'info',
+  };
+  let { error } = await supabase.from('notifications').insert(richRow);
+  if (error) {
+    const msg = error.message?.toLowerCase() ?? '';
+    if (msg.includes('source') || msg.includes('notification_type') || msg.includes('column') || msg.includes('schema')) {
+      const { error: fallbackErr } = await supabase.from('notifications').insert(baseRow);
+      if (fallbackErr) console.warn('[scholarshipApi] notifySelf fallback', fallbackErr.message);
+    } else {
+      console.warn('[scholarshipApi] notifySelf', error.message);
+    }
+  }
+}
+
+function mimeTypeToDocumentType(mimeType: string, fileName: string): DocumentType {
+  const lookup: Record<string, DocumentType> = {
+    'application/pdf': DOCUMENT_TYPES[9],         // 'other'
+    'image/jpeg': DOCUMENT_TYPES[3],              // 'id_photo'
+    'image/png': DOCUMENT_TYPES[3],
+    'image/webp': DOCUMENT_TYPES[3],
+    'image/heic': DOCUMENT_TYPES[3],
+    'application/msword': DOCUMENT_TYPES[4],      // 'essay'
+  };
+  if (lookup[mimeType]) return lookup[mimeType];
+  if (mimeType.startsWith('image/')) return DOCUMENT_TYPES[3];
+  if (mimeType.includes('wordprocessingml')) return DOCUMENT_TYPES[4];
+  const ext = fileName.split('.').pop()?.toLowerCase() ?? '';
+  if (['jpg', 'jpeg', 'png', 'webp', 'heic'].includes(ext)) return DOCUMENT_TYPES[3];
+  return DOCUMENT_TYPES[9];
+}
+
+// ============================================
 // PROGRAMS
 // ============================================
 
@@ -320,7 +375,27 @@ export async function createApplication(input: CreateApplicationInput): Promise<
     .single();
 
   if (error) throw error;
-  return mapApplicationRow(data as ScholarshipApplicationRow);
+  const application = mapApplicationRow(data as ScholarshipApplicationRow);
+
+  // Best-effort: fire a notification card (never block the main flow)
+  void (async () => {
+    try {
+      const { data: prog } = await supabase!
+        .from('scholarship_programs')
+        .select('name')
+        .eq('id', input.programId)
+        .single();
+      await notifySelf({
+        userId: user.id,
+        title: 'Application Started',
+        body: `Your application for ${prog?.name ?? 'a scholarship'} has been saved as a draft. Upload your documents to complete it.`,
+        href: '/student-development-affairs',
+        notificationType: 'info',
+      });
+    } catch (_) {}
+  })();
+
+  return application;
 }
 
 export async function updateApplication(id: string, input: UpdateApplicationInput): Promise<ScholarshipApplication> {
@@ -351,36 +426,43 @@ export async function updateApplication(id: string, input: UpdateApplicationInpu
 export async function submitApplication(id: string): Promise<ScholarshipApplication> {
   if (!supabase) throw new Error('Supabase not initialized');
 
-  // First check if all required documents are uploaded
-  const { data: docs, error: docsError } = await supabase
-    .from('application_documents')
-    .select(`
-      *,
-      requirement:scholarship_requirements(is_required)
-    `)
-    .eq('application_id', id);
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
 
-  if (docsError) throw docsError;
+  // Fetch the application's program_id + program name for the notification
+  const { data: app, error: appError } = await supabase
+    .from('scholarship_applications')
+    .select('program_id, program:scholarship_programs(name)')
+    .eq('id', id)
+    .single();
 
-  const requiredDocs = (docs || []).filter(d => (d.requirement as unknown as { is_required: boolean }).is_required);
-  if (requiredDocs.length === 0) {
-    // Get requirements to check
-    const { data: app } = await supabase
-      .from('scholarship_applications')
-      .select('program_id')
-      .eq('id', id)
-      .single();
-    
-    if (app) {
-      const { data: reqs } = await supabase
-        .from('scholarship_requirements')
-        .select('*')
-        .eq('program_id', app.program_id)
-        .eq('is_required', true);
-      
-      if (reqs && reqs.length > 0) {
-        throw new Error(`Missing ${reqs.length} required document(s)`);
-      }
+  if (appError) throw appError;
+
+  // Fetch all required requirement IDs for this program
+  const { data: reqs, error: reqsError } = await supabase
+    .from('scholarship_requirements')
+    .select('id')
+    .eq('program_id', app.program_id)
+    .eq('is_required', true);
+
+  if (reqsError) throw reqsError;
+
+  const requiredIds = new Set((reqs || []).map((r: { id: string }) => r.id));
+
+  if (requiredIds.size > 0) {
+    // Fetch uploaded documents for this application
+    const { data: docs, error: docsError } = await supabase
+      .from('application_documents')
+      .select('requirement_id')
+      .eq('application_id', id);
+
+    if (docsError) throw docsError;
+
+    const uploadedReqIds = new Set((docs || []).map((d: { requirement_id: string }) => d.requirement_id));
+    const missing = [...requiredIds].filter(rid => !uploadedReqIds.has(rid));
+
+    if (missing.length > 0) {
+      throw new Error(`Missing ${missing.length} required document(s). Please upload all required files before submitting.`);
     }
   }
 
@@ -398,6 +480,16 @@ export async function submitApplication(id: string): Promise<ScholarshipApplicat
 
   if (error) throw error;
   if (!data) throw new Error('Application not found or already submitted');
+
+  const programName = (app as any)?.program?.name ?? 'the scholarship';
+  void notifySelf({
+    userId: user.id,
+    title: 'Application Submitted',
+    body: `Your application for ${programName} has been submitted and is now under review. We'll notify you of any updates.`,
+    href: '/student-development-affairs',
+    notificationType: 'success',
+  });
+
   return mapApplicationRow(data as ScholarshipApplicationRow);
 }
 
@@ -446,7 +538,7 @@ export async function uploadApplicationDocument(input: UploadDocumentInput): Pro
       original_filename: input.fileName,
       storage_bucket: 'scholarship-docs',
       storage_path: filePath,
-      file_type: input.fileName.endsWith('.pdf') ? 'other' : 'id_photo', // Simplified - improve based on actual type
+      file_type: mimeTypeToDocumentType(input.mimeType, input.fileName),
       file_size_bytes: input.file.size,
       mime_type: input.mimeType,
       uploaded_by: user.id,

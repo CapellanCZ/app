@@ -91,11 +91,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [session?.user?.id]);
 
   // Pre-fetch scholarship data right after login so detail screen opens instantly.
-  const { fetchPrograms, fetchMyApplications, reset: resetScholarships } = useScholarshipStore();
+  const { fetchPrograms, fetchMyApplications, fetchMyEnrollment, reset: resetScholarships } = useScholarshipStore();
   useEffect(() => {
     if (session?.user?.id) {
       fetchPrograms();
       fetchMyApplications();
+      fetchMyEnrollment();
     } else if (session === null && !isLoading) {
       resetScholarships();
     }
