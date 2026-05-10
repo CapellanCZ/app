@@ -5,7 +5,6 @@ import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
 
 import { AuthErrorBanner } from '@/components/auth/AuthErrorBanner';
-import { AuthSuccessModal } from '@/components/auth/AuthSuccessModal';
 import { AppButton } from '@/components/ui/AppButton';
 import { AppInput } from '@/components/ui/AppInput';
 import { BottomSheetModal, type BottomSheetModalHandle } from '@/components/ui/BottomSheetModal';
@@ -14,6 +13,7 @@ import { ProgressBar } from '@/components/ui/ProgressBar';
 import { IconsaxEnvelopeIcon } from '@/components/icons/IconsaxEnvelopeIcon';
 import { NU_DOMAIN } from '@/lib/auth/constants';
 import { friendlyAuthError } from '@/lib/auth/friendlyAuthError';
+import { createUser } from '@/lib/auth/authApi';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { getDepartments, getProgramsByDepartment, type Department, type Program } from '@/lib/academic/academicApi';
 
@@ -55,7 +55,6 @@ export default function SignUp() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<{ tone: 'error' | 'warning'; message: string } | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const [showSuccess, setShowSuccess] = useState(false);
 
   // Fetch departments on mount
   useEffect(() => {
@@ -146,22 +145,25 @@ export default function SignUp() {
       const password = Array.from(randomBytes)
         .map((b) => b.toString(16).padStart(2, '0'))
         .join('');
-      const { error: authError } = await supabase.auth.signUp({
-        email: email.trim().toLowerCase(),
-        password,
-        options: {
-          emailRedirectTo: redirectTo,
-          data: {
-            first_name: firstName.trim(),
-            last_name: lastName.trim(),
-            program: program?.name ?? '',
-            department: department?.code ?? '',
-            student_id: studentId.trim(),
-          },
-        },
-      });
-      if (authError) setError({ tone: 'warning', message: friendlyAuthError(authError.message) });
-      else setShowSuccess(true);
+      // Create user account
+      const metadata = {
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
+        program: program?.name ?? '',
+        department: department?.code ?? '',
+        student_id: studentId.trim(),
+      };
+      
+      const result = await createUser(email.trim().toLowerCase(), password, metadata);
+      
+      if (!result.ok) {
+        setError({ tone: 'warning', message: result.message });
+      } else {
+        // Clear any session that might have been created during sign-up
+        await supabase?.auth.signOut();
+        // Navigate to success screen
+        router.replace('/signup-success');
+      }
     } catch (e: unknown) {
       const raw = e instanceof Error ? e.message : '';
       setError({ tone: 'warning', message: friendlyAuthError(raw) });
@@ -363,17 +365,6 @@ export default function SignUp() {
 
         </View>
       </BottomSheetModal>
-
-      <AuthSuccessModal
-        visible={showSuccess}
-        onClose={() => { setShowSuccess(false); router.replace('/login'); }}
-        icon="checkmark-circle"
-        iconColor="#22C55E"
-        iconBg="rgba(34,197,94,0.1)"
-        title="Account Created!"
-        message="Your CampusCare account has been created. Please check your NU email to verify your account, then sign in with a magic link."
-        buttonLabel="Go to Login"
-      />
     </>
   );
 }

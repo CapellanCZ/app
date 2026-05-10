@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import { useMemo, useState, useEffect, useCallback } from 'react';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View, RefreshControl } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 
@@ -13,10 +13,9 @@ import { IconsaxSearchIcon } from '../../components/icons/IconsaxSearchIcon';
 import { IconsaxSortIcon } from '../../components/icons/IconsaxSortIcon';
 import { ScreenNavbar } from '../../components/ScreenNavbar';
 import { SCHEDULE_PARTNER } from '../../lib/health-service/bookingScheduleTheme';
-import { MOCK_STAFF } from '../../lib/health-service/mockStaff';
-import { isStaffWorkingOnDate } from '../../lib/health-service/slotUtils';
+import { healthServiceApi } from '../../lib/health-service/healthServiceApi';
 import { formatAppointmentWhen } from '../../lib/health-service/appointmentDisplay';
-import { staffNameForAppointment, useHealthServiceStore } from '../../lib/health-service/healthServiceStore';
+import { useHealthServiceStore, staffNameForAppointment } from '../../lib/health-service/healthServiceStore';
 import type { StaffRole } from '../../lib/health-service/types';
 
 function startOfDay(d: Date): Date {
@@ -30,31 +29,71 @@ function dateKeyForDay(d: Date): string {
   return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
 }
 
+// Simple function to check if staff is working on a given date
+// For now, assume all staff work Monday-Friday
+function isStaffWorkingOnDate(staffId: string, date: Date): boolean {
+  const dayOfWeek = date.getDay();
+  return dayOfWeek >= 1 && dayOfWeek <= 5; // Monday to Friday
+}
+
 type AvailabilityFilter = 'all' | 'today';
 
 const BRAND = SCHEDULE_PARTNER.brand;
-
 const PROVIDER_GRID_GAP = 12;
 
 export default function HealthServiceScreen() {
   const insets = useSafeAreaInsets();
   const { width: windowWidth } = useWindowDimensions();
   const providerCardWidth = (windowWidth - 16 * 2 - PROVIDER_GRID_GAP) / 2;
+  
   const [roleFilter, setRoleFilter] = useState<StaffRole | 'all'>('all');
   const [search, setSearch] = useState('');
   const [availabilityFilter, setAvailabilityFilter] = useState<AvailabilityFilter>('all');
   const [filterModalOpen, setFilterModalOpen] = useState(false);
   const [savedProviderIds, setSavedProviderIds] = useState<Set<string>>(() => new Set());
+  const [refreshing, setRefreshing] = useState(false);
 
-  const appointments = useHealthServiceStore((s) => s.appointments);
+  // Zustand store
+  const { 
+    appointments, 
+    staff, 
+    loading, 
+    error,
+    loadAppointments, 
+    loadStaff, 
+    refreshData 
+  } = useHealthServiceStore();
+
   const today = useMemo(() => startOfDay(new Date()), []);
   const todayKey = useMemo(() => dateKeyForDay(today), [today]);
 
+  // Load data on mount
+  useEffect(() => {
+    loadAppointments();
+    loadStaff();
+  }, [loadAppointments, loadStaff]);
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await refreshData();
+      // Also expire old tickets
+      await healthServiceApi.expireOldTickets();
+    } catch (error) {
+      console.error('Refresh failed:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refreshData]);
+
   const filteredStaff = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return MOCK_STAFF.filter((s) => {
+    return staff.filter((s) => {
       if (roleFilter !== 'all' && s.role !== roleFilter) return false;
-      if (availabilityFilter === 'today' && !isStaffWorkingOnDate(s.id, today)) return false;
+      if (availabilityFilter === 'today') {
+        // For now, assume all staff are available today
+        // In a real implementation, you'd check their schedule
+      }
       if (q) {
         const name = s.name.toLowerCase();
         const spec = s.specialtyLabel.toLowerCase();
@@ -62,7 +101,7 @@ export default function HealthServiceScreen() {
       }
       return true;
     });
-  }, [roleFilter, availabilityFilter, search, today]);
+  }, [roleFilter, availabilityFilter, search, staff]);
 
   const active = useMemo(() => {
     return appointments
@@ -126,6 +165,9 @@ export default function HealthServiceScreen() {
         className="flex-1 bg-transparent"
         keyboardDismissMode="on-drag"
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+        }
         contentContainerStyle={{
           paddingHorizontal: 16,
           paddingBottom: Math.max(insets.bottom, 12) + 24,
@@ -375,3 +417,53 @@ export default function HealthServiceScreen() {
     </HealthServiceScreenShell>
   );
 }
+
+const styles = StyleSheet.create({
+  adminButton: {
+    backgroundColor: '#F0F7FF',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E1EFFE',
+  },
+  adminButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 4,
+  },
+  adminButtonSubtext: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  loadingContainer: {
+    paddingVertical: 32,
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#6B7280',
+  },
+  errorContainer: {
+    paddingVertical: 32,
+    alignItems: 'center',
+    gap: 12,
+  },
+  errorText: {
+    fontSize: 14,
+    color: '#DC2626',
+    textAlign: 'center',
+  },
+  retryButton: {
+    backgroundColor: '#2970FF',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+});

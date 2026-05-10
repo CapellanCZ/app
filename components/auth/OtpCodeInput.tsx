@@ -62,12 +62,11 @@ export function OtpCodeInput({ onComplete, onChange, disabled = false, hasError 
 
       // Single digit input
       const char = cleaned.slice(-1);
-      setDigits((prev) => {
-        const next = [...prev];
-        next[index] = char;
-        onChange?.(next.join(''));
-        return next;
-      });
+      const newDigits = digits.map((d, i) => (i === index ? char : d));
+      setDigits(newDigits);
+
+      const newCode = newDigits.join('');
+      onChange?.(newCode);
 
       if (char && index < DIGIT_COUNT - 1) {
         refs.current[index + 1]?.focus();
@@ -75,19 +74,11 @@ export function OtpCodeInput({ onComplete, onChange, disabled = false, hasError 
       }
 
       // Check if all filled after this input
-      if (char && index === DIGIT_COUNT - 1) {
-        setDigits((prev) => {
-          const next = [...prev];
-          next[index] = char;
-          const code = next.join('');
-          if (code.length === DIGIT_COUNT) {
-            onComplete?.(code);
-          }
-          return next;
-        });
+      if (char && newCode.replace(/\s/g, '').length === DIGIT_COUNT) {
+        onComplete?.(newCode);
       }
     },
-    [disabled, onComplete, onChange],
+    [disabled, digits, onComplete, onChange],
   );
 
   const handleKeyPress = useCallback(
@@ -95,12 +86,9 @@ export function OtpCodeInput({ onComplete, onChange, disabled = false, hasError 
       if (e.nativeEvent.key === 'Backspace' && !digits[index] && index > 0) {
         refs.current[index - 1]?.focus();
         setFocusedIndex(index - 1);
-        setDigits((prev) => {
-          const next = [...prev];
-          next[index - 1] = '';
-          onChange?.(next.join(''));
-          return next;
-        });
+        const backDigits = digits.map((d, i) => (i === index - 1 ? '' : d));
+        setDigits(backDigits);
+        onChange?.(backDigits.join(''));
       }
     },
     [digits, onChange],
