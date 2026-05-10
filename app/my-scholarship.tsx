@@ -33,12 +33,9 @@ const HERO_GRADIENT = ['#2970FF', '#155EEF', '#1248E8'] as const;
 
 const STATUS_DOT_COLOR: Record<string, string> = {
   active: '#47CD89',
-  compliant: '#47CD89',
-  at_risk: '#F79009',
   probation: '#F04438',
+  at_risk: '#F79009',
   suspended: '#F04438',
-  terminated: '#98A2B3',
-  completed: '#47CD89',
 };
 
 function formatDueDate(dateStr: string): string {
@@ -388,7 +385,7 @@ export default function MyScholarshipScreen() {
 
               <View className="mt-4 items-center">
                 <GradientText className="text-sm font-medium capitalize leading-5">
-                  {`${myEnrollment.academicYear} · ${myEnrollment.term}`}
+                  Active Scholarship
                 </GradientText>
                 <View className="flex-row items-center justify-center gap-2">
                   <IconsaxMedalFilledIcon size={36} color="#FFFFFF" />
@@ -416,20 +413,7 @@ export default function MyScholarshipScreen() {
                     Your Progress
                   </Text>
                 </View>
-                {myEnrollment.currentGpa != null ? (
-                  <>
-                    <View className="w-px self-stretch bg-[#E4E7EC]" />
-                    <View className="min-w-0 flex-1 items-center gap-2">
-                      <Text className="text-3xl font-semibold leading-9 text-[#155EEF]">
-                        {myEnrollment.currentGpa.toFixed(2)}
-                      </Text>
-                      <Text className="text-center text-sm font-normal leading-6 text-[#181D27]">
-                        GPA
-                      </Text>
-                    </View>
-                  </>
-                ) : null}
-              </View>
+                              </View>
             </View>
           </View>
         </View>

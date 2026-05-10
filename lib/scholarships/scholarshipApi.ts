@@ -49,7 +49,6 @@ const mapProgramRow = (row: ScholarshipProgramRow): ScholarshipProgram => ({
   programs: row.programs,
   tuitionDiscountPercent: row.tuition_discount_percent,
   miscDiscountPercent: row.misc_discount_percent,
-  monthlyStipend: row.monthly_stipend,
   totalSlots: row.total_slots,
   filledSlots: row.filled_slots,
   sponsorName: row.sponsor_name,
@@ -82,21 +81,11 @@ const mapApplicationRow = (row: ScholarshipApplicationRow): ScholarshipApplicati
   studentId: row.student_id,
   status: row.status as ScholarshipApplication['status'],
   referenceNumber: row.reference_number,
-  currentGpa: row.current_gpa,
-  currentYearLevel: row.current_year_level,
-  currentProgram: row.current_program,
-  enrollmentStatus: row.enrollment_status,
-  familyIncomeRange: row.family_income_range,
   hasSiblingsInSchool: row.has_siblings_in_school,
-  personalStatement: row.personal_statement,
   reviewedBy: row.reviewed_by,
   reviewedAt: row.reviewed_at,
   reviewNotes: row.review_notes,
   rejectionReason: row.rejection_reason,
-  academicScore: row.academic_score,
-  financialNeedScore: row.financial_need_score,
-  interviewScore: row.interview_score,
-  totalScore: row.total_score,
   submittedAt: row.submitted_at,
   decidedAt: row.decided_at,
   isArchived: row.is_archived,
@@ -132,16 +121,8 @@ const mapEnrollmentRow = (row: ScholarEnrollmentRow): ScholarEnrollment => ({
   applicationId: row.application_id,
   status: row.status as ScholarEnrollment['status'],
   referenceNumber: row.reference_number,
-  academicYear: row.academic_year,
-  term: row.term,
-  yearLevel: row.year_level,
-  currentGpa: row.current_gpa,
-  gpaLastUpdated: row.gpa_last_updated,
   contractSignedAt: row.contract_signed_at,
   contractSigneeName: row.contract_signee_name,
-  assignedCounselor: row.assigned_counselor,
-  totalDisbursed: row.total_disbursed,
-  lastDisbursementAt: row.last_disbursement_at,
   statusChangedAt: row.status_changed_at,
   statusChangedBy: row.status_changed_by,
   statusReason: row.status_reason,
@@ -192,6 +173,44 @@ const mapComplianceSubmissionRow = (row: ComplianceSubmissionRow): ComplianceSub
   createdAt: row.created_at,
   updatedAt: row.updated_at,
 });
+
+// ============================================
+// TERMINATION FLOW
+// ============================================
+
+export async function terminateScholarship(enrollmentId: string, reason?: string): Promise<void> {
+  if (!supabase) throw new Error('Supabase not initialized');
+
+  // First, fetch the enrollment to get the student ID and program name
+  const { data: enrollment, error: fetchError } = await supabase
+    .from('scholar_enrollments')
+    .select('student_id, program:scholarship_programs(name)')
+    .eq('id', enrollmentId)
+    .single();
+
+  if (fetchError) throw fetchError;
+  if (!enrollment) throw new Error('Enrollment not found');
+
+  const studentId = enrollment.student_id;
+  const programName = (enrollment as any)?.program?.name ?? 'your scholarship';
+
+  // Create termination notification
+  await notifySelf({
+    userId: studentId,
+    title: 'Scholarship Terminated',
+    body: `Your scholarship for ${programName} has been terminated${reason ? `. ${reason}` : ''}. Contact SDA Office for details.`,
+    href: '/student-development-affairs',
+    notificationType: 'error',
+  });
+
+  // Delete the enrollment row
+  const { error: deleteError } = await supabase
+    .from('scholar_enrollments')
+    .delete()
+    .eq('id', enrollmentId);
+
+  if (deleteError) throw deleteError;
+}
 
 // ============================================
 // HELPERS
@@ -363,13 +382,7 @@ export async function createApplication(input: CreateApplicationInput): Promise<
       program_id: input.programId,
       student_id: user.id,
       status: 'draft',
-      current_gpa: input.currentGpa,
-      current_year_level: input.currentYearLevel,
-      current_program: input.currentProgram,
-      enrollment_status: input.enrollmentStatus,
-      family_income_range: input.familyIncomeRange,
       has_siblings_in_school: input.hasSiblingsInSchool,
-      personal_statement: input.personalStatement,
     })
     .select()
     .single();
@@ -404,13 +417,7 @@ export async function updateApplication(id: string, input: UpdateApplicationInpu
   const { data, error } = await supabase
     .from('scholarship_applications')
     .update({
-      current_gpa: input.currentGpa,
-      current_year_level: input.currentYearLevel,
-      current_program: input.currentProgram,
-      enrollment_status: input.enrollmentStatus,
-      family_income_range: input.familyIncomeRange,
       has_siblings_in_school: input.hasSiblingsInSchool,
-      personal_statement: input.personalStatement,
       updated_at: new Date().toISOString(),
     })
     .eq('id', id)

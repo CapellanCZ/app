@@ -191,10 +191,6 @@ export const useScholarshipStore = create<ScholarshipState>((set, get) => ({
     try {
       const application = await api.createApplication({
         programId,
-        currentGpa: data.currentGpa,
-        currentYearLevel: data.currentYearLevel,
-        currentProgram: data.currentProgram,
-        personalStatement: data.personalStatement,
       });
       
       console.log('[scholarships] Created application:', application.id);

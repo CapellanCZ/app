@@ -13,7 +13,7 @@ export type ScholarshipStatus = typeof SCHOLARSHIP_STATUSES[number];
 export const APPLICATION_STATUSES = ['draft', 'submitted', 'under_review', 'needs_info', 'approved', 'rejected', 'withdrawn'] as const;
 export type ApplicationStatus = typeof APPLICATION_STATUSES[number];
 
-export const SCHOLAR_STATUSES = ['active', 'compliant', 'at_risk', 'probation', 'suspended', 'terminated', 'completed'] as const;
+export const SCHOLAR_STATUSES = ['active', 'probation', 'at_risk', 'suspended'] as const;
 export type ScholarStatus = typeof SCHOLAR_STATUSES[number];
 
 export const COMPLIANCE_ITEM_TYPES = ['grades', 'enrollment_proof', 'good_moral', 'medical_clearance', 'community_service', 'interview', 'contract_signing', 'other'] as const;
@@ -48,12 +48,9 @@ export const APPLICATION_STATUS_LABELS: Record<ApplicationStatus, string> = {
 
 export const SCHOLAR_STATUS_LABELS: Record<ScholarStatus, string> = {
   active: 'Active',
-  compliant: 'Compliant',
-  at_risk: 'At Risk',
   probation: 'Probation',
+  at_risk: 'At Risk',
   suspended: 'Suspended',
-  terminated: 'Terminated',
-  completed: 'Completed',
 };
 
 export const COMPLIANCE_STATUS_LABELS: Record<ComplianceStatus, string> = {
@@ -89,15 +86,14 @@ export type ScholarshipProgram = {
   status: ScholarshipStatus;
   applicationOpenDate: string;
   applicationCloseDate: string;
-  academicYear: string;
-  term: string;
+  academicYear: string | null;
+  term: string | null;
   minGpa: number | null;
   maxGpa: number | null;
   yearLevels: string[] | null;
   programs: string[] | null;
   tuitionDiscountPercent: number;
   miscDiscountPercent: number;
-  monthlyStipend: number | null;
   totalSlots: number;
   filledSlots: number;
   sponsorName: string;
@@ -130,21 +126,11 @@ export type ScholarshipApplication = {
   studentId: string;
   status: ApplicationStatus;
   referenceNumber: string | null;
-  currentGpa: number | null;
-  currentYearLevel: string | null;
-  currentProgram: string | null;
-  enrollmentStatus: string | null;
-  familyIncomeRange: string | null;
   hasSiblingsInSchool: boolean | null;
-  personalStatement: string | null;
   reviewedBy: string | null;
   reviewedAt: string | null;
   reviewNotes: string | null;
   rejectionReason: string | null;
-  academicScore: number | null;
-  financialNeedScore: number | null;
-  interviewScore: number | null;
-  totalScore: number | null;
   submittedAt: string | null;
   decidedAt: string | null;
   isArchived: boolean;
@@ -186,16 +172,8 @@ export type ScholarEnrollment = {
   applicationId: string;
   status: ScholarStatus;
   referenceNumber: string | null;
-  academicYear: string;
-  term: string;
-  yearLevel: string;
-  currentGpa: number | null;
-  gpaLastUpdated: string | null;
   contractSignedAt: string | null;
   contractSigneeName: string | null;
-  assignedCounselor: string | null;
-  totalDisbursed: number;
-  lastDisbursementAt: string | null;
   statusChangedAt: string | null;
   statusChangedBy: string | null;
   statusReason: string | null;
@@ -288,13 +266,7 @@ export type ApplicationFilter = {
 
 export type CreateApplicationInput = {
   programId: string;
-  currentGpa?: number;
-  currentYearLevel?: string;
-  currentProgram?: string;
-  enrollmentStatus?: string;
-  familyIncomeRange?: string;
   hasSiblingsInSchool?: boolean;
-  personalStatement?: string;
 };
 
 export type UpdateApplicationInput = Partial<CreateApplicationInput>;
@@ -328,15 +300,14 @@ export type ScholarshipProgramRow = {
   status: string;
   application_open_date: string;
   application_close_date: string;
-  academic_year: string;
-  term: string;
+  academic_year: string | null;
+  term: string | null;
   min_gpa: number | null;
   max_gpa: number | null;
   year_levels: string[] | null;
   programs: string[] | null;
   tuition_discount_percent: number;
   misc_discount_percent: number;
-  monthly_stipend: number | null;
   total_slots: number;
   filled_slots: number;
   sponsor_name: string;
@@ -369,21 +340,11 @@ export type ScholarshipApplicationRow = {
   student_id: string;
   status: string;
   reference_number: string | null;
-  current_gpa: number | null;
-  current_year_level: string | null;
-  current_program: string | null;
-  enrollment_status: string | null;
-  family_income_range: string | null;
   has_siblings_in_school: boolean | null;
-  personal_statement: string | null;
   reviewed_by: string | null;
   reviewed_at: string | null;
   review_notes: string | null;
   rejection_reason: string | null;
-  academic_score: number | null;
-  financial_need_score: number | null;
-  interview_score: number | null;
-  total_score: number | null;
   submitted_at: string | null;
   decided_at: string | null;
   is_archived: boolean;
@@ -419,16 +380,8 @@ export type ScholarEnrollmentRow = {
   application_id: string;
   status: string;
   reference_number: string | null;
-  academic_year: string;
-  term: string;
-  year_level: string;
-  current_gpa: number | null;
-  gpa_last_updated: string | null;
   contract_signed_at: string | null;
   contract_signee_name: string | null;
-  assigned_counselor: string | null;
-  total_disbursed: number;
-  last_disbursement_at: string | null;
   status_changed_at: string | null;
   status_changed_by: string | null;
   status_reason: string | null;

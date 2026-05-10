@@ -21,11 +21,9 @@ type StatusConfig = { label: string; bg: string; text: string };
 
 const STATUS_CONFIG: Record<string, StatusConfig> = {
   active:    { label: 'Active',    bg: '#DCFCE7', text: '#16A34A' },
-  compliant: { label: 'Compliant', bg: '#DCFCE7', text: '#16A34A' },
-  at_risk:   { label: 'At Risk',   bg: '#FEF9C3', text: '#CA8A04' },
   probation: { label: 'Probation', bg: '#FEF3F2', text: '#D92D20' },
+  at_risk:   { label: 'At Risk',   bg: '#FEF9C3', text: '#CA8A04' },
   suspended: { label: 'Suspended', bg: '#E9EAEB', text: '#A4A7AE' },
-  terminated:{ label: 'Terminated',bg: '#FEF3F2', text: '#D92D20' },
 };
 
 function statusConfig(status: string): StatusConfig {
@@ -95,10 +93,6 @@ export function ActiveScholarshipCard({ enrollment }: Props) {
           <View style={S.statItem}>
             <Text style={S.statValue}>{pendingCount}</Text>
             <Text style={S.statLabel}>Pending Requirements</Text>
-          </View>
-          <View style={S.statItem}>
-            <Text style={S.statValue}>{progressPercent}%</Text>
-            <Text style={S.statLabel}>Progress Percentage</Text>
           </View>
         </View>
 

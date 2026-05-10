@@ -61,7 +61,8 @@ export default function StudentDevelopmentAffairsScreen() {
   }, []);
 
   const academicYears = useMemo(
-    () => [...new Set(programs.map((p) => p.academicYear))].sort((a, b) => b.localeCompare(a)),
+    () => [...new Set(programs.map((p) => p.academicYear).filter((year): year is string => year !== null))]
+        .sort((a, b) => b.localeCompare(a)),
     [programs],
   );
 
@@ -146,8 +147,8 @@ export default function StudentDevelopmentAffairsScreen() {
                   <ScholarshipCard
                     key={program.id}
                     title={program.name}
-                    academicYear={program.academicYear}
-                    term={program.term}
+                    academicYear={program.academicYear || '2024-2025'}
+                    term={program.term || '1st Term'}
                     slotsLeft={program.totalSlots - program.filledSlots}
                     tuitionPercent={program.tuitionDiscountPercent}
                     miscPercent={program.miscDiscountPercent}
