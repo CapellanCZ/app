@@ -44,6 +44,7 @@ export type Appointment = {
   dateKey: string;
   startLabel: string;
   status: AppointmentStatus;
+  checkInCode?: string;
   /** Present only when `status` is `confirmed` — created when the provider confirms (no ticket while pending). */
   arrivalTicket?: QueueTicket;
 };

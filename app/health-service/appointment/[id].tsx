@@ -12,8 +12,7 @@ import {
   getPatientTicketLabel,
 } from '../../../lib/health-service/appointmentDisplay';
 import { SCHEDULE_PARTNER } from '../../../lib/health-service/bookingScheduleTheme';
-import { getHealthServiceApi } from '../../../lib/health-service/healthServiceApi';
-import { getStaffById } from '../../../lib/health-service/mockStaff';
+import { healthServiceApi } from '../../../lib/health-service/healthServiceApi';
 import { staffNameForAppointment, useHealthServiceStore } from '../../../lib/health-service/healthServiceStore';
 
 const PAGE_BG = SCHEDULE_PARTNER.segmentTrackBg;
@@ -77,14 +76,14 @@ export default function AppointmentTicketScreen() {
   const appointmentId = typeof id === 'string' ? id : id?.[0] ?? '';
 
   const appointments = useHealthServiceStore((s) => s.appointments);
-  const healthApi = useMemo(() => getHealthServiceApi(), []);
+  const { staff: allStaff } = useHealthServiceStore();
 
   const ap = useMemo(
     () => appointments.find((a) => a.id === appointmentId),
     [appointments, appointmentId],
   );
 
-  const staff = ap ? getStaffById(ap.staffId) : undefined;
+  const staff = ap ? allStaff.find((s) => s.id === ap.staffId) : undefined;
   const staffName = ap ? staffNameForAppointment(ap) : '';
   const whenLabel = ap ? formatAppointmentWhen(ap) : '';
   const dateLong = ap ? formatAppointmentDateLong(ap) : '';
@@ -120,7 +119,7 @@ export default function AppointmentTicketScreen() {
   const headline = isCancelled
     ? 'This visit was cancelled.'
     : isConfirmed
-      ? 'Your appointment is confirmed — your ticket is ready below.'
+      ? 'Your appointment is confirmed — your check-in code is ready below.'
       : 'Your request is pending — no ticket until your provider confirms.';
 
   const dashColor = 'rgba(15, 23, 42, 0.18)';
@@ -175,9 +174,11 @@ export default function AppointmentTicketScreen() {
 
           <TicketPerforationRow pageBg={PAGE_BG} dashColor={dashColor} />
 
-          <View accessibilityLabel={`${patientLabel}. ${staff?.specialtyLabel ?? ''}. ${CLINIC_NAME}`}>
+          <View accessibilityLabel={`${staff?.specialtyLabel ?? ''}. ${CLINIC_NAME}`}>
             <Text style={{ fontSize: 11, fontWeight: '700', color: SUB, letterSpacing: 0.6 }}>PATIENT</Text>
-            <Text style={{ marginTop: 6, fontSize: 22, fontWeight: '800', color: INK, letterSpacing: 0.5 }}>{patientLabel}</Text>
+            <Text style={{ marginTop: 6, fontSize: 22, fontWeight: '800', color: INK, letterSpacing: 0.5 }}>
+              {isConfirmed && ticket != null && ticket.status === 'called' ? patientLabel : 'Waiting'}
+            </Text>
             <Text style={{ marginTop: 6, fontSize: 14, fontWeight: '400', color: MUTED, lineHeight: 20 }}>
               {staff?.specialtyLabel ? `${staff.specialtyLabel} · ` : null}
               {CLINIC_NAME}
@@ -197,14 +198,39 @@ export default function AppointmentTicketScreen() {
             </View>
           </View>
 
-          {!isCancelled && isConfirmed && ticket != null ? (
+          {!isCancelled && isPending ? (
             <>
               <TicketPerforationRow pageBg={PAGE_BG} dashColor={dashColor} />
               <View style={{ alignItems: 'center', gap: 10 }}>
                 <Text style={{ fontSize: 11, fontWeight: '700', color: SUB, letterSpacing: 0.5 }}>CHECK-IN CODE</Text>
                 <Text style={{ fontSize: 12, fontWeight: '400', color: MUTED, textAlign: 'center', lineHeight: 17, paddingHorizontal: 4 }}>
-                  A short pass for the clinic desk: show it when you arrive so staff can match you to this visit and add
-                  you to the queue (demo).
+                  Present this code to the nurse at the clinic desk to confirm your appointment and get your patient number.
+                </Text>
+                <View
+                  style={{
+                    paddingVertical: 14,
+                    paddingHorizontal: 24,
+                    borderRadius: 14,
+                    backgroundColor: SCHEDULE_PARTNER.slotTint,
+                    borderWidth: 1,
+                    borderColor: 'rgba(41, 112, 255, 0.14)',
+                  }}>
+                  <Text style={{ fontSize: 22, fontWeight: '800', color: INK, letterSpacing: 4, textAlign: 'center' }}>
+                    {ap.checkInCode || ap.id}
+                  </Text>
+                </View>
+                <Text style={{ fontSize: 13, fontWeight: '500', color: MUTED, textAlign: 'center', lineHeight: 19 }}>
+                  Waiting for confirmation · Present code to nurse
+                </Text>
+              </View>
+            </>
+          ) : !isCancelled && isConfirmed && ticket != null ? (
+            <>
+              <TicketPerforationRow pageBg={PAGE_BG} dashColor={dashColor} />
+              <View style={{ alignItems: 'center', gap: 10 }}>
+                <Text style={{ fontSize: 11, fontWeight: '700', color: SUB, letterSpacing: 0.5 }}>CHECK-IN CODE</Text>
+                <Text style={{ fontSize: 12, fontWeight: '400', color: MUTED, textAlign: 'center', lineHeight: 17, paddingHorizontal: 4 }}>
+                  Present this code to the nurse at the clinic desk. The code expires in 1 hour.
                 </Text>
                 <View
                   style={{
@@ -219,9 +245,15 @@ export default function AppointmentTicketScreen() {
                     {ticket.code}
                   </Text>
                 </View>
-                <Text style={{ fontSize: 13, fontWeight: '500', color: MUTED, textAlign: 'center', lineHeight: 19 }}>
-                  Queue #{ticket.position} · About {ticket.estimatedMinutes} min wait after you check in at the desk (demo).
-                </Text>
+                {ticket.status === 'called' ? (
+                  <Text style={{ fontSize: 13, fontWeight: '500', color: MUTED, textAlign: 'center', lineHeight: 19 }}>
+                    You are Patient #{ticket.position} · Please proceed to the clinic
+                  </Text>
+                ) : (
+                  <Text style={{ fontSize: 13, fontWeight: '500', color: MUTED, textAlign: 'center', lineHeight: 19 }}>
+                    Waiting for check-in · Present code to nurse to get your patient number
+                  </Text>
+                )}
               </View>
             </>
           ) : !isCancelled && isPending ? (
@@ -247,7 +279,7 @@ export default function AppointmentTicketScreen() {
               variant="primary"
               size="md"
               className="h-11 w-full rounded-full bg-[#2970FF]"
-              onPress={() => void healthApi.confirmAppointmentByProvider(ap.id)}
+              onPress={() => void healthServiceApi.confirmAppointmentByProvider(ap.id)}
               accessibilityLabel="Simulate provider confirming this appointment for demo">
               <Button.Label className="text-sm font-semibold text-white">Simulate provider confirm (demo)</Button.Label>
             </Button>
@@ -264,7 +296,7 @@ export default function AppointmentTicketScreen() {
                   whenLabel,
                   status: isPending ? 'pending' : 'confirmed',
                   onConfirm: () => {
-                    void healthApi.cancelAppointment(ap.id);
+                    void healthServiceApi.cancelAppointment(ap.id);
                     router.back();
                   },
                 })

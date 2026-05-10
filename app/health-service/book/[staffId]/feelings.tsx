@@ -15,8 +15,7 @@ import { IconsaxTagUserIcon } from '../../../../components/icons/IconsaxTagUserI
 import { HealthServiceScreenShell } from '../../../../components/health-service/HealthServiceScreenShell';
 import { ScreenNavbar } from '../../../../components/ScreenNavbar';
 import { SCHEDULE_PARTNER } from '../../../../lib/health-service/bookingScheduleTheme';
-import { getHealthServiceApi } from '../../../../lib/health-service/healthServiceApi';
-import { getStaffById } from '../../../../lib/health-service/mockStaff';
+import { useHealthServiceStore } from '../../../../lib/health-service/healthServiceStore';
 
 const BRAND = '#2970FF';
 const ICON_TINT = 'rgba(41, 112, 255, 0.12)';
@@ -39,7 +38,7 @@ function parseDateKey(key: string): Date | null {
 
 export default function HealthServiceBookFeelingsScreen() {
   const insets = useSafeAreaInsets();
-  const healthApi = useMemo(() => getHealthServiceApi(), []);
+  const { bookAppointment, staff: allStaff } = useHealthServiceStore();
   const { staffId, dateKey, slot } = useLocalSearchParams<{
     staffId: string;
     dateKey: string;
@@ -56,21 +55,27 @@ export default function HealthServiceBookFeelingsScreen() {
   }, [slot]);
 
   const visitDay = useMemo(() => (dateKey ? parseDateKey(String(dateKey)) : null), [dateKey]);
-  const staff = useMemo(() => (staffId ? getStaffById(String(staffId)) : undefined), [staffId]);
+  const staff = useMemo(() => (staffId ? allStaff.find((s) => s.id === staffId) : undefined), [staffId, allStaff]);
 
   const [feelingIds, setFeelingIds] = useState<string[]>([]);
   const [visitComments, setVisitComments] = useState('');
 
-  const onSubmit = useCallback(() => {
+  const onSubmit = useCallback(async () => {
     if (!staff || !visitDay || !slotLabel) return;
+    
     const feelingLabels = feelingIds
       .map((id) => HEALTH_BOOKING_FEELING_OPTIONS.find((o) => o.id === id)?.label)
       .filter(Boolean)
       .join(', ');
-    const extra =
-      [feelingLabels ? `Symptoms / concerns: ${feelingLabels}` : null, visitComments.trim() ? `Comments: ${visitComments.trim()}` : null]
-        .filter(Boolean)
-        .join('\n') || 'No extra symptoms or comments added.';
+    
+    const symptoms = [
+      feelingLabels ? `Symptoms / concerns: ${feelingLabels}` : null, 
+      visitComments.trim() ? `Comments: ${visitComments.trim()}` : null
+    ]
+      .filter(Boolean)
+      .join('\n') || undefined;
+
+    const extra = symptoms || 'No extra symptoms or comments added.';
 
     Alert.alert(
       'Submit booking request?',
@@ -78,27 +83,36 @@ export default function HealthServiceBookFeelingsScreen() {
         weekday: 'short',
         month: 'short',
         day: 'numeric',
-      })} with ${staff.name}?\n\n${extra}\n\nA provider will review it before it is confirmed. Once confirmed, an arrival ticket is created automatically (demo).`,
+      })} with ${staff.name}?\n\n${extra}\n\nA provider will review it before it is confirmed. Once confirmed, an arrival ticket is created automatically.`,
       [
         { text: 'Not now', style: 'cancel' },
         {
           text: 'Submit',
-          onPress: () => {
-            void healthApi.bookAppointment({
-              staffId: staff.id,
-              day: visitDay,
-              startLabel: slotLabel,
-            });
-            Alert.alert(
-              'Request sent',
-              'Your booking is pending provider review. You will see it under My appointments with a Pending status. After approval, your visit is confirmed and a ticket is added automatically (demo).',
-              [{ text: 'OK', onPress: () => router.replace('/health-service') }],
-            );
+          onPress: async () => {
+            try {
+              await bookAppointment({
+                staffId: staff.id,
+                day: visitDay,
+                startLabel: slotLabel,
+                symptoms,
+              });
+              Alert.alert(
+                'Request sent',
+                'Your booking is pending provider review. You will see it under My appointments with a Pending status. After approval, your visit is confirmed and a ticket is added automatically.',
+                [{ text: 'OK', onPress: () => router.replace('/health-service') }],
+              );
+            } catch (error) {
+              Alert.alert(
+                'Booking failed',
+                error instanceof Error ? error.message : 'Failed to book appointment. Please try again.',
+                [{ text: 'OK' }]
+              );
+            }
           },
         },
       ],
     );
-  }, [staff, visitDay, slotLabel, healthApi, feelingIds, visitComments]);
+  }, [staff, visitDay, slotLabel, bookAppointment, feelingIds, visitComments]);
 
   if (!staff || !visitDay || !slotLabel) {
     return (

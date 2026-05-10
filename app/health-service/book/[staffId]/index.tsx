@@ -17,7 +17,7 @@ import { HealthServiceScreenShell } from '../../../../components/health-service/
 import { TimeSlotGrid } from '../../../../components/health-service/TimeSlotGrid';
 import { ScreenNavbar } from '../../../../components/ScreenNavbar';
 import { SCHEDULE_PARTNER } from '../../../../lib/health-service/bookingScheduleTheme';
-import { getStaffById } from '../../../../lib/health-service/mockStaff';
+import { useHealthServiceStore } from '../../../../lib/health-service/healthServiceStore';
 import {
   getClinicPublicHoursSummary,
   getSlotLabelsForPeriod,
@@ -228,8 +228,9 @@ function ProviderBookingCard({ staff, selectedDay, working, rating }: ProviderBo
 export default function HealthServiceBookScreen() {
   const { staffId } = useLocalSearchParams<{ staffId: string }>();
   const insets = useSafeAreaInsets();
+  const { staff: allStaff } = useHealthServiceStore();
 
-  const staff = useMemo(() => (staffId ? getStaffById(String(staffId)) : undefined), [staffId]);
+  const staff = useMemo(() => (staffId ? allStaff.find((s) => s.id === staffId) : undefined), [staffId, allStaff]);
 
   const [selectedDay, setSelectedDay] = useState(() => startOfDay(new Date()));
   const [period, setPeriod] = useState<SlotPeriod>('morning');

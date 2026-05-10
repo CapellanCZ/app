@@ -25,14 +25,14 @@ export function GetStartedHero({ onSignIn, onSignUp, onTerms, onPrivacy }: GetSt
       {/* ── Gray image area — flex:1 fills all space above panel ── */}
       <View style={styles.imageArea}>
         <Image
-          source={require('../../assets/hero_students.png')}
+          source={require('../../assets/student-model.optimized.png')}
           style={{
-            width: screenW * 0.82,
-            height: '78%',
+            width: screenW * 0.90,
+            height: '80%',
             position: 'absolute',
             bottom: 0,
             alignSelf: 'center',
-            left: screenW * 0.09,
+            left: screenW * 0.05,
           }}
           resizeMode="contain"
         />
