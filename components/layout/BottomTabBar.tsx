@@ -20,6 +20,7 @@ const VISIBLE_ROUTES = [
   '/health-service',
   '/student-development-affairs',
   '/(tabs)/profiles',
+  '/profiles',
 ];
 
 function isTabBarVisible(pathname: string): boolean {
@@ -141,7 +142,7 @@ export function BottomTabBar() {
           borderRadius: 32,
           paddingVertical: 12,
           paddingHorizontal: 6,
-          shadowColor: '#2970FF',
+          shadowColor: 'rgba(129, 128, 128, 0.99)',
           shadowOffset: { width: 0, height: 6 },
           shadowOpacity: 0.15,
           shadowRadius: 20,
