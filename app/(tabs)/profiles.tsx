@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { TAB_BAR_HEIGHT } from '@/components/layout/BottomTabBar';
 import { useRouter } from 'expo-router';
 
 import { useAuth } from '@/lib/auth/AuthProvider';
@@ -99,7 +100,7 @@ export default function ProfileTab() {
         contentContainerStyle={{
           paddingTop: insets.top + 16,
           paddingHorizontal: 20,
-          paddingBottom: Math.max(insets.bottom, 16) + 28,
+          paddingBottom: Math.max(insets.bottom, 16) + TAB_BAR_HEIGHT + 8,
         }}>
 
         {/* Page title */}

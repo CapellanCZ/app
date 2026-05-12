@@ -10,6 +10,7 @@ import {
   type ScholarshipCardStatus,
 } from '@/components/student-development-affairs';
 import { ScreenHeader } from '@/components/layout/ScreenHeader';
+import { TAB_BAR_HEIGHT } from '@/components/layout/BottomTabBar';
 import { useScholarshipStore } from '@/lib/scholarships/scholarshipStore';
 import type { ScholarshipProgram } from '@/lib/scholarships/types';
 
@@ -113,8 +114,8 @@ export default function StudentDevelopmentAffairsScreen() {
             </View>
           ) : null} */}
         </View>
-        <View className="min-h-0 flex-1 rounded-t-[30px] pb-12 pt-2">
-          <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+        <View className="min-h-0 flex-1 rounded-t-[30px] pt-2">
+          <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: TAB_BAR_HEIGHT + 16 }}>
             <View className="w-full gap-3 px-4 pb-4">
               {myEnrollment ? (
                 <ActiveScholarshipCard enrollment={myEnrollment as any} />
