@@ -79,9 +79,10 @@ function DayPill({ day, selected, disabled, isCurrentMonth, onSelect }: DayPillP
   const num = day.getDate();
 
   const muted = disabled || !isCurrentMonth;
-  const bg = selected ? BRAND : muted ? '#F1F5F9' : SURFACE;
-  const borderColor = selected ? BRAND : muted ? 'transparent' : BORDER_CELL;
-  const labelColor = selected ? 'rgba(255,255,255,0.92)' : muted ? TEXT_DISABLED : TEXT_MUTED;
+
+  const bg = selected ? BRAND : '#FFFFFF';
+  const borderColor = selected ? BRAND : muted ? '#E9EAEB' : '#D5D7DA';
+  const weekdayColor = selected ? 'rgba(255,255,255,0.85)' : muted ? TEXT_DISABLED : '#717680';
   const numColor = selected ? '#FFFFFF' : muted ? TEXT_DISABLED : TEXT_PRIMARY;
 
   return (
@@ -99,36 +100,35 @@ function DayPill({ day, selected, disabled, isCurrentMonth, onSelect }: DayPillP
           animStyle,
           {
             width: '100%',
-            minHeight: 72,
-            borderRadius: 14,
-            paddingVertical: 8,
+            minHeight: 68,
+            borderRadius: 999,
+            paddingVertical: 10,
             paddingHorizontal: 2,
             alignItems: 'center',
             justifyContent: 'center',
             gap: 4,
             backgroundColor: bg,
-            borderWidth: selected ? 0 : muted ? 0 : 1,
+            borderWidth: 1,
             borderColor,
+            opacity: muted && !selected ? 0.5 : 1,
           },
         ]}>
         <Text
           numberOfLines={1}
           style={{
-            fontSize: 10,
-            fontWeight: '600',
-            letterSpacing: 0.2,
-            textTransform: 'capitalize',
-            color: labelColor,
+            fontSize: 11,
+            fontWeight: '500',
+            letterSpacing: 0.1,
+            color: weekdayColor,
           }}>
           {weekday}
         </Text>
         <Text
           numberOfLines={1}
           style={{
-            fontSize: 16,
+            fontSize: 18,
             fontWeight: '700',
             letterSpacing: -0.3,
-            lineHeight: 18,
             color: numColor,
           }}>
           {num}
@@ -190,12 +190,7 @@ export function HealthBookingDateStrip({
   const exiting = directionRef.current === 'forward' ? FadeOutLeft.duration(140) : FadeOutRight.duration(140);
 
   const shell = embedded
-    ? {
-        paddingHorizontal: 16,
-        paddingTop: 16,
-        paddingBottom: 12,
-        backgroundColor: 'transparent' as const,
-      }
+    ? { backgroundColor: 'transparent' as const }
     : {
         borderRadius: SCHEDULE_PARTNER.radius,
         backgroundColor: SURFACE,
@@ -209,65 +204,99 @@ export function HealthBookingDateStrip({
 
   const body = (
     <>
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, padding: 4}}>
-        <View style={{ marginBottom: 0 }}>
-          <Text
+      {!embedded && (
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, padding: 4 }}>
+          <View>
+            <Text style={{ fontSize: 20, fontWeight: '700', color: TEXT_PRIMARY, letterSpacing: -0.2 }}>
+              {monthLabel}
+            </Text>
+            <Text style={{ marginTop: 3, fontSize: 12, fontWeight: '500', color: TEXT_MUTED }}>
+              Available depending on School Calendar
+              {holidays.length > 0 ? ' · Holiday dates muted below' : ''}
+            </Text>
+          </View>
+          <View
             style={{
-              fontSize: 20,
-              fontWeight: '700',
-              color: TEXT_PRIMARY,
-              letterSpacing: -0.2,
+              flexDirection: 'row',
+              alignItems: 'center',
+              borderRadius: 999,
+              padding: 3,
+              gap: 2,
+              backgroundColor: SCHEDULE_PARTNER.segmentTrackBg,
+              borderWidth: 1,
+              borderColor: SCHEDULE_PARTNER.segmentTrackBorder,
             }}>
-            {monthLabel}
-          </Text>
-          <Text style={{ marginTop: 3, fontSize: 12, fontWeight: '500', color: TEXT_MUTED }}>
-            Available depending on School Calendar
-            {holidays.length > 0 ? ' · Holiday dates muted below' : ''}
-          </Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Previous week"
+              hitSlop={10}
+              onPress={() => navigate(-1)}
+              style={({ pressed }) => ({
+                width: 36,
+                height: 36,
+                borderRadius: 18,
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: pressed ? SURFACE : 'transparent',
+              })}>
+              <IconsaxArrowLeftIcon size={22} color={BRAND} />
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Next week"
+              hitSlop={10}
+              onPress={() => navigate(1)}
+              style={({ pressed }) => ({
+                width: 36,
+                height: 36,
+                borderRadius: 18,
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: pressed ? SURFACE : 'transparent',
+              })}>
+              <IconsaxArrowRightIcon size={22} color={BRAND} />
+            </Pressable>
+          </View>
         </View>
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            borderRadius: 999,
-            padding: 3,
-            gap: 2,
-            backgroundColor: SCHEDULE_PARTNER.segmentTrackBg,
-            borderWidth: 1,
-            borderColor: SCHEDULE_PARTNER.segmentTrackBorder,
-          }}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Previous week"
-            hitSlop={10}
-            onPress={() => navigate(-1)}
-            style={({ pressed }) => ({
-              width: 36,
-              height: 36,
-              borderRadius: 18,
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: pressed ? SURFACE : 'transparent',
-            })}>
-            <IconsaxArrowLeftIcon size={22} color={BRAND} />
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Next week"
-            hitSlop={10}
-            onPress={() => navigate(1)}
-            style={({ pressed }) => ({
-              width: 36,
-              height: 36,
-              borderRadius: 18,
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: pressed ? SURFACE : 'transparent',
-            })}>
-            <IconsaxArrowRightIcon size={22} color={BRAND} />
-          </Pressable>
+      )}
+
+      {embedded && (
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <Text style={{ fontSize: 14, fontWeight: '500', color: TEXT_MUTED }}>{monthLabel}</Text>
+          <View style={{ flexDirection: 'row', gap: 4 }}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Previous week"
+              hitSlop={10}
+              onPress={() => navigate(-1)}
+              style={({ pressed }) => ({
+                width: 32,
+                height: 32,
+                borderRadius: 999,
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: pressed ? '#F0F0F0' : 'transparent',
+              })}>
+              <IconsaxArrowLeftIcon size={18} color={BRAND} />
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Next week"
+              hitSlop={10}
+              onPress={() => navigate(1)}
+              style={({ pressed }) => ({
+                width: 32,
+                height: 32,
+                borderRadius: 999,
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: pressed ? '#F0F0F0' : 'transparent',
+              })}>
+              <IconsaxArrowRightIcon size={18} color={BRAND} />
+            </Pressable>
+          </View>
         </View>
-      </View>
+      )}
 
       <Animated.View
         key={slideKey}
@@ -304,12 +333,12 @@ export type HealthBookingFeelingOption = {
 };
 
 export const HEALTH_BOOKING_FEELING_OPTIONS: HealthBookingFeelingOption[] = [
-  { id: 'checkup', label: 'General check-up' },
-  { id: 'fever', label: 'Fever / flu symptoms' },
-  { id: 'pain', label: 'Pain or injury' },
-  { id: 'mental', label: 'Stress / mental health' },
-  { id: 'digestive', label: 'Digestive issues' },
-  { id: 'other', label: 'Something else' },
+  { id: 'fatigue', label: 'Fatigue' },
+  { id: 'pain', label: 'Pain or Injury' },
+  { id: 'cramps', label: 'Cramps' },
+  { id: 'fever', label: 'Fever' },
+  { id: 'digestive', label: 'Digestive Issues' },
+  { id: 'sorethroat', label: 'Soretroat' },
 ];
 
 export type HealthBookingFeelingGroupProps = {

@@ -21,7 +21,6 @@ const PERIOD_TABS: { id: SlotPeriod; label: string }[] = [
   { id: 'morning', label: 'Morning' },
   { id: 'afternoon', label: 'Afternoon' },
   { id: 'evening', label: 'Evening' },
-  { id: 'night', label: 'Night' },
 ];
 
 export type TimeSlotGridProps = {
@@ -46,32 +45,34 @@ function SlotGrid({
   onSelect: (label: string) => void;
 }) {
   return (
-    <View className="flex-row flex-wrap gap-2">
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
       {labels.map((label) => {
         const selected = selectedLabel === label;
+        const isDisabledSlot = false;
         return (
-          <View key={label} className="w-[31%]">
+          <View key={label} style={{ width: '23%', minWidth: 72, flexGrow: 1, maxWidth: '25%' }}>
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={`Book time ${label}`}
               accessibilityState={{ selected }}
-              onPress={() => onSelect(label)}
+              onPress={() => !isDisabledSlot && onSelect(label)}
               style={{
                 alignItems: 'center',
                 justifyContent: 'center',
                 borderRadius: 999,
                 paddingVertical: 12,
-                paddingHorizontal: 6,
-                borderWidth: selected ? 2 : 1,
-                borderColor: selected ? BRAND : BORDER_SUBTLE,
-                backgroundColor: selected ? SCHEDULE_PARTNER.slotTint : '#FFFFFF',
-              }}>
+                paddingHorizontal: 4,
+                borderWidth: 1,
+                borderColor: selected ? BRAND : '#E9EAEB',
+                backgroundColor: selected ? BRAND : '#FFFFFF',
+              }}
+              className="active:opacity-80">
               <Text
                 numberOfLines={1}
                 style={{
                   fontSize: 14,
-                  fontWeight: '600',
-                  color: selected ? BRAND : TEXT_MUTED,
+                  fontWeight: '500',
+                  color: selected ? '#FFFFFF' : TEXT_MUTED,
                 }}>
                 {label}
               </Text>
@@ -135,18 +136,16 @@ export function TimeSlotGrid({
 
   const inner = (
     <>
-      <Text style={titleStyle}>Select Time</Text>
-
+      {/* Period segment tabs */}
       <View
         style={{
-          marginTop: 14,
           flexDirection: 'row',
           borderRadius: 999,
           borderWidth: 1,
-          borderColor: SCHEDULE_PARTNER.segmentTrackBorder,
-          backgroundColor: SCHEDULE_PARTNER.segmentTrackBg,
+          borderColor: '#E9EAEB',
+          backgroundColor: '#F5F5F5',
           padding: 3,
-          gap: 2,
+          gap: 0,
         }}>
         {PERIOD_TABS.map((t) => {
           const selected = period === t.id;
@@ -165,18 +164,23 @@ export function TimeSlotGrid({
                 flex: 1,
                 minWidth: 0,
                 borderRadius: 999,
-                paddingVertical: 9,
+                paddingVertical: 10,
                 paddingHorizontal: 4,
                 alignItems: 'center',
                 justifyContent: 'center',
-                backgroundColor: selected ? BRAND : 'transparent',
+                backgroundColor: selected ? '#FFFFFF' : 'transparent',
+                shadowColor: selected ? '#000' : 'transparent',
+                shadowOffset: { width: 0, height: 1 },
+                shadowOpacity: selected ? 0.06 : 0,
+                shadowRadius: 2,
+                elevation: selected ? 1 : 0,
               }}>
               <Text
                 numberOfLines={1}
                 style={{
                   fontSize: 14,
-                  fontWeight: '600',
-                  color: selected ? '#FFFFFF' : TEXT_MUTED,
+                  fontWeight: selected ? '600' : '400',
+                  color: selected ? BRAND : TEXT_MUTED,
                 }}>
                 {t.label}
               </Text>
@@ -185,7 +189,8 @@ export function TimeSlotGrid({
         })}
       </View>
 
-      <View style={{ marginTop: 14 }} onLayout={onPagerLayout}>
+      {/* Slot grid */}
+      <View style={{ marginTop: 12 }} onLayout={onPagerLayout}>
         {pagerWidth > 0 ? (
           <ScrollView
             ref={scrollRef}
@@ -203,8 +208,7 @@ export function TimeSlotGrid({
                 <View key={t.id} style={{ width: pagerWidth }}>
                   {pageLabels.length === 0 && emptyMessage ? (
                     <Text
-                      className="text-center text-sm leading-5"
-                      style={{ color: '#8F9098' }}>
+                      style={{ color: '#8F9098', textAlign: 'center', fontSize: 14, lineHeight: 20 }}>
                       {emptyMessage}
                     </Text>
                   ) : (
@@ -223,7 +227,7 @@ export function TimeSlotGrid({
 
   if (embedded) {
     return (
-      <View style={{ paddingHorizontal: 16, paddingTop: 4, paddingBottom: 16 }}>
+      <View style={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 16, gap: 0 }}>
         {inner}
       </View>
     );

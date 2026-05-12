@@ -1,384 +1,456 @@
 import { useMemo, useState, useEffect, useCallback } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, RefreshControl } from 'react-native';
+import { Image, Pressable, ScrollView, Text, TextInput, useWindowDimensions, View, RefreshControl } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 
-import { AppointmentListCard } from '../../components/health-service/AppointmentListCard';
-import { HealthServiceAnnouncementCard } from '../../components/health-service/HealthServiceAnnouncementCard';
 import { HealthServiceScreenShell } from '../../components/health-service/HealthServiceScreenShell';
 import { ProviderCard } from '../../components/health-service/ProviderCard';
-import { QueueTicketCard } from '../../components/health-service/QueueTicketCard';
-import { RoleFilterChips } from '../../components/health-service/RoleFilterChips';
-import { ScholarshipSearchBar } from '../../components/student-development-affairs/ScholarshipSearchBar';
 import { TAB_BAR_HEIGHT } from '../../components/layout/BottomTabBar';
-import { ScreenHeader } from '../../components/layout/ScreenHeader';
-import { SCHEDULE_PARTNER } from '../../lib/health-service/bookingScheduleTheme';
 import { healthServiceApi } from '../../lib/health-service/healthServiceApi';
-import { formatAppointmentWhen } from '../../lib/health-service/appointmentDisplay';
 import { useHealthServiceStore, staffNameForAppointment } from '../../lib/health-service/healthServiceStore';
+import { useAuth } from '../../lib/auth/AuthProvider';
+import { fetchStudentProfile } from '../../lib/profile/profileApi';
+import { IconsaxNotificationIcon } from '../../components/icons/IconsaxNotificationIcon';
+import { IconsaxSearchIcon } from '../../components/icons/IconsaxSearchIcon';
+import { IconsaxCalendarIcon } from '../../components/icons/IconsaxCalendarIcon';
+import { IconsaxTimerIcon } from '../../components/icons/IconsaxTimerIcon';
 import type { StaffRole } from '../../lib/health-service/types';
 
-function startOfDay(d: Date): Date {
-  const x = new Date(d);
-  x.setHours(0, 0, 0, 0);
-  return x;
+function formatDateLabel(dateKey: string): string {
+  const [y, m, d] = dateKey.split('-').map(Number);
+  const date = new Date(y, m - 1, d);
+  const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'];
+  return `${dayNames[date.getDay()]}, ${d} ${monthNames[m - 1]}`;
 }
 
-function dateKeyForDay(d: Date): string {
-  const x = startOfDay(d);
-  return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
-}
+const BRAND = '#2970FF';
 
-const BRAND = SCHEDULE_PARTNER.brand;
-const PROVIDER_GRID_GAP = 12;
+const ROLE_CHIPS: { label: string; value: StaffRole | 'all' }[] = [
+  { label: 'Physician', value: 'doctor' },
+  { label: 'Dentist', value: 'dentist' },
+  { label: 'Cardiology', value: 'all' },
+  { label: 'Psychiatrist', value: 'all' },
+];
+
+function getGreeting(): string {
+  const h = new Date().getHours();
+  if (h < 12) return 'Good Morning';
+  if (h < 18) return 'Good Afternoon';
+  return 'Good Evening';
+}
 
 export default function HealthServiceScreen() {
   const insets = useSafeAreaInsets();
   const { width: windowWidth } = useWindowDimensions();
-  const providerCardWidth = (windowWidth - 16 * 2 - PROVIDER_GRID_GAP) / 2;
-  
+
+  const { session } = useAuth();
+  const [userName, setUserName] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+
   const [roleFilter, setRoleFilter] = useState<StaffRole | 'all'>('all');
-  const [availabilityFilter, setAvailabilityFilter] = useState<'all' | 'today'>('all');
   const [search, setSearch] = useState('');
-  const [filterModalOpen, setFilterModalOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Zustand store
-  const { 
-    appointments, 
-    staff, 
-    loading, 
-    error,
-    loadAppointments, 
-    loadStaff, 
-    refreshData 
+  const {
+    appointments,
+    staff,
+    loadAppointments,
+    loadStaff,
+    refreshData,
   } = useHealthServiceStore();
 
-  const todayKey = useMemo(() => dateKeyForDay(startOfDay(new Date())), []);
-
-  // Load data on mount
   useEffect(() => {
     loadAppointments();
     loadStaff();
   }, [loadAppointments, loadStaff]);
 
+  useEffect(() => {
+    if (!session?.user?.id) return;
+    fetchStudentProfile(session.user.id).then((p) => {
+      if (p?.full_name) setUserName(p.full_name);
+      if (p?.avatar_url) setAvatarUrl(p.avatar_url);
+    });
+  }, [session?.user?.id]);
+
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
       await refreshData();
-      // Also expire old tickets
       await healthServiceApi.expireOldTickets();
-    } catch (error) {
-      console.error('Refresh failed:', error);
+    } catch (e) {
+      console.error('Refresh failed:', e);
     } finally {
       setRefreshing(false);
     }
   }, [refreshData]);
-
-  const segmentBtn = (selected: boolean) => ({
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderRadius: 999,
-    backgroundColor: selected ? BRAND : 'transparent',
-  });
 
   const filteredStaff = useMemo(() => {
     const q = search.trim().toLowerCase();
     return staff.filter((s) => {
       if (roleFilter !== 'all' && s.role !== roleFilter) return false;
       if (q) {
-        const name = s.name.toLowerCase();
-        const spec = s.specialtyLabel.toLowerCase();
-        if (!name.includes(q) && !spec.includes(q)) return false;
+        if (!s.name.toLowerCase().includes(q) && !s.specialtyLabel.toLowerCase().includes(q)) return false;
       }
       return true;
     });
   }, [roleFilter, search, staff]);
 
-  const active = useMemo(() => {
+  const upcomingItem = useMemo(() => {
     return appointments
-      .filter((a) => a.status !== 'cancelled')
-      .sort((a, b) => {
-        if (a.dateKey !== b.dateKey) return a.dateKey.localeCompare(b.dateKey);
-        if (a.status !== b.status) return a.status === 'pending' ? -1 : 1;
-        return a.startLabel.localeCompare(b.startLabel);
-      });
-  }, [appointments]);
-
-  /** Hub preview: one confirmed visit only (pending lives under See all). */
-  const upcomingPreview = useMemo(() => {
-    return active
       .filter((a) => a.status === 'confirmed')
       .sort((a, b) => {
         if (a.dateKey !== b.dateKey) return a.dateKey.localeCompare(b.dateKey);
         return a.startLabel.localeCompare(b.startLabel);
-      })
-      .slice(0, 1);
-  }, [active]);
+      })[0] ?? null;
+  }, [appointments]);
 
-  const todayConfirmedWithTicket = useMemo(() => {
-    const hit = active.find(
-      (a) => a.dateKey === todayKey && a.status === 'confirmed' && a.arrivalTicket,
-    );
-    return hit ?? null;
-  }, [active, todayKey]);
-
-  const hasPendingToday = useMemo(
-    () => active.some((a) => a.dateKey === todayKey && a.status === 'pending'),
-    [active, todayKey],
+  const confirmedCount = useMemo(
+    () => appointments.filter((a) => a.status === 'confirmed').length,
+    [appointments],
   );
 
-  const hasActiveProviderFilters = roleFilter !== 'all';
+  const upcomingStaffName = upcomingItem ? staffNameForAppointment(upcomingItem) : '';
+  const upcomingStaff = upcomingItem ? staff.find((s) => s.name === upcomingStaffName) : null;
+
+  // Grid: 2 columns with 29px gap (matching Figma), 16px side padding
+  const cardWidth = (windowWidth - 16 * 2 - 29) / 2;
 
   return (
     <HealthServiceScreenShell>
-      <ScreenHeader
-        title="Health Service"
-        subtitle="Book appointments and track your queue status."
-        paddingBottom={8}
-      />
       <ScrollView
-        className="flex-1 bg-transparent"
-        keyboardDismissMode="on-drag"
         showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
-        }
+        keyboardDismissMode="on-drag"
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
         contentContainerStyle={{
-          paddingHorizontal: 16,
           paddingBottom: Math.max(insets.bottom, 12) + TAB_BAR_HEIGHT + 8,
         }}>
-        <View className="gap-5 pt-2">
-          <View style={{ gap: 12 }}>
-            <HealthServiceAnnouncementCard />
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginTop: 4 }}>
-              <Text style={{ flex: 1, fontSize: 20, fontWeight: '500', color: SCHEDULE_PARTNER.textPrimary, letterSpacing: -0.2 }}>
-                Upcoming appointments
-              </Text>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="See all appointments"
-                onPress={() => router.push('/health-service/appointments')}
-                hitSlop={8}
-                className="active:opacity-80">
-                <Text style={{ fontSize: 14, fontWeight: '400', color: '#717680'}}>See all</Text>
-              </Pressable>
-            </View>
-            <View style={{ gap: 12 }}>
-              {upcomingPreview.length === 0 ? (
-                <Text style={{ paddingVertical: 20, textAlign: 'center', fontSize: 14, color: SCHEDULE_PARTNER.textDisabled }}>
-                  No confirmed visits to show here yet. Tap See all for pending requests, or book a doctor below.
-                </Text>
-              ) : (
-                upcomingPreview.map((item) => (
-                  <AppointmentListCard
-                    key={item.id}
-                    appointment={item}
-                    staffName={staffNameForAppointment(item)}
-                    whenLabel={formatAppointmentWhen(item)}
-                    onPress={() =>
-                      router.push({ pathname: '/health-service/appointment/[id]', params: { id: item.id } })
-                    }
-                  />
-                ))
-              )}
-            </View>
-          </View>
 
-         
-          <View style={{ gap: 12, marginTop: 2 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-              <Text style={{ fontSize: 20, fontWeight: '500', color: SCHEDULE_PARTNER.textPrimary, letterSpacing: -0.2 }}>Our Doctors</Text>
-              <Text style={{ fontSize: 14, fontWeight: '400', color: '#717680' }}>See All</Text>
-            </View>
-            <ScholarshipSearchBar
-              accessibilityLabel="Search providers by name or specialty"
-              placeholder="Search name or specialty…"
-              value={search}
-              onChangeText={setSearch}
-              onSortPress={() => setFilterModalOpen(true)}
-            />
-
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: PROVIDER_GRID_GAP }}>
-              {filteredStaff.length === 0 ? (
-                <Text style={{ width: '100%', paddingVertical: 16, textAlign: 'center', fontSize: 14, color: SCHEDULE_PARTNER.textDisabled }}>
-                  No providers match your search or filters.
-                </Text>
-              ) : (
-                filteredStaff.map((staff) => (
-                  <View key={staff.id} style={{ width: providerCardWidth }}>
-                    <ProviderCard
-                      staff={staff}
-                      availableToday={true}
-                      onPress={() => router.push(`/health-service/book/${staff.id}`)}
-                    />
-                  </View>
-                ))
-              )}
-            </View>
-          </View>
-
-        </View>
-      </ScrollView>
-
-      <Modal visible={filterModalOpen} transparent animationType="fade" onRequestClose={() => setFilterModalOpen(false)}>
-        <View style={{ flex: 1, justifyContent: 'flex-end' }}>
-          <Pressable
-            accessibilityLabel="Close filters"
-            onPress={() => setFilterModalOpen(false)}
-            style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(15, 23, 42, 0.45)' }]}
-          />
+        {/* ══════════════════════════════════════
+            GREY HEADER CARD  (#F5F5F5, r-32)
+            Contains: greeting, search, upcoming
+        ══════════════════════════════════════ */}
+        <View style={{ padding: 8 }}>
           <View
             style={{
-              backgroundColor: '#FFFFFF',
-              borderTopLeftRadius: 20,
-              borderTopRightRadius: 20,
-              paddingHorizontal: 20,
-              paddingTop: 10,
-              paddingBottom: Math.max(insets.bottom, 16) + 8,
-              borderTopWidth: StyleSheet.hairlineWidth,
-              borderColor: SCHEDULE_PARTNER.divider,
-              gap: 16,
+              backgroundColor: '#F5F5F5',
+              borderRadius: 32,
+              paddingTop: insets.top + 12,
+              paddingBottom: 20,
+              paddingHorizontal: 14,
+              gap: 24,
             }}>
-            <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: '#E2E8F0' }} />
-            <View>
-              <Text style={{ fontSize: 17, fontWeight: '600', color: SCHEDULE_PARTNER.textPrimary }}>Filters</Text>
-              <Text style={{ marginTop: 6, fontSize: 16, fontWeight: '400', lineHeight: 22, color: SCHEDULE_PARTNER.textMuted }}>
-                Choose a role and whether to show only providers on today&apos;s schedule.
-              </Text>
-            </View>
 
-            <View>
-              <Text style={{ marginBottom: 10, fontSize: 16, fontWeight: '500', color: SCHEDULE_PARTNER.textMuted }}>Role</Text>
-              <RoleFilterChips value={roleFilter} onChange={setRoleFilter} />
-            </View>
-
-            <View>
-              <Text style={{ marginBottom: 10, fontSize: 16, fontWeight: '500', color: SCHEDULE_PARTNER.textMuted }}>Availability</Text>
+            {/* ── Greeting row ── */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', height: 52, gap: 12 }}>
+              {/* Avatar */}
               <View
                 style={{
-                  flexDirection: 'row',
-                  borderRadius: 14,
-                  borderWidth: 1,
-                  borderColor: SCHEDULE_PARTNER.segmentTrackBorder,
-                  backgroundColor: SCHEDULE_PARTNER.segmentTrackBg,
-                  padding: 4,
-                  gap: 4,
+                  width: 52,
+                  height: 52,
+                  borderRadius: 999,
+                  overflow: 'hidden',
+                  backgroundColor: '#D5D7DA',
                 }}>
-                {(['all', 'today'] as const).map((id) => {
-                  const selected = availabilityFilter === id;
-                  const label = id === 'all' ? 'Everyone' : 'Available today';
-                  return (
-                    <Pressable
-                      key={id}
-                      accessibilityRole="button"
-                      accessibilityState={{ selected }}
-                      accessibilityLabel={label}
-                      onPress={() => setAvailabilityFilter(id)}
-                      style={{ flex: 1, ...segmentBtn(selected) }}
-                      className="active:opacity-90">
-                      <Text
-                        style={{
-                          textAlign: 'center',
-                          fontSize: 16,
-                          fontWeight: selected ? '600' : '400',
-                          color: selected ? '#FFFFFF' : SCHEDULE_PARTNER.textMuted,
-                        }}>
-                        {label}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
+                {avatarUrl ? (
+                  <Image source={{ uri: avatarUrl }} style={{ width: 52, height: 52 }} resizeMode="cover" />
+                ) : (
+                  <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#E8EEF5' }}>
+                    <Ionicons name="person" size={26} color="#9095A1" />
+                  </View>
+                )}
               </View>
+
+              {/* Name */}
+              <View style={{ flex: 1, gap: 2 }}>
+                <Text style={{ fontSize: 14, fontWeight: '400', color: '#717680', letterSpacing: -0.28 }}>
+                  {getGreeting()}
+                </Text>
+                <Text style={{ fontSize: 20, fontWeight: '500', color: '#000000', letterSpacing: -0.8 }} numberOfLines={1}>
+                  {userName || 'Student'}
+                </Text>
+              </View>
+
+              {/* Bell */}
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Notifications"
+                onPress={() => router.push('/health-service/appointments')}
+                style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: 999,
+                  backgroundColor: '#FDFDFD',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+                className="active:opacity-75">
+                <IconsaxNotificationIcon size={24} color="#1F2024" />
+              </Pressable>
             </View>
 
-            <View style={{ flexDirection: 'row', gap: 12, marginTop: 4 }}>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Reset provider filters"
-                onPress={() => {
-                  setRoleFilter('all');
-                  setAvailabilityFilter('all');
-                }}
-                style={{
-                  flex: 1,
-                  borderRadius: 14,
-                  borderWidth: 1,
-                  borderColor: SCHEDULE_PARTNER.segmentTrackBorder,
-                  paddingVertical: 14,
-                  alignItems: 'center',
-                }}
-                className="active:opacity-85">
-                <Text style={{ fontSize: 16, fontWeight: '500', color: SCHEDULE_PARTNER.textMuted }}>Reset</Text>
-              </Pressable>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Done"
-                onPress={() => setFilterModalOpen(false)}
-                style={{
-                  flex: 1,
-                  borderRadius: 14,
-                  paddingVertical: 14,
-                  alignItems: 'center',
-                  backgroundColor: BRAND,
-                }}
-                className="active:opacity-90">
-                <Text style={{ fontSize: 16, fontWeight: '600', color: '#FFFFFF' }}>Done</Text>
-              </Pressable>
+            {/* ── Search bar ── */}
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                backgroundColor: '#FFFFFF',
+                borderRadius: 9999,
+                height: 45,
+                paddingHorizontal: 16,
+                gap: 12,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 1 },
+                shadowOpacity: 0.06,
+                shadowRadius: 2,
+                elevation: 2,
+              }}>
+              <IconsaxSearchIcon size={16} color="#71717A" />
+              <TextInput
+                accessibilityLabel="Search providers"
+                placeholder="Find the right doctor for you..."
+                placeholderTextColor="#71717A"
+                value={search}
+                onChangeText={setSearch}
+                style={{ flex: 1, fontSize: 16, fontWeight: '300', color: '#000', padding: 0 }}
+              />
+            </View>
+
+            {/* ── Upcoming Schedule ── */}
+            <View style={{ gap: 12 }}>
+              {/* Section header */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text style={{ fontSize: 20, fontWeight: '500', color: '#000000' }}>
+                    Upcoming Schedule
+                  </Text>
+                  {confirmedCount > 0 && (
+                    <View
+                      style={{
+                        width: 16,
+                        height: 16,
+                        borderRadius: 999,
+                        backgroundColor: '#F64235',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}>
+                      <Text style={{ fontSize: 10, fontWeight: '400', color: '#FFF', textAlign: 'center', lineHeight: 12 }}>
+                        {confirmedCount}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="See all appointments"
+                  onPress={() => router.push('/health-service/appointments')}
+                  hitSlop={10}
+                  className="active:opacity-70">
+                  <Text style={{ fontSize: 14, fontWeight: '400', color: '#717680' }}>See All</Text>
+                </Pressable>
+              </View>
+
+              {/* Blue appointment card */}
+              {upcomingItem ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`Appointment with ${upcomingStaffName}`}
+                  onPress={() =>
+                    router.push({ pathname: '/health-service/appointment/[id]', params: { id: upcomingItem.id } })
+                  }
+                  style={{
+                    backgroundColor: BRAND,
+                    borderRadius: 16,
+                    paddingHorizontal: 16,
+                    paddingVertical: 20,
+                    gap: 16,
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.02,
+                    shadowRadius: 2,
+                    elevation: 2,
+                  }}
+                  className="active:opacity-90">
+
+                  {/* Doctor row */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 13, flex: 1 }}>
+                      {/* Doctor photo */}
+                      <View
+                        style={{
+                          width: 54,
+                          height: 54,
+                          borderRadius: 9999,
+                          overflow: 'hidden',
+                          backgroundColor: 'rgba(255,255,255,0.25)',
+                          flexShrink: 0,
+                        }}>
+                        {upcomingStaff?.photoUrl ? (
+                          <Image
+                            source={{ uri: upcomingStaff.photoUrl }}
+                            style={{ width: 54, height: 54 }}
+                            resizeMode="cover"
+                          />
+                        ) : (
+                          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                            <Ionicons name="person" size={26} color="rgba(255,255,255,0.8)" />
+                          </View>
+                        )}
+                      </View>
+
+                      {/* Name + rating */}
+                      <View style={{ gap: 4, flex: 1 }}>
+                        <Text
+                          style={{ fontSize: 20, fontWeight: '600', color: '#FDFDFD', letterSpacing: -0.8 }}
+                          numberOfLines={1}>
+                          {upcomingStaffName}
+                        </Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                          <Ionicons name="star" size={12} color="#FDB022" />
+                          <Text style={{ fontSize: 12, fontWeight: '400', color: '#FDFDFD' }}>
+                            4.6 • {upcomingStaff?.specialtyLabel || 'General'}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+
+                    {/* Chat button */}
+                    <View
+                      style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: 999,
+                        backgroundColor: 'rgba(255,255,255,0.2)',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0,
+                      }}>
+                      <Ionicons name="chatbubble-ellipses-outline" size={20} color="#FFF" />
+                    </View>
+                  </View>
+
+                  {/* Divider */}
+                  <View style={{ height: 1, backgroundColor: 'rgba(255,255,255,0.25)' }} />
+
+                  {/* Date / Time row */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    {/* Date */}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+                      <IconsaxCalendarIcon size={16} color="rgba(253,253,253,0.9)" />
+                      <Text style={{ fontSize: 14, fontWeight: '500', color: '#FDFDFD' }} numberOfLines={1}>
+                        {formatDateLabel(upcomingItem.dateKey)}
+                      </Text>
+                    </View>
+
+                    {/* Vertical divider */}
+                    <View style={{ width: 1, height: 16, backgroundColor: 'rgba(255,255,255,0.4)', marginHorizontal: 12 }} />
+
+                    {/* Time */}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+                      <IconsaxTimerIcon size={16} color="rgba(253,253,253,0.9)" />
+                      <Text style={{ fontSize: 14, fontWeight: '500', color: '#FDFDFD' }}>
+                        {upcomingItem.startLabel} - {upcomingItem.endLabel}
+                      </Text>
+                    </View>
+                  </View>
+                </Pressable>
+              ) : (
+                /* Empty state card */
+                <View
+                  style={{
+                    backgroundColor: BRAND,
+                    borderRadius: 16,
+                    paddingVertical: 28,
+                    alignItems: 'center',
+                    gap: 8,
+                  }}>
+                  <Ionicons name="calendar-outline" size={28} color="rgba(255,255,255,0.6)" />
+                  <Text style={{ fontSize: 14, fontWeight: '400', color: 'rgba(255,255,255,0.8)' }}>
+                    No upcoming appointments
+                  </Text>
+                </View>
+              )}
             </View>
           </View>
         </View>
-      </Modal>
+
+        {/* ══════════════════════════════════════
+            OUR DOCTORS SECTION
+        ══════════════════════════════════════ */}
+        <View style={{ paddingHorizontal: 16, marginTop: 20, gap: 20 }}>
+
+          {/* Section header + chips */}
+          <View style={{ gap: 12 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Text style={{ fontSize: 20, fontWeight: '500', color: '#000000' }}>Our Doctors</Text>
+              <Text style={{ fontSize: 14, fontWeight: '400', color: '#717680' }}>See All</Text>
+            </View>
+
+            {/* Role filter chips — horizontal scroll */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ gap: 8 }}>
+              {ROLE_CHIPS.map((chip) => {
+                const isActive = roleFilter === chip.value && chip.value !== 'all';
+                return (
+                  <Pressable
+                    key={chip.label}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: isActive }}
+                    onPress={() => setRoleFilter(isActive ? 'all' : chip.value)}
+                    style={{
+                      paddingHorizontal: 12,
+                      paddingVertical: 8,
+                      borderRadius: 99999,
+                      backgroundColor: isActive ? '#EFF4FF' : '#F5F5F5',
+                    }}
+                    className="active:opacity-75">
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        fontWeight: '500',
+                        lineHeight: 16,
+                        color: isActive ? BRAND : '#717680',
+                        letterSpacing: -0.24,
+                      }}>
+                      {chip.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </View>
+
+          {/* Doctor grid — 2 columns, 29px gap (Figma exact) */}
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 29 }}>
+            {filteredStaff.length === 0 ? (
+              <Text
+                style={{
+                  width: '100%',
+                  paddingVertical: 24,
+                  textAlign: 'center',
+                  fontSize: 14,
+                  color: '#9095A1',
+                }}>
+                No providers match your search.
+              </Text>
+            ) : (
+              filteredStaff.map((s) => (
+                <View key={s.id} style={{ width: cardWidth }}>
+                  <ProviderCard
+                    staff={s}
+                    availableToday={true}
+                    onPress={() => router.push(`/health-service/book/${s.id}`)}
+                  />
+                </View>
+              ))
+            )}
+          </View>
+        </View>
+      </ScrollView>
     </HealthServiceScreenShell>
   );
 }
-
-const styles = StyleSheet.create({
-  adminButton: {
-    backgroundColor: '#F0F7FF',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#E1EFFE',
-  },
-  adminButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1F2937',
-    marginBottom: 4,
-  },
-  adminButtonSubtext: {
-    fontSize: 14,
-    color: '#6B7280',
-  },
-  loadingContainer: {
-    paddingVertical: 32,
-    alignItems: 'center',
-  },
-  loadingText: {
-    fontSize: 16,
-    color: '#6B7280',
-  },
-  errorContainer: {
-    paddingVertical: 32,
-    alignItems: 'center',
-    gap: 12,
-  },
-  errorText: {
-    fontSize: 14,
-    color: '#DC2626',
-    textAlign: 'center',
-  },
-  retryButton: {
-    backgroundColor: '#2970FF',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  retryButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-});
