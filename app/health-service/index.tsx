@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect, useCallback } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View, RefreshControl } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, RefreshControl } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 
@@ -9,9 +9,9 @@ import { HealthServiceScreenShell } from '../../components/health-service/Health
 import { ProviderCard } from '../../components/health-service/ProviderCard';
 import { QueueTicketCard } from '../../components/health-service/QueueTicketCard';
 import { RoleFilterChips } from '../../components/health-service/RoleFilterChips';
-import { IconsaxSearchIcon } from '../../components/icons/IconsaxSearchIcon';
-import { IconsaxSortIcon } from '../../components/icons/IconsaxSortIcon';
-import { ScreenNavbar } from '../../components/ScreenNavbar';
+import { ScholarshipSearchBar } from '../../components/student-development-affairs/ScholarshipSearchBar';
+import { TAB_BAR_HEIGHT } from '../../components/layout/BottomTabBar';
+import { ScreenHeader } from '../../components/layout/ScreenHeader';
 import { SCHEDULE_PARTNER } from '../../lib/health-service/bookingScheduleTheme';
 import { healthServiceApi } from '../../lib/health-service/healthServiceApi';
 import { formatAppointmentWhen } from '../../lib/health-service/appointmentDisplay';
@@ -29,15 +29,6 @@ function dateKeyForDay(d: Date): string {
   return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
 }
 
-// Simple function to check if staff is working on a given date
-// For now, assume all staff work Monday-Friday
-function isStaffWorkingOnDate(staffId: string, date: Date): boolean {
-  const dayOfWeek = date.getDay();
-  return dayOfWeek >= 1 && dayOfWeek <= 5; // Monday to Friday
-}
-
-type AvailabilityFilter = 'all' | 'today';
-
 const BRAND = SCHEDULE_PARTNER.brand;
 const PROVIDER_GRID_GAP = 12;
 
@@ -47,10 +38,9 @@ export default function HealthServiceScreen() {
   const providerCardWidth = (windowWidth - 16 * 2 - PROVIDER_GRID_GAP) / 2;
   
   const [roleFilter, setRoleFilter] = useState<StaffRole | 'all'>('all');
+  const [availabilityFilter, setAvailabilityFilter] = useState<'all' | 'today'>('all');
   const [search, setSearch] = useState('');
-  const [availabilityFilter, setAvailabilityFilter] = useState<AvailabilityFilter>('all');
   const [filterModalOpen, setFilterModalOpen] = useState(false);
-  const [savedProviderIds, setSavedProviderIds] = useState<Set<string>>(() => new Set());
   const [refreshing, setRefreshing] = useState(false);
 
   // Zustand store
@@ -64,8 +54,7 @@ export default function HealthServiceScreen() {
     refreshData 
   } = useHealthServiceStore();
 
-  const today = useMemo(() => startOfDay(new Date()), []);
-  const todayKey = useMemo(() => dateKeyForDay(today), [today]);
+  const todayKey = useMemo(() => dateKeyForDay(startOfDay(new Date())), []);
 
   // Load data on mount
   useEffect(() => {
@@ -86,14 +75,17 @@ export default function HealthServiceScreen() {
     }
   }, [refreshData]);
 
+  const segmentBtn = (selected: boolean) => ({
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 999,
+    backgroundColor: selected ? BRAND : 'transparent',
+  });
+
   const filteredStaff = useMemo(() => {
     const q = search.trim().toLowerCase();
     return staff.filter((s) => {
       if (roleFilter !== 'all' && s.role !== roleFilter) return false;
-      if (availabilityFilter === 'today') {
-        // For now, assume all staff are available today
-        // In a real implementation, you'd check their schedule
-      }
       if (q) {
         const name = s.name.toLowerCase();
         const spec = s.specialtyLabel.toLowerCase();
@@ -101,7 +93,7 @@ export default function HealthServiceScreen() {
       }
       return true;
     });
-  }, [roleFilter, availabilityFilter, search, staff]);
+  }, [roleFilter, search, staff]);
 
   const active = useMemo(() => {
     return appointments
@@ -136,30 +128,14 @@ export default function HealthServiceScreen() {
     [active, todayKey],
   );
 
-  const segmentBtn = (selected: boolean) => ({
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderRadius: 999,
-    backgroundColor: selected ? BRAND : 'transparent',
-  });
-
-  const hasActiveProviderFilters = roleFilter !== 'all' || availabilityFilter === 'today';
-
-  const toggleSavedProvider = (staffId: string) => {
-    setSavedProviderIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(staffId)) next.delete(staffId);
-      else next.add(staffId);
-      return next;
-    });
-  };
+  const hasActiveProviderFilters = roleFilter !== 'all';
 
   return (
     <HealthServiceScreenShell>
-      <ScreenNavbar
-        title="How are you feeling today?"
-        subtitle="Catherine Capellan"
-        titleNumberOfLines={3}
+      <ScreenHeader
+        title="Health Service"
+        subtitle="Book appointments and track your queue status."
+        paddingBottom={8}
       />
       <ScrollView
         className="flex-1 bg-transparent"
@@ -170,13 +146,13 @@ export default function HealthServiceScreen() {
         }
         contentContainerStyle={{
           paddingHorizontal: 16,
-          paddingBottom: Math.max(insets.bottom, 12) + 24,
+          paddingBottom: Math.max(insets.bottom, 12) + TAB_BAR_HEIGHT + 8,
         }}>
         <View className="gap-5 pt-2">
           <View style={{ gap: 12 }}>
             <HealthServiceAnnouncementCard />
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginTop: 4 }}>
-              <Text style={{ flex: 1, fontSize: 18, fontWeight: '700', color: SCHEDULE_PARTNER.textPrimary, letterSpacing: -0.2 }}>
+              <Text style={{ flex: 1, fontSize: 20, fontWeight: '500', color: SCHEDULE_PARTNER.textPrimary, letterSpacing: -0.2 }}>
                 Upcoming appointments
               </Text>
               <Pressable
@@ -185,7 +161,7 @@ export default function HealthServiceScreen() {
                 onPress={() => router.push('/health-service/appointments')}
                 hitSlop={8}
                 className="active:opacity-80">
-                <Text style={{ fontSize: 14, fontWeight: '400', color: BRAND }}>See all</Text>
+                <Text style={{ fontSize: 14, fontWeight: '400', color: '#717680'}}>See all</Text>
               </Pressable>
             </View>
             <View style={{ gap: 12 }}>
@@ -211,76 +187,17 @@ export default function HealthServiceScreen() {
 
          
           <View style={{ gap: 12, marginTop: 2 }}>
-            <Text style={{ fontSize: 18, fontWeight: '700', color: SCHEDULE_PARTNER.textPrimary, letterSpacing: -0.2 }}>
-              Popular doctors
-            </Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-              <View
-                style={{
-                  flex: 1,
-                  minHeight: 48,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 10,
-                  borderRadius: 999,
-                  backgroundColor: '#FFFFFF',
-                  borderWidth: 1,
-                  borderColor: 'rgba(15, 23, 42, 0.08)',
-                  paddingHorizontal: 16,
-                  paddingVertical: 4,
-                }}>
-                <IconsaxSearchIcon size={20} color={SCHEDULE_PARTNER.textMuted} />
-                <TextInput
-                  accessibilityLabel="Search providers by name or specialty"
-                  placeholder="Search name or specialty…"
-                  placeholderTextColor={SCHEDULE_PARTNER.textDisabled}
-                  value={search}
-                  onChangeText={setSearch}
-                  returnKeyType="search"
-                  style={{
-                    flex: 1,
-                    paddingVertical: 10,
-                    paddingHorizontal: 0,
-                    fontSize: 15,
-                    fontWeight: '500',
-                    color: SCHEDULE_PARTNER.textPrimary,
-                  }}
-                />
-              </View>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Open provider filters"
-                accessibilityState={{ expanded: filterModalOpen }}
-                onPress={() => setFilterModalOpen(true)}
-                style={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: 999,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  backgroundColor: '#FFFFFF',
-                  borderWidth: 1,
-                  borderColor: 'rgba(15, 23, 42, 0.08)',
-                }}
-                className="active:opacity-85">
-                <IconsaxSortIcon size={22} color={hasActiveProviderFilters ? BRAND : SCHEDULE_PARTNER.textMuted} />
-                {hasActiveProviderFilters ? (
-                  <View
-                    style={{
-                      position: 'absolute',
-                      top: 10,
-                      right: 10,
-                      width: 8,
-                      height: 8,
-                      borderRadius: 4,
-                      backgroundColor: BRAND,
-                      borderWidth: 2,
-                      borderColor: '#FFFFFF',
-                    }}
-                  />
-                ) : null}
-              </Pressable>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Text style={{ fontSize: 20, fontWeight: '500', color: SCHEDULE_PARTNER.textPrimary, letterSpacing: -0.2 }}>Our Doctors</Text>
+              <Text style={{ fontSize: 14, fontWeight: '400', color: '#717680' }}>See All</Text>
             </View>
+            <ScholarshipSearchBar
+              accessibilityLabel="Search providers by name or specialty"
+              placeholder="Search name or specialty…"
+              value={search}
+              onChangeText={setSearch}
+              onSortPress={() => setFilterModalOpen(true)}
+            />
 
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: PROVIDER_GRID_GAP }}>
               {filteredStaff.length === 0 ? (
@@ -292,9 +209,7 @@ export default function HealthServiceScreen() {
                   <View key={staff.id} style={{ width: providerCardWidth }}>
                     <ProviderCard
                       staff={staff}
-                      availableToday={isStaffWorkingOnDate(staff.id, today)}
-                      saved={savedProviderIds.has(staff.id)}
-                      onToggleSave={() => toggleSavedProvider(staff.id)}
+                      availableToday={true}
                       onPress={() => router.push(`/health-service/book/${staff.id}`)}
                     />
                   </View>

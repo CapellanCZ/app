@@ -2,12 +2,13 @@ import '../global.css';
 import { useFonts } from 'expo-font';
 import { HeroUINativeProvider } from 'heroui-native';
 import { Stack } from 'expo-router';
-import { useColorScheme } from 'react-native';
+import { useColorScheme, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { TamaguiProvider } from 'tamagui';
 
+import { BottomTabBar } from '@/components/layout/BottomTabBar';
 import { UniwindInsetSync } from '@/components/UniwindInsetSync';
 import { AuthProvider } from '@/lib/auth/AuthProvider';
 import { NotificationHandler } from '@/components/notifications/NotificationHandler';
@@ -42,6 +43,7 @@ export default function RootLayout() {
               <NotificationHandler />
               <NotificationSubscription />
               <UniwindInsetSync />
+              <View style={{ flex: 1 }}>
               <Stack
                 screenOptions={{
                   contentStyle: { flex: 1 },
@@ -51,10 +53,10 @@ export default function RootLayout() {
                 }}>
                 <Stack.Screen name="index" />
                 <Stack.Screen name="(auth)" />
-                <Stack.Screen name="(tabs)" />
-                <Stack.Screen name="student-development-affairs" />
-                <Stack.Screen name="discipline-office" />
-                <Stack.Screen name="health-service" />
+                <Stack.Screen name="(tabs)" options={{ animation: 'fade', animationDuration: 120 }} />
+                <Stack.Screen name="student-development-affairs" options={{ animation: 'fade', animationDuration: 120 }} />
+                <Stack.Screen name="discipline-office" options={{ animation: 'fade', animationDuration: 120 }} />
+                <Stack.Screen name="health-service" options={{ animation: 'fade', animationDuration: 120 }} />
                 <Stack.Screen name="referrals" />
                 <Stack.Screen name="my-scholarship" />
                 <Stack.Screen name="logout" />
@@ -64,6 +66,8 @@ export default function RootLayout() {
                   options={{ headerShown: true, title: 'Modal', presentation: 'modal' }}
                 />
               </Stack>
+              <BottomTabBar />
+              </View>
               </AuthProvider>
             </KeyboardProvider>
           </SafeAreaProvider>

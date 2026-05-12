@@ -5,6 +5,7 @@ import type { ReactNode } from 'react';
 import { Pressable, ScrollView, Text, View, LayoutAnimation, Platform, UIManager } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { TAB_BAR_HEIGHT } from '@/components/layout/BottomTabBar';
 
 import { useAuth } from '@/lib/auth/AuthProvider';
 import {
@@ -393,7 +394,7 @@ export default function DisciplineOfficeScreen() {
         contentContainerStyle={{
           paddingHorizontal: 16,
           paddingTop: 16,
-          paddingBottom: Math.max(insets.bottom, 16) + 28,
+          paddingBottom: Math.max(insets.bottom, 16) + TAB_BAR_HEIGHT + 8,
           gap: 28,
         }}>
 

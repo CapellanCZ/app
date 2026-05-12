@@ -10,7 +10,7 @@ type HealthServiceScreenShellProps = {
  */
 export function HealthServiceScreenShell({ children }: HealthServiceScreenShellProps) {
   return (
-    <View style={{ flex: 1, backgroundColor: '#F5F5F5' }}>
+    <View style={{ flex: 1, backgroundColor: '#FDFDFD' }}>
       <View className="flex-1 bg-transparent">{children}</View>
     </View>
   );

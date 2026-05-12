@@ -19,6 +19,7 @@ import { IconsaxMedalStarFilledIcon } from '@/components/icons/IconsaxMedalStarF
 import { IconsaxSyringeFilledIcon } from '@/components/icons/IconsaxSyringeFilledIcon';
 import { IconsaxTagUserFilledIcon } from '@/components/icons/IconsaxTagUserFilledIcon';
 import { router } from 'expo-router';
+import { TAB_BAR_HEIGHT } from '@/components/layout/BottomTabBar';
 
 const APPOINTMENTS_ROUTE = '/(tabs)/appointments';
 
@@ -230,7 +231,7 @@ export default function Home() {
           flexGrow: 1,
           paddingTop: insets.top + 6,
           paddingHorizontal: 20,
-          paddingBottom: Math.max(insets.bottom, 16) + 40,
+          paddingBottom: Math.max(insets.bottom, 16) + TAB_BAR_HEIGHT + 8,
         }}>
         <View className="gap-4">
           <HomeScreenHeader title="Home" avatarUrl={avatarUrl} />
