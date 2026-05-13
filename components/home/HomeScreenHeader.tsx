@@ -40,27 +40,16 @@ export function HomeScreenHeader({ title = 'Home', avatarUrl }: HomeScreenHeader
             <View
               style={{
                 position: 'absolute',
-                top: 6,
-                right: 6,
-                minWidth: 16,
-                height: 16,
+                top: 10,
+                right: 12,
+                minWidth: 8,
+                height: 8,
                 borderRadius: 8,
                 backgroundColor: '#EF4444',
-                borderWidth: 1.5,
-                borderColor: '#FFFFFF',
                 alignItems: 'center',
                 justifyContent: 'center',
                 paddingHorizontal: 3,
               }}>
-              <Text
-                style={{
-                  fontSize: 9,
-                  fontWeight: '700',
-                  color: '#FFFFFF',
-                  lineHeight: 12,
-                }}>
-                {unreadCount > 9 ? '9+' : unreadCount}
-              </Text>
             </View>
           )}
         </Pressable>

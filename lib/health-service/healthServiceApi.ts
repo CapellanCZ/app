@@ -40,7 +40,7 @@ export type HealthServiceApi = {
   isWorking(staffId: string, day: Date): Promise<boolean>;
   /** Pending + confirmed; excludes cancelled. */
   listMyAppointments(): Promise<Appointment[]>;
-  bookAppointment(input: { staffId: string; day: Date; startLabel: string; symptoms?: string }): Promise<void>;
+  bookAppointment(input: { staffId: string; day: Date; startLabel: string; symptoms?: string }): Promise<{ id: string; checkInCode: string }>;
   cancelAppointment(id: string): Promise<void>;
   /** Provider approves a pending booking; ticket is NOT created automatically. */
   confirmAppointmentByProvider(id: string): Promise<void>;
@@ -268,7 +268,7 @@ function createSupabaseHealthServiceApi(): HealthServiceApi {
         return `${endHour.toString().padStart(2, '0')}:${finalMinutes.toString().padStart(2, '0')}:00`;
       });
       
-      const { error } = await supabase
+      const { data: inserted, error } = await supabase
         .from('health_appointments')
         .insert({
           student_id: student.student_id,
@@ -279,9 +279,12 @@ function createSupabaseHealthServiceApi(): HealthServiceApi {
           symptoms: input.symptoms,
           status: 'pending',
           check_in_code: checkInCode,
-        });
+        })
+        .select('id, check_in_code')
+        .single();
       
       if (error) throw error;
+      return { id: inserted.id, checkInCode: inserted.check_in_code };
     },
 
     async cancelAppointment(id) {

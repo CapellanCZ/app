@@ -1,5 +1,19 @@
-import { Modal, Pressable, Text, View, ScrollView, Dimensions } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useEffect, useState } from 'react';
+import { Modal, Pressable, StyleSheet, Text, View, ScrollView, Dimensions } from 'react-native';
+
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+  withRepeat,
+  withSequence,
+  interpolate,
+  Extrapolate,
+  runOnJS,
+  useAnimatedReaction,
+} from 'react-native-reanimated';
+import { GestureDetector, Gesture, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { IconsaxVerifyIcon } from '../icons/IconsaxVerifyIcon';
 import { IconsaxProfileIcon } from '../icons/IconsaxProfileIcon';
 import { IconsaxCalendarIcon } from '../icons/IconsaxCalendarIcon';
@@ -23,6 +37,138 @@ type Props = {
   checkInCode: string;
 };
 
+const KNOB_SIZE = 48;
+const TRACK_PADDING = 4;
+
+function SlideToCancelButton({ onSlide, trackWidth }: { onSlide: () => void; trackWidth: number }) {
+  const maxDrag = trackWidth - KNOB_SIZE - TRACK_PADDING * 2;
+  const translateX = useSharedValue(0);
+  const chevronOpacity = useSharedValue(1);
+  const [isSliding, setIsSliding] = useState(false);
+
+  useEffect(() => {
+    chevronOpacity.value = withRepeat(
+      withSequence(
+        withTiming(0.3, { duration: 600 }),
+        withTiming(1, { duration: 600 })
+      ),
+      -1,
+      false
+    );
+  }, []);
+
+  useAnimatedReaction(
+    () => translateX.value,
+    (current) => {
+      if (current === 0) {
+        chevronOpacity.value = withRepeat(
+          withSequence(
+            withTiming(0.3, { duration: 600 }),
+            withTiming(1, { duration: 600 })
+          ),
+          -1,
+          false
+        );
+      } else {
+        chevronOpacity.value = withTiming(0.5, { duration: 200 });
+      }
+    }
+  );
+
+  const handleComplete = () => {
+    setIsSliding(true);
+    onSlide();
+    setTimeout(() => {
+      translateX.value = withTiming(0, { duration: 300 });
+      setIsSliding(false);
+    }, 400);
+  };
+
+  const panGesture = Gesture.Pan()
+    .enabled(!isSliding)
+    .onUpdate((e) => {
+      translateX.value = Math.max(0, Math.min(e.translationX, maxDrag));
+    })
+    .onEnd(() => {
+      if (translateX.value >= maxDrag * 0.7) {
+        translateX.value = withSpring(maxDrag, { damping: 15, stiffness: 150 });
+        runOnJS(handleComplete)();
+      } else {
+        translateX.value = withSpring(0, { damping: 15, stiffness: 150 });
+      }
+    });
+
+  const knobStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: translateX.value }],
+  }));
+
+  const labelStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(translateX.value, [0, maxDrag * 0.3], [1, 0], Extrapolate.CLAMP),
+  }));
+
+  const chevronStyle = useAnimatedStyle(() => ({
+    opacity: chevronOpacity.value * interpolate(translateX.value, [maxDrag * 0.5, maxDrag], [1, 0], Extrapolate.CLAMP),
+  }));
+
+  return (
+    <View style={{
+      height: 56,
+      backgroundColor: GRAY_900,
+      borderRadius: 28,
+      overflow: 'hidden',
+      justifyContent: 'center',
+      position: 'relative',
+    }}>
+      {/* Label */}
+      <Animated.View style={[
+        {
+          ...StyleSheet.absoluteFillObject,
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          paddingLeft: KNOB_SIZE + TRACK_PADDING + 16,
+          paddingRight: 24,
+        },
+        labelStyle,
+      ]}>
+        <Text style={{ fontSize: 16, fontWeight: '600', color: '#FFF' }}>
+          Slide to Cancel Appointment
+        </Text>
+        <Animated.Text style={[
+          { fontSize: 18, fontWeight: '400', color: 'rgba(255,255,255,0.5)', letterSpacing: 2 },
+          chevronStyle,
+        ]}>
+          {`>>>`}
+        </Animated.Text>
+      </Animated.View>
+
+      {/* Knob */}
+      <GestureDetector gesture={panGesture}>
+        <Animated.View style={[
+          {
+            position: 'absolute',
+            left: TRACK_PADDING,
+            width: KNOB_SIZE,
+            height: KNOB_SIZE,
+            borderRadius: 999,
+            backgroundColor: '#FFFFFF',
+            alignItems: 'center',
+            justifyContent: 'center',
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.15,
+            shadowRadius: 4,
+            elevation: 4,
+          },
+          knobStyle,
+        ]}>
+          <IconsaxArrowRightIcon size={24} color={GRAY_900} />
+        </Animated.View>
+      </GestureDetector>
+    </View>
+  );
+}
+
 export function AppointmentBookedModal({
   visible,
   onClose,
@@ -31,8 +177,8 @@ export function AppointmentBookedModal({
   appointmentTime,
   checkInCode,
 }: Props) {
-  const insets = useSafeAreaInsets();
-  const { height: screenHeight } = Dimensions.get('window');
+  const { height: screenHeight, width: screenWidth } = Dimensions.get('window');
+  const trackWidth = screenWidth * 0.9 - 40;
   
   return (
     <Modal
@@ -197,41 +343,11 @@ export function AppointmentBookedModal({
             </View>
           </View>
 
-          {/* Cancel Button */}
+          {/* Slide to Cancel Button */}
           <View style={{ marginTop: 24 }}>
-            <Pressable
-              onPress={onClose}
-              style={{
-                backgroundColor: GRAY_900,
-                borderRadius: 24,
-                borderWidth: 2,
-                borderColor: GRAY_200,
-                height: 56,
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                paddingLeft: 6,
-                paddingRight: 20,
-              }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                <View style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: 999,
-                  backgroundColor: '#FFFFFF',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}>
-                  <IconsaxArrowRightIcon size={24} color={GRAY_900} />
-                </View>
-                <Text style={{ fontSize: 16, fontWeight: '600', color: '#FDFDFD' }}>
-                  Close
-                </Text>
-              </View>
-              <Text style={{ fontSize: 16, color: 'rgba(253,253,253,0.5)', letterSpacing: 2 }}>
-                {`>>>`}
-              </Text>
-            </Pressable>
+            <GestureHandlerRootView>
+              <SlideToCancelButton onSlide={onClose} trackWidth={trackWidth} />
+            </GestureHandlerRootView>
           </View>
           </ScrollView>
         </Pressable>
