@@ -6,6 +6,7 @@ import type { Session } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { registerPushToken } from '@/lib/notifications/registerPushToken';
 import { useScholarshipStore } from '@/lib/scholarships/scholarshipStore';
+import { useHealthServiceStore } from '@/lib/health-service/healthServiceStore';
 
 /** Extract tokens from a Supabase magic-link redirect URL hash fragment. */
 function extractTokensFromUrl(url: string) {
@@ -99,6 +100,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       fetchMyEnrollment();
     } else if (session === null && !isLoading) {
       resetScholarships();
+    }
+  }, [session?.user?.id]);
+
+  // Pre-fetch clinic (health service) data right after login so screens open instantly.
+  const { loadStaff, loadAppointments, reset: resetHealthService } = useHealthServiceStore();
+  useEffect(() => {
+    if (session?.user?.id) {
+      loadStaff();
+      loadAppointments();
+    } else if (session === null && !isLoading) {
+      resetHealthService();
     }
   }, [session?.user?.id]);
 

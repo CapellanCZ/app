@@ -45,6 +45,8 @@ export type Appointment = {
   startLabel: string;
   status: AppointmentStatus;
   checkInCode?: string;
+  /** ISO timestamp of when the appointment row was created (used to anchor the 1-hr check-in expiry). */
+  createdAt?: string;
   /** Present only when `status` is `confirmed` — created when the provider confirms (no ticket while pending). */
   arrivalTicket?: QueueTicket;
 };

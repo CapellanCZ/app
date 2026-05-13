@@ -25,8 +25,8 @@ export type NotificationListRowProps = {
   animateOutDelay?: number;
 };
 
-function resolveVariant(type?: NotificationStatusType): 'success' | 'info' | 'error' {
-  if (type === 'success' || type === 'error') return type;
+function resolveVariant(type?: NotificationStatusType): 'success' | 'info' | 'error' | 'warning' {
+  if (type === 'success' || type === 'error' || type === 'warning') return type;
   return 'info';
 }
 

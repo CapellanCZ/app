@@ -12,6 +12,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { useToast } from 'heroui-native';
 import { SvgFromUri } from 'react-native-svg';
 import Animated, {
   useSharedValue,
@@ -324,6 +326,8 @@ export default function HealthServiceBookScreen() {
 
   const weekDays = useMemo(() => getWeekDays(selectedDay), [selectedDay]);
 
+  const { toast } = useToast();
+
   const handleBookAppointment = useCallback(async () => {
     const trimmedSymptoms = symptoms.trim();
     if (!staff || !selectedSlot || !trimmedSymptoms || isBooking) return;
@@ -335,7 +339,7 @@ export default function HealthServiceBookScreen() {
 
     // Create appointment
     try {
-      const { id: appointmentId, checkInCode } = await healthServiceApi.bookAppointment({
+      const { id: appointmentId, checkInCode, createdAt: bookedAt } = await healthServiceApi.bookAppointment({
         staffId: staff.id,
         day: selectedDay,
         startLabel: selectedSlot,
@@ -343,6 +347,19 @@ export default function HealthServiceBookScreen() {
       });
 
       setIsBooking(false);
+      useHealthServiceStore.getState().loadAppointments();
+      toast.show({
+        variant: 'success',
+        placement: 'top',
+        duration: 5000,
+        label: 'Appointment Booked!',
+        description: `Your appointment with ${staff.name} on ${formatAppointmentDate(selectedDay)} at ${selectedSlot} is confirmed.`,
+        icon: (
+          <View style={{ paddingTop: 2 }}>
+            <Ionicons name="checkmark-circle" size={26} color="#079455" />
+          </View>
+        ),
+      });
       router.replace({
         pathname: '/health-service/appointment-booked',
         params: {
@@ -351,6 +368,7 @@ export default function HealthServiceBookScreen() {
           appointmentDate: formatAppointmentDate(selectedDay),
           appointmentTime: selectedSlot,
           checkInCode,
+          expiresAt: new Date(new Date(bookedAt).getTime() + 60 * 60 * 1000).toISOString(),
         },
       });
       useNotificationStore.getState().notifySelf(session?.user?.id, {

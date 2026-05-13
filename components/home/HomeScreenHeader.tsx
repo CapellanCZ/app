@@ -40,7 +40,7 @@ export function HomeScreenHeader({ title = 'Home', avatarUrl }: HomeScreenHeader
             <View
               style={{
                 position: 'absolute',
-                top: 10,
+                top: 10 ,
                 right: 12,
                 minWidth: 8,
                 height: 8,
