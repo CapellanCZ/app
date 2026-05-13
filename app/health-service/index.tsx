@@ -11,7 +11,7 @@ import { healthServiceApi } from '../../lib/health-service/healthServiceApi';
 import { useHealthServiceStore, staffNameForAppointment } from '../../lib/health-service/healthServiceStore';
 import { useAuth } from '../../lib/auth/AuthProvider';
 import { fetchStudentProfile } from '../../lib/profile/profileApi';
-import { IconsaxNotificationIcon } from '../../components/icons/IconsaxNotificationIcon';
+import { HomeScreenHeader } from '@/components/home/HomeScreenHeader';
 import { IconsaxSearchIcon } from '../../components/icons/IconsaxSearchIcon';
 import { IconsaxCalendarIcon } from '../../components/icons/IconsaxCalendarIcon';
 import { IconsaxTimerIcon } from '../../components/icons/IconsaxTimerIcon';
@@ -35,19 +35,11 @@ const ROLE_CHIPS: { label: string; value: StaffRole | 'all' }[] = [
   { label: 'Psychiatrist', value: 'all' },
 ];
 
-function getGreeting(): string {
-  const h = new Date().getHours();
-  if (h < 12) return 'Good Morning';
-  if (h < 18) return 'Good Afternoon';
-  return 'Good Evening';
-}
-
 export default function HealthServiceScreen() {
   const insets = useSafeAreaInsets();
   const { width: windowWidth } = useWindowDimensions();
 
   const { session } = useAuth();
-  const [userName, setUserName] = useState('');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
   const [roleFilter, setRoleFilter] = useState<StaffRole | 'all'>('all');
@@ -70,7 +62,6 @@ export default function HealthServiceScreen() {
   useEffect(() => {
     if (!session?.user?.id) return;
     fetchStudentProfile(session.user.id).then((p) => {
-      if (p?.full_name) setUserName(p.full_name);
       if (p?.avatar_url) setAvatarUrl(p.avatar_url);
     });
   }, [session?.user?.id]);
@@ -137,59 +128,13 @@ export default function HealthServiceScreen() {
             style={{
               backgroundColor: '#F5F5F5',
               borderRadius: 32,
-              paddingTop: insets.top + 12,
+              paddingTop: insets.top,
               paddingBottom: 20,
               paddingHorizontal: 14,
               gap: 24,
             }}>
 
-            {/* ── Greeting row ── */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', height: 52, gap: 12 }}>
-              {/* Avatar */}
-              <View
-                style={{
-                  width: 52,
-                  height: 52,
-                  borderRadius: 999,
-                  overflow: 'hidden',
-                  backgroundColor: '#D5D7DA',
-                }}>
-                {avatarUrl ? (
-                  <Image source={{ uri: avatarUrl }} style={{ width: 52, height: 52 }} resizeMode="cover" />
-                ) : (
-                  <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#E8EEF5' }}>
-                    <Ionicons name="person" size={26} color="#9095A1" />
-                  </View>
-                )}
-              </View>
-
-              {/* Name */}
-              <View style={{ flex: 1, gap: 2 }}>
-                <Text style={{ fontSize: 14, fontWeight: '400', color: '#717680', letterSpacing: -0.28 }}>
-                  {getGreeting()}
-                </Text>
-                <Text style={{ fontSize: 20, fontWeight: '500', color: '#000000', letterSpacing: -0.8 }} numberOfLines={1}>
-                  {userName || 'Student'}
-                </Text>
-              </View>
-
-              {/* Bell */}
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Notifications"
-                onPress={() => router.push('/health-service/appointments')}
-                style={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: 999,
-                  backgroundColor: '#FDFDFD',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-                className="active:opacity-75">
-                <IconsaxNotificationIcon size={24} color="#1F2024" />
-              </Pressable>
-            </View>
+            <HomeScreenHeader title="Clinic" avatarUrl={avatarUrl} />
 
             {/* ── Search bar ── */}
             <View
@@ -357,18 +302,24 @@ export default function HealthServiceScreen() {
                   </View>
                 </Pressable>
               ) : (
-                /* Empty state card */
                 <View
                   style={{
-                    backgroundColor: BRAND,
                     borderRadius: 16,
+                    borderWidth: 1,
+                    borderColor: '#E8EEF4',
                     paddingVertical: 28,
+                    paddingHorizontal: 20,
                     alignItems: 'center',
                     gap: 8,
                   }}>
-                  <Ionicons name="calendar-outline" size={28} color="rgba(255,255,255,0.6)" />
-                  <Text style={{ fontSize: 14, fontWeight: '400', color: 'rgba(255,255,255,0.8)' }}>
-                    No upcoming appointments
+                  <View style={{ width: 52, height: 52, borderRadius: 16, backgroundColor: '#EFF4FF', alignItems: 'center', justifyContent: 'center' }}>
+                    <IconsaxCalendarIcon size={26} color={BRAND} />
+                  </View>
+                  <Text style={{ fontSize: 15, fontWeight: '600', color: '#252B37' }}>
+                    You're all clear
+                  </Text>
+                  <Text style={{ fontSize: 13, color: '#717680', textAlign: 'center' }}>
+                    No visits scheduled — browse doctors below to book one.
                   </Text>
                 </View>
               )}

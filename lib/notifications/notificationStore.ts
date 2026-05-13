@@ -35,6 +35,22 @@ interface NotificationState {
 
   /** Dev-only: seed the store with mock data when Supabase isn't configured. */
   loadMock: () => void;
+
+  /**
+   * Push a notification directly into the local store (no Supabase).
+   * Auto-fills id, read, timeLabel, section.
+   */
+  pushLocal: (payload: Omit<NotificationItem, 'id' | 'read' | 'timeLabel' | 'section'>) => void;
+
+  /**
+   * Send a self-notification after an in-app action.
+   * - Supabase configured: inserts a DB row (realtime/polling will reflect it).
+   * - Not configured: falls back to pushLocal.
+   */
+  notifySelf: (
+    userId: string | undefined,
+    payload: Omit<NotificationItem, 'id' | 'read' | 'timeLabel' | 'section'>,
+  ) => Promise<void>;
 }
 
 export const useNotificationStore = create<NotificationState>((set, get) => ({
@@ -155,5 +171,34 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
 
   loadMock: () => {
     set({ items: [...MOCK_NOTIFICATIONS], loading: false, error: null });
+  },
+
+  pushLocal: (payload) => {
+    const item: NotificationItem = {
+      id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      ...payload,
+      read: false,
+      timeLabel: 'Just now',
+      section: 'today',
+    };
+    set((s) => ({ items: [item, ...s.items] }));
+  },
+
+  notifySelf: async (userId, payload) => {
+    if (isSupabaseConfigured && supabase && userId) {
+      await supabase.from('notifications').insert({
+        user_id: userId,
+        category: payload.category,
+        title: payload.title,
+        body: payload.body,
+        href: payload.href,
+        source: payload.source ?? null,
+        notification_type: payload.notificationType ?? null,
+        read_at: null,
+      });
+      get().fetchAll(userId);
+    } else {
+      get().pushLocal(payload);
+    }
   },
 }));
