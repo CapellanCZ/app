@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 import { healthServiceApi } from './healthServiceApi';
+import { supabase } from '../supabase';
+import { useNotificationStore } from '../notifications/notificationStore';
 import type { Appointment, Staff } from './types';
 
 type HealthServiceState = {
@@ -20,6 +22,10 @@ type HealthServiceState = {
   cancelAppointment: (id: string) => Promise<void>;
   confirmAppointment: (id: string) => Promise<void>;
   refreshData: () => Promise<void>;
+  /** Subscribe to real-time health_appointments changes. Returns unsubscribe fn. */
+  subscribeAppointments: () => (() => void);
+  /** Clear all data on logout. */
+  reset: () => void;
 };
 
 export const useHealthServiceStore = create<HealthServiceState>((set, get) => ({
@@ -78,9 +84,9 @@ export const useHealthServiceStore = create<HealthServiceState>((set, get) => ({
       await healthServiceApi.cancelAppointment(id);
       // Update local state
       set(state => ({
-        appointments: state.appointments.map(apt => 
-          apt.id === id ? { ...apt, status: 'cancelled' } : apt
-        ).filter(apt => apt.status !== 'cancelled'), // Remove cancelled from list
+        appointments: state.appointments.map(apt =>
+          apt.id === id ? { ...apt, status: 'cancelled' as const } : apt
+        ).filter(apt => apt.status !== 'cancelled') as Appointment[],
         loading: false
       }));
     } catch (error) {
@@ -114,6 +120,45 @@ export const useHealthServiceStore = create<HealthServiceState>((set, get) => ({
       get().loadAppointments(),
       get().loadStaff(),
     ]);
+  },
+
+  reset: () => {
+    set({ appointments: [], staff: [], loading: false, error: null });
+  },
+
+  subscribeAppointments: () => {
+    if (!supabase) return () => {};
+    const client = supabase;
+    const channel = client
+      .channel('health_appointments_changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'health_appointments' },
+        async (payload: any) => {
+          get().loadAppointments();
+          // When staff confirms a pending appointment, send the student a notification
+          if (
+            payload.eventType === 'UPDATE' &&
+            payload.old?.status === 'pending' &&
+            payload.new?.status === 'confirmed'
+          ) {
+            const { data: { user } } = await client.auth.getUser();
+            if (user?.id) {
+              const staffName =
+                get().staff.find((s) => s.id === payload.new.staff_id)?.name ?? 'the provider';
+              useNotificationStore.getState().notifySelf(user.id, {
+                category: 'health',
+                title: 'Appointment Confirmed!',
+                body: `Your appointment with ${staffName} has been confirmed. Please arrive 10 minutes early.`,
+                href: '/health-service/appointments',
+                notificationType: 'success',
+              });
+            }
+          }
+        },
+      )
+      .subscribe();
+    return () => { client.removeChannel(channel); };
   },
 }));
 

@@ -1,12 +1,12 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 
 import { AppointmentListCard } from '../../components/health-service/AppointmentListCard';
 import { HealthServiceScreenShell } from '../../components/health-service/HealthServiceScreenShell';
 import { IconsaxArrowLeftIcon } from '@/components/icons/IconsaxArrowLeftIcon';
-import { IconsaxCalendarIcon } from '@/components/icons/IconsaxCalendarIcon';
+import { IconsaxCalendarSearchIcon } from '@/components/icons/IconsaxCalendarSearchIcon';
 import { formatAppointmentDateLong } from '../../lib/health-service/appointmentDisplay';
 import { useHealthServiceStore } from '../../lib/health-service/healthServiceStore';
 
@@ -24,6 +24,15 @@ export default function HealthServiceAppointmentsScreen() {
 
   const appointments = useHealthServiceStore((s) => s.appointments);
   const staff = useHealthServiceStore((s) => s.staff);
+  const loadAppointments = useHealthServiceStore((s) => s.loadAppointments);
+  const loadStaff = useHealthServiceStore((s) => s.loadStaff);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadAppointments();
+      if (!staff.length) loadStaff();
+    }, [loadAppointments, loadStaff, staff.length]),
+  );
 
   const active = useMemo(() =>
     appointments
@@ -128,27 +137,32 @@ export default function HealthServiceAppointmentsScreen() {
           {/* Appointment list */}
           <View style={{ gap: 24 }}>
             {filtered.length === 0 ? (
-              <View style={{ alignItems: 'center', paddingVertical: 52, gap: 12 }}>
-                <View style={{
-                  width: 68,
-                  height: 68,
-                  borderRadius: 22,
-                  backgroundColor: '#EFF4FF',
+              <View
+                style={{
+                  borderRadius: 16,
+                  paddingHorizontal: 16,
+                  paddingVertical: 28,
+                  gap: 12,
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}>
-                  <IconsaxCalendarIcon size={34} color="#2970FF" />
+                <IconsaxCalendarSearchIcon size={48} color="#A4A7AE" />
+                <View style={{ gap: 4, alignItems: 'center' }}>
+                  <Text style={{ fontSize: 16, color: '#717680', letterSpacing: -0.32, textAlign: 'center' }}>
+                    {activeTab === 'pending'
+                      ? 'No Pending Appointments'
+                      : activeTab === 'confirmed'
+                      ? 'No Confirmed Appointments'
+                      : 'No Completed Appointments'}
+                  </Text>
+                  <Text style={{ fontSize: 12, color: '#A4A7AE', letterSpacing: -0.24, textAlign: 'center' }}>
+                    {activeTab === 'pending'
+                      ? "You don't have any pending appointments right now."
+                      : activeTab === 'confirmed'
+                      ? 'Your confirmed appointments will appear here.'
+                      : 'Completed appointments will show up here.'}
+                  </Text>
                 </View>
-                <Text style={{ fontSize: 16, fontWeight: '600', color: '#252B37' }}>
-                  {activeTab === 'completed' ? 'No completed visits yet' : 'Nothing here'}
-                </Text>
-                <Text style={{ fontSize: 14, color: '#717680', textAlign: 'center', maxWidth: 220, lineHeight: 20 }}>
-                  {activeTab === 'completed'
-                    ? 'Completed appointments will appear here.'
-                    : activeTab === 'pending'
-                    ? 'No pending appointments right now.'
-                    : 'No confirmed appointments yet.'}
-                </Text>
               </View>
             ) : (
               filtered.map((item) => {
@@ -170,6 +184,9 @@ export default function HealthServiceAppointmentsScreen() {
                           appointmentDate: formatAppointmentDateLong(item),
                           appointmentTime: item.startLabel,
                           checkInCode: item.checkInCode ?? 'CH-0000',
+                          expiresAt: item.createdAt
+                            ? new Date(new Date(item.createdAt).getTime() + 60 * 60 * 1000).toISOString()
+                            : undefined,
                         },
                       })
                     }

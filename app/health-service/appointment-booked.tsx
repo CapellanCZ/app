@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
+import { useToast } from 'heroui-native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, {
   useSharedValue,
@@ -24,6 +25,9 @@ import Animated, {
 } from 'react-native-reanimated';
 import { GestureDetector, Gesture, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { healthServiceApi } from '@/lib/health-service/healthServiceApi';
+import { useHealthServiceStore } from '@/lib/health-service/healthServiceStore';
+import { useNotificationStore } from '@/lib/notifications/notificationStore';
+import { useAuth } from '@/lib/auth/AuthProvider';
 
 import { IconsaxVerifyIcon } from '@/components/icons/IconsaxVerifyIcon';
 import { IconsaxProfileIcon } from '@/components/icons/IconsaxProfileIcon';
@@ -216,6 +220,8 @@ function SlideToCancelButton({ onSlide, trackWidth }: { onSlide: () => void; tra
 export default function AppointmentBookedScreen() {
   const insets = useSafeAreaInsets();
   const { width: screenWidth } = useWindowDimensions();
+  const { toast } = useToast();
+  const { session } = useAuth();
   const { id: appointmentId, doctorName, appointmentDate, appointmentTime, checkInCode, expiresAt } =
     useLocalSearchParams<{
       id?: string;
@@ -229,11 +235,30 @@ export default function AppointmentBookedScreen() {
   const trackWidth = screenWidth - 32;
   const [now, setNow] = useState(Date.now());
   const expiryMs = useRef(expiresAt ? Date.parse(expiresAt) : Date.now() + 60 * 60 * 1000).current;
+  const warningSentRef = useRef(false);
 
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
   }, []);
+
+  useEffect(() => {
+    const timeUntilWarning = expiryMs - 10 * 60 * 1000 - Date.now();
+    if (timeUntilWarning <= 0 || warningSentRef.current) return;
+    const t = setTimeout(() => {
+      if (!warningSentRef.current) {
+        warningSentRef.current = true;
+        useNotificationStore.getState().notifySelf(session?.user?.id, {
+          category: 'health',
+          title: 'Check-in Code Expiring Soon!',
+          body: `Your check-in code ${checkInCode} expires in 10 minutes. Visit the clinic or cancel your appointment.`,
+          href: '/health-service/appointments',
+          notificationType: 'warning',
+        });
+      }
+    }, timeUntilWarning);
+    return () => clearTimeout(t);
+  }, [expiryMs]);
 
   const remaining = Math.max(0, expiryMs - now);
   const h = Math.floor(remaining / 3600000);
@@ -245,6 +270,21 @@ export default function AppointmentBookedScreen() {
     try {
       if (appointmentId) {
         await healthServiceApi.cancelAppointment(String(appointmentId));
+        useHealthServiceStore.getState().loadAppointments();
+        useNotificationStore.getState().notifySelf(session?.user?.id, {
+          category: 'health',
+          title: 'Appointment Cancelled',
+          body: `Your appointment with ${doctorName} on ${appointmentDate} at ${appointmentTime} has been cancelled.`,
+          href: '/health-service/appointments',
+          notificationType: 'info',
+        });
+        toast.show({
+          variant: 'danger',
+          placement: 'top',
+          duration: 4000,
+          label: 'Appointment Cancelled',
+          description: `Your appointment with ${doctorName} has been cancelled.`,
+        });
       }
     } finally {
       router.back();

@@ -191,9 +191,7 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
         category: payload.category,
         title: payload.title,
         body: payload.body,
-        href: payload.href,
-        source: payload.source ?? null,
-        notification_type: payload.notificationType ?? null,
+        href: payload.href ?? null,
         read_at: null,
       });
       get().fetchAll(userId);

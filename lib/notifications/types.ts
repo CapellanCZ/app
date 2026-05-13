@@ -7,7 +7,7 @@ export type WelfareNotificationCategory =
 
 export type NotificationSection = 'today' | 'yesterday' | 'last7' | 'last30';
 
-export type NotificationStatusType = 'success' | 'info' | 'error';
+export type NotificationStatusType = 'success' | 'info' | 'error' | 'warning';
 
 export type NotificationItem = {
   id: string;

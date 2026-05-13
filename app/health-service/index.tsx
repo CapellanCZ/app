@@ -13,7 +13,8 @@ import { useAuth } from '../../lib/auth/AuthProvider';
 import { fetchStudentProfile } from '../../lib/profile/profileApi';
 import { HomeScreenHeader } from '@/components/home/HomeScreenHeader';
 import { IconsaxSearchIcon } from '../../components/icons/IconsaxSearchIcon';
-import { IconsaxCalendarIcon } from '../../components/icons/IconsaxCalendarIcon';
+import { IconsaxCalendarIcon } from '@/components/icons/IconsaxCalendarIcon';
+import { IconsaxCalendarSearchIcon } from '@/components/icons/IconsaxCalendarSearchIcon';
 import { IconsaxTimerIcon } from '../../components/icons/IconsaxTimerIcon';
 import type { StaffRole } from '../../lib/health-service/types';
 
@@ -52,12 +53,17 @@ export default function HealthServiceScreen() {
     loadAppointments,
     loadStaff,
     refreshData,
+    subscribeAppointments,
   } = useHealthServiceStore();
 
   useEffect(() => {
-    loadAppointments();
-    loadStaff();
-  }, [loadAppointments, loadStaff]);
+    // Data is pre-fetched by AuthProvider on login.
+    // Only reload here as a fallback if the store is still empty.
+    if (!staff.length) loadStaff();
+    if (!appointments.length) loadAppointments();
+    const unsubscribe = subscribeAppointments();
+    return unsubscribe;
+  }, []);
 
   useEffect(() => {
     if (!session?.user?.id) return;
@@ -103,7 +109,7 @@ export default function HealthServiceScreen() {
     [appointments],
   );
 
-  const upcomingStaffName = upcomingItem ? staffNameForAppointment(upcomingItem) : '';
+  const upcomingStaffName = upcomingItem ? staffNameForAppointment(upcomingItem.staffId) : '';
   const upcomingStaff = upcomingItem ? staff.find((s) => s.name === upcomingStaffName) : null;
 
   // Grid: 2 columns with 29px gap (matching Figma), 16px side padding
@@ -296,7 +302,7 @@ export default function HealthServiceScreen() {
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
                       <IconsaxTimerIcon size={16} color="rgba(253,253,253,0.9)" />
                       <Text style={{ fontSize: 14, fontWeight: '500', color: '#FDFDFD' }}>
-                        {upcomingItem.startLabel} - {upcomingItem.endLabel}
+                        {upcomingItem.startLabel}
                       </Text>
                     </View>
                   </View>
@@ -305,22 +311,21 @@ export default function HealthServiceScreen() {
                 <View
                   style={{
                     borderRadius: 16,
-                    borderWidth: 1,
-                    borderColor: '#E8EEF4',
-                    paddingVertical: 28,
-                    paddingHorizontal: 20,
-                    alignItems: 'center',
+                    paddingHorizontal: 16,
+                    paddingVertical: 20,
                     gap: 8,
+                    alignItems: 'center',
+                    justifyContent: 'center',
                   }}>
-                  <View style={{ width: 52, height: 52, borderRadius: 16, backgroundColor: '#EFF4FF', alignItems: 'center', justifyContent: 'center' }}>
-                    <IconsaxCalendarIcon size={26} color={BRAND} />
+                  <IconsaxCalendarSearchIcon size={48} color="#A4A7AE" />
+                  <View style={{ gap: 4, alignItems: 'center' }}>
+                    <Text style={{ fontSize: 16, color: '#717680', letterSpacing: -0.32, textAlign: 'center' }}>
+                      No Appointments Today
+                    </Text>
+                    <Text style={{ fontSize: 12, color: '#A4A7AE', letterSpacing: -0.24, textAlign: 'center' }}>
+                      Click See All to see all your appointments
+                    </Text>
                   </View>
-                  <Text style={{ fontSize: 15, fontWeight: '600', color: '#252B37' }}>
-                    You're all clear
-                  </Text>
-                  <Text style={{ fontSize: 13, color: '#717680', textAlign: 'center' }}>
-                    No visits scheduled — browse doctors below to book one.
-                  </Text>
                 </View>
               )}
             </View>
@@ -336,7 +341,13 @@ export default function HealthServiceScreen() {
           <View style={{ gap: 12 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
               <Text style={{ fontSize: 20, fontWeight: '500', color: '#000000' }}>Our Doctors</Text>
-              <Text style={{ fontSize: 14, fontWeight: '400', color: '#717680' }}>See All</Text>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => router.push('/health-service/doctors')}
+                hitSlop={10}
+                className="active:opacity-70">
+                <Text style={{ fontSize: 14, fontWeight: '400', color: '#717680' }}>See All</Text>
+              </Pressable>
             </View>
 
             {/* Role filter chips — horizontal scroll */}
