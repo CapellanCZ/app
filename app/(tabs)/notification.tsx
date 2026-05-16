@@ -1,16 +1,24 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useFocusEffect } from 'expo-router';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { useFocusEffect, useNavigation, useRouter } from 'expo-router';
+import {
+  LayoutAnimation,
+  Platform,
+  Pressable,
+  ScrollView,
+  Text,
+  UIManager,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { NotificationListRow } from '@/components/notifications/NotificationListRow';
 import { Ionicons } from '@expo/vector-icons';
 import { SettingIcon } from '@/components/icons/SettingIcon';
+import { IconsaxArrowLeftIcon } from '@/components/icons/IconsaxArrowLeftIcon';
 import { SCHEDULE_PARTNER } from '@/lib/health-service/bookingScheduleTheme';
 import { useAuth } from '@/lib/auth/AuthProvider';
 import { useNotificationStore } from '@/lib/notifications/notificationStore';
 import type { NotificationItem } from '@/lib/notifications/types';
-
 
 const BRAND = SCHEDULE_PARTNER.brand;
 
@@ -58,15 +66,23 @@ function SectionHeader({ title, onMarkAllRead }: SectionHeaderProps) {
 
 export default function NotificationScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
+  const navigation = useNavigation();
   const { session } = useAuth();
   const items = useNotificationStore((s) => s.items);
   const fetchAll = useNotificationStore((s) => s.fetchAll);
-  const markAllReadInSection = useNotificationStore((s) => s.markAllReadInSection);
+  const markAllRead = useNotificationStore((s) => s.markAllRead);
   const archiveNotification = useNotificationStore((s) => s.archive);
   const markRead = useNotificationStore((s) => s.markRead);
-  const [readFilter, setReadFilter] = useState<ReadFilter>('all');
+  const [readFilter] = useState<ReadFilter>('all');
   const [archivingIds, setArchivingIds] = useState<Map<string, number>>(new Map());
   const archivingIdsRef = useRef<Map<string, number>>(new Map());
+
+  useEffect(() => {
+    if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+      UIManager.setLayoutAnimationEnabledExperimental(true);
+    }
+  }, []);
 
   // Load mock data if not authenticated
   useEffect(() => {
@@ -75,15 +91,18 @@ export default function NotificationScreen() {
     }
   }, [session?.user?.id]);
 
-  // Refresh when screen comes into focus
+  // Refresh when screen comes into focus; mark read on leave.
   useFocusEffect(
     useCallback(() => {
       const userId = session?.user?.id;
       if (userId) {
         console.log('[NotificationScreen] Focused - refreshing notifications');
-        fetchAll(userId);
+        fetchAll(userId).catch(() => undefined);
       }
-    }, [session?.user?.id, fetchAll])
+      return () => {
+        markAllRead();
+      };
+    }, [session?.user?.id, fetchAll, markAllRead])
   );
 
   const unreadCount = useMemo(() => items.filter((n) => !n.read).length, [items]);
@@ -124,14 +143,25 @@ export default function NotificationScreen() {
     setArchivingIds(new Map(newMap));
   }, []);
 
-  const segmentBtn = (selected: boolean) => ({
-    flex: 1,
-    paddingVertical: 11,
-    borderRadius: 999,
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
-    backgroundColor: selected ? BRAND : 'transparent',
-  });
+  const handleArchive = useCallback(
+    (id: string) => {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      const nextMap = new Map(archivingIdsRef.current);
+      nextMap.delete(id);
+      archivingIdsRef.current = nextMap;
+      setArchivingIds(new Map(nextMap));
+      archiveNotification(id);
+    },
+    [archiveNotification]
+  );
+
+  const handleBack = useCallback(() => {
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      router.replace('/(tabs)');
+    }
+  }, [navigation, router]);
 
   return (
     <View style={{ flex: 1, backgroundColor: '#FDFDFD' }}>
@@ -149,7 +179,25 @@ export default function NotificationScreen() {
             alignItems: 'flex-start',
             justifyContent: 'space-between',
             marginBottom: 16,
+            gap: 16,
           }}>
+          <Pressable
+            accessibilityLabel="Go back"
+            accessibilityRole="button"
+            hitSlop={12}
+            onPress={handleBack}
+            className="active:opacity-70"
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 22,
+              backgroundColor: '#F5F5F5',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+            <IconsaxArrowLeftIcon size={20} color="#181D27" />
+          </Pressable>
+
           <View style={{ flex: 1 }}>
             <Text
               style={{
@@ -160,15 +208,11 @@ export default function NotificationScreen() {
               }}>
               Notifications
             </Text>
-            {unreadCount > 0 && (
-              <Text style={{ marginTop: 4, fontSize: 14, color: '#717680', letterSpacing: -0.25 }}>
-                You have{' '}
-                <Text style={{ fontWeight: '700', color: '#2970FF' }}>
-                  {unreadCount} new
-                </Text>{' '}
-                notifications
-              </Text>
-            )}
+            <Text style={{ marginTop: 4, fontSize: 14, color: '#717680', letterSpacing: -0.25 }}>
+              You have{' '}
+              <Text style={{ fontWeight: '700', color: '#2970FF' }}>{unreadCount} new</Text>{' '}
+              notifications
+            </Text>
           </View>
           <Pressable
             accessibilityRole="button"
@@ -183,7 +227,13 @@ export default function NotificationScreen() {
 
         {filtered.length === 0 ? (
           <View className="mt-8 items-center rounded-2xl border border-[#E8EEF4] bg-white px-5 py-10">
-            <Text style={{ textAlign: 'center', fontSize: 15, lineHeight: 22, color: SCHEDULE_PARTNER.textMuted }}>
+            <Text
+              style={{
+                textAlign: 'center',
+                fontSize: 15,
+                lineHeight: 22,
+                color: SCHEDULE_PARTNER.textMuted,
+              }}>
               {readFilter === 'unread'
                 ? 'No unread notifications. Switch to All to see earlier updates.'
                 : 'No notifications yet.'}
@@ -193,16 +243,13 @@ export default function NotificationScreen() {
           <>
             {today.length > 0 && (
               <>
-                <SectionHeader
-                  title="Today"
-                  onMarkAllRead={() => triggerMarkAllArchive(today)}
-                />
+                <SectionHeader title="Today" onMarkAllRead={() => triggerMarkAllArchive(today)} />
                 <View>
                   {today.map((item, index) => (
                     <NotificationListRow
                       key={item.id}
                       item={item}
-                      onArchive={archiveNotification}
+                      onArchive={handleArchive}
                       onMarkRead={markRead}
                       isLast={index === today.length - 1}
                       animateOutDelay={archivingIds.get(item.id)}
@@ -223,7 +270,7 @@ export default function NotificationScreen() {
                     <NotificationListRow
                       key={item.id}
                       item={item}
-                      onArchive={archiveNotification}
+                      onArchive={handleArchive}
                       onMarkRead={markRead}
                       isLast={index === yesterday.length - 1}
                       animateOutDelay={archivingIds.get(item.id)}
@@ -244,7 +291,7 @@ export default function NotificationScreen() {
                     <NotificationListRow
                       key={item.id}
                       item={item}
-                      onArchive={archiveNotification}
+                      onArchive={handleArchive}
                       onMarkRead={markRead}
                       isLast={index === last7.length - 1}
                       animateOutDelay={archivingIds.get(item.id)}
@@ -265,7 +312,7 @@ export default function NotificationScreen() {
                     <NotificationListRow
                       key={item.id}
                       item={item}
-                      onArchive={archiveNotification}
+                      onArchive={handleArchive}
                       onMarkRead={markRead}
                       isLast={index === last30.length - 1}
                       animateOutDelay={archivingIds.get(item.id)}

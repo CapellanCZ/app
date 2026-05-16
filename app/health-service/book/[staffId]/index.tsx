@@ -37,17 +37,12 @@ import { useAuth } from '@/lib/auth/AuthProvider';
 import { useNotificationStore } from '@/lib/notifications/notificationStore';
 import { useHealthServiceStore } from '../../../../lib/health-service/healthServiceStore';
 import { healthServiceApi } from '../../../../lib/health-service/healthServiceApi';
-import {
-  getSlotLabelsForPeriod,
-  isStaffWorkingOnDate,
-} from '../../../../lib/health-service/slotUtils';
 import type { SlotPeriod, StaffRole } from '../../../../lib/health-service/types';
 
 const BRAND = '#2970FF';
 const BRAND_LIGHT = '#528BFF';
 const GRAY_100 = '#F5F5F5';
 const GRAY_200 = '#E9EAEB';
-const GRAY_400 = '#A4A7AE';
 const GRAY_500 = '#717680';
 const GRAY_600 = '#535862';
 const GRAY_800 = '#252B37';
@@ -74,11 +69,6 @@ function startOfDay(d: Date): Date {
   const x = new Date(d);
   x.setHours(0, 0, 0, 0);
   return x;
-}
-
-function dateKey(d: Date): string {
-  const x = startOfDay(d);
-  return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
 }
 
 function isSameDay(a: Date, b: Date): boolean {
@@ -233,61 +223,63 @@ function BookAppointmentButton({
       {isLoading ? (
         <ActivityIndicator size="small" color="#FFFFFF" />
       ) : (
-      <>{/* Background label */}
-      <Animated.View
-        style={[
-          {
-            ...StyleSheet.absoluteFillObject,
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            paddingLeft: SLIDE_KNOB_SIZE + SLIDE_TRACK_PADDING + 16,
-            paddingRight: 24,
-          },
-          labelStyle,
-        ]}>
-        <Text style={{ fontSize: 16, fontWeight: '600', color: '#FFF' }}>
-          Slide to Book Appointment
-        </Text>
-        <Animated.Text
-          style={[
-            {
-              fontSize: 18,
-              fontWeight: '400',
-              color: 'rgba(255,255,255,0.5)',
-              letterSpacing: 2,
-            },
-            chevronStyle,
-          ]}>
-          {`>>>`}
-        </Animated.Text>
-      </Animated.View>
+        <>
+          {/* Background label */}
+          <Animated.View
+            style={[
+              {
+                ...StyleSheet.absoluteFillObject,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                paddingLeft: SLIDE_KNOB_SIZE + SLIDE_TRACK_PADDING + 16,
+                paddingRight: 24,
+              },
+              labelStyle,
+            ]}>
+            <Text style={{ fontSize: 16, fontWeight: '600', color: '#FFF' }}>
+              Slide to Book Appointment
+            </Text>
+            <Animated.Text
+              style={[
+                {
+                  fontSize: 18,
+                  fontWeight: '400',
+                  color: 'rgba(255,255,255,0.5)',
+                  letterSpacing: 2,
+                },
+                chevronStyle,
+              ]}>
+              {`>>>`}
+            </Animated.Text>
+          </Animated.View>
 
-      {/* Sliding knob */}
-      <GestureDetector gesture={panGesture}>
-        <Animated.View
-          style={[
-            {
-              position: 'absolute',
-              left: SLIDE_TRACK_PADDING,
-              width: SLIDE_KNOB_SIZE,
-              height: SLIDE_KNOB_SIZE,
-              borderRadius: 999,
-              backgroundColor: '#FFFFFF',
-              alignItems: 'center',
-              justifyContent: 'center',
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.15,
-              shadowRadius: 4,
-              elevation: 4,
-            },
-            knobStyle,
-          ]}>
-          <IconsaxArrowRightIcon size={24} color={BRAND} />
-        </Animated.View>
-      </GestureDetector>
-      </>)}
+          {/* Sliding knob */}
+          <GestureDetector gesture={panGesture}>
+            <Animated.View
+              style={[
+                {
+                  position: 'absolute',
+                  left: SLIDE_TRACK_PADDING,
+                  width: SLIDE_KNOB_SIZE,
+                  height: SLIDE_KNOB_SIZE,
+                  borderRadius: 999,
+                  backgroundColor: '#FFFFFF',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.15,
+                  shadowRadius: 4,
+                  elevation: 4,
+                },
+                knobStyle,
+              ]}>
+              <IconsaxArrowRightIcon size={24} color={BRAND} />
+            </Animated.View>
+          </GestureDetector>
+        </>
+      )}
     </View>
   );
 }
@@ -311,18 +303,54 @@ export default function HealthServiceBookScreen() {
   const [symptoms, setSymptoms] = useState('');
   const [avatarFailed, setAvatarFailed] = useState(false);
   const [isBooking, setIsBooking] = useState(false);
+  const [working, setWorking] = useState(false);
+  const [slotLabels, setSlotLabels] = useState<string[]>([]);
 
   useEffect(() => {
     setAvatarFailed(false);
   }, [staff?.id, staff?.photoUrl]);
 
-  const working = staff ? isStaffWorkingOnDate(staff.id, selectedDay) : false;
-  const dk = dateKey(selectedDay);
+  useEffect(() => {
+    let cancelled = false;
 
-  const slotLabels = useMemo((): string[] => {
-    if (!staff || !working) return [];
-    return getSlotLabelsForPeriod(staff.id, dk, period);
-  }, [staff, working, dk, period]);
+    async function loadAvailability() {
+      if (!staff) {
+        setWorking(false);
+        setSlotLabels([]);
+        return;
+      }
+
+      try {
+        const [isWorkingToday, labels] = await Promise.all([
+          healthServiceApi.isWorking(staff.id, selectedDay),
+          healthServiceApi.getOpenSlotLabels(staff.id, selectedDay, period),
+        ]);
+
+        if (!cancelled) {
+          setWorking(isWorkingToday);
+          setSlotLabels(labels);
+        }
+      } catch (error) {
+        console.error('Failed to load staff availability:', error);
+        if (!cancelled) {
+          setWorking(false);
+          setSlotLabels([]);
+        }
+      }
+    }
+
+    loadAvailability();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [staff, selectedDay, period]);
+
+  useEffect(() => {
+    if (selectedSlot && !slotLabels.includes(selectedSlot)) {
+      setSelectedSlot(null);
+    }
+  }, [selectedSlot, slotLabels]);
 
   const weekDays = useMemo(() => getWeekDays(selectedDay), [selectedDay]);
 
@@ -339,7 +367,11 @@ export default function HealthServiceBookScreen() {
 
     // Create appointment
     try {
-      const { id: appointmentId, checkInCode, createdAt: bookedAt } = await healthServiceApi.bookAppointment({
+      const {
+        id: appointmentId,
+        checkInCode,
+        createdAt: bookedAt,
+      } = await healthServiceApi.bookAppointment({
         staffId: staff.id,
         day: selectedDay,
         startLabel: selectedSlot,
@@ -818,16 +850,12 @@ export default function HealthServiceBookScreen() {
                 </Text>
               ) : (
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 16 }}>
-                  {slotLabels.map((label, idx) => {
+                  {slotLabels.map((label) => {
                     const isSelected = selectedSlot === label;
-                    const isUnavailable = !isSelected && (idx === 0 || idx === 3);
                     return (
                       <Pressable
                         key={label}
-                        disabled={isUnavailable}
-                        onPress={() => {
-                          if (!isUnavailable) setSelectedSlot(label);
-                        }}
+                        onPress={() => setSelectedSlot(label)}
                         style={{
                           width: Math.floor((screenWidth - 40 - 3 * 16) / 4),
                           paddingVertical: 10,
@@ -841,8 +869,7 @@ export default function HealthServiceBookScreen() {
                           style={{
                             fontSize: 14,
                             fontWeight: '500',
-                            color: isSelected ? '#FFF' : isUnavailable ? GRAY_400 : '#000',
-                            textDecorationLine: isUnavailable ? 'line-through' : 'none',
+                            color: isSelected ? '#FFF' : '#000',
                           }}>
                           {label}
                         </Text>
@@ -869,7 +896,6 @@ export default function HealthServiceBookScreen() {
               trackWidth={buttonTrackWidth}
             />
           </View>
-
         </View>
       </HealthServiceScreenShell>
     </GestureHandlerRootView>

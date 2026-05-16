@@ -1,5 +1,14 @@
 import { useMemo, useState, useEffect, useCallback } from 'react';
-import { Image, Pressable, ScrollView, Text, TextInput, useWindowDimensions, View, RefreshControl } from 'react-native';
+import {
+  Image,
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  useWindowDimensions,
+  View,
+  RefreshControl,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -8,7 +17,10 @@ import { HealthServiceScreenShell } from '../../components/health-service/Health
 import { ProviderCard } from '../../components/health-service/ProviderCard';
 import { TAB_BAR_HEIGHT } from '../../components/layout/BottomTabBar';
 import { healthServiceApi } from '../../lib/health-service/healthServiceApi';
-import { useHealthServiceStore, staffNameForAppointment } from '../../lib/health-service/healthServiceStore';
+import {
+  useHealthServiceStore,
+  staffNameForAppointment,
+} from '../../lib/health-service/healthServiceStore';
 import { useAuth } from '../../lib/auth/AuthProvider';
 import { fetchStudentProfile } from '../../lib/profile/profileApi';
 import { HomeScreenHeader } from '@/components/home/HomeScreenHeader';
@@ -22,19 +34,26 @@ function formatDateLabel(dateKey: string): string {
   const [y, m, d] = dateKey.split('-').map(Number);
   const date = new Date(y, m - 1, d);
   const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'];
+  const monthNames = [
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
+  ];
   return `${dayNames[date.getDay()]}, ${d} ${monthNames[m - 1]}`;
 }
 
 const BRAND = '#2970FF';
 
-const ROLE_CHIPS: { label: string; value: StaffRole | 'all' }[] = [
-  { label: 'Physician', value: 'doctor' },
-  { label: 'Dentist', value: 'dentist' },
-  { label: 'Cardiology', value: 'all' },
-  { label: 'Psychiatrist', value: 'all' },
-];
+type RoleFilter = 'all' | StaffRole;
 
 export default function HealthServiceScreen() {
   const insets = useSafeAreaInsets();
@@ -43,18 +62,12 @@ export default function HealthServiceScreen() {
   const { session } = useAuth();
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
-  const [roleFilter, setRoleFilter] = useState<StaffRole | 'all'>('all');
+  const [roleFilter, setRoleFilter] = useState<RoleFilter>('all');
   const [search, setSearch] = useState('');
   const [refreshing, setRefreshing] = useState(false);
 
-  const {
-    appointments,
-    staff,
-    loadAppointments,
-    loadStaff,
-    refreshData,
-    subscribeAppointments,
-  } = useHealthServiceStore();
+  const { appointments, staff, loadAppointments, loadStaff, refreshData, subscribeAppointments } =
+    useHealthServiceStore();
 
   useEffect(() => {
     // Data is pre-fetched by AuthProvider on login.
@@ -84,29 +97,48 @@ export default function HealthServiceScreen() {
     }
   }, [refreshData]);
 
+  const roleChips = useMemo(() => {
+    const chips: { label: string; value: RoleFilter }[] = [{ label: 'All', value: 'all' }];
+    const physician = staff.find((s) => s.role === 'doctor');
+    const dentist = staff.find((s) => s.role === 'dentist');
+
+    if (physician) {
+      chips.push({ label: physician.specialtyLabel || 'Physician', value: 'doctor' });
+    }
+    if (dentist) {
+      chips.push({ label: dentist.specialtyLabel || 'Dentist', value: 'dentist' });
+    }
+
+    return chips;
+  }, [staff]);
+
   const filteredStaff = useMemo(() => {
     const q = search.trim().toLowerCase();
     return staff.filter((s) => {
+      if (s.role !== 'doctor' && s.role !== 'dentist') return false;
       if (roleFilter !== 'all' && s.role !== roleFilter) return false;
       if (q) {
-        if (!s.name.toLowerCase().includes(q) && !s.specialtyLabel.toLowerCase().includes(q)) return false;
+        if (!s.name.toLowerCase().includes(q) && !s.specialtyLabel.toLowerCase().includes(q))
+          return false;
       }
       return true;
     });
   }, [roleFilter, search, staff]);
 
   const upcomingItem = useMemo(() => {
-    return appointments
-      .filter((a) => a.status === 'confirmed')
-      .sort((a, b) => {
-        if (a.dateKey !== b.dateKey) return a.dateKey.localeCompare(b.dateKey);
-        return a.startLabel.localeCompare(b.startLabel);
-      })[0] ?? null;
+    return (
+      appointments
+        .filter((a) => a.status === 'confirmed')
+        .sort((a, b) => {
+          if (a.dateKey !== b.dateKey) return a.dateKey.localeCompare(b.dateKey);
+          return a.startLabel.localeCompare(b.startLabel);
+        })[0] ?? null
+    );
   }, [appointments]);
 
   const confirmedCount = useMemo(
     () => appointments.filter((a) => a.status === 'confirmed').length,
-    [appointments],
+    [appointments]
   );
 
   const upcomingStaffName = upcomingItem ? staffNameForAppointment(upcomingItem.staffId) : '';
@@ -124,7 +156,6 @@ export default function HealthServiceScreen() {
         contentContainerStyle={{
           paddingBottom: Math.max(insets.bottom, 12) + TAB_BAR_HEIGHT + 8,
         }}>
-
         {/* ══════════════════════════════════════
             GREY HEADER CARD  (#F5F5F5, r-32)
             Contains: greeting, search, upcoming
@@ -139,7 +170,6 @@ export default function HealthServiceScreen() {
               paddingHorizontal: 14,
               gap: 24,
             }}>
-
             <HomeScreenHeader title="Clinic" avatarUrl={avatarUrl} />
 
             {/* ── Search bar ── */}
@@ -172,7 +202,12 @@ export default function HealthServiceScreen() {
             {/* ── Upcoming Schedule ── */}
             <View style={{ gap: 12 }}>
               {/* Section header */}
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   <Text style={{ fontSize: 20, fontWeight: '500', color: '#000000' }}>
                     Upcoming Schedule
@@ -187,7 +222,14 @@ export default function HealthServiceScreen() {
                         alignItems: 'center',
                         justifyContent: 'center',
                       }}>
-                      <Text style={{ fontSize: 10, fontWeight: '400', color: '#FFF', textAlign: 'center', lineHeight: 12 }}>
+                      <Text
+                        style={{
+                          fontSize: 10,
+                          fontWeight: '400',
+                          color: '#FFF',
+                          textAlign: 'center',
+                          lineHeight: 12,
+                        }}>
                         {confirmedCount}
                       </Text>
                     </View>
@@ -209,7 +251,10 @@ export default function HealthServiceScreen() {
                   accessibilityRole="button"
                   accessibilityLabel={`Appointment with ${upcomingStaffName}`}
                   onPress={() =>
-                    router.push({ pathname: '/health-service/appointment/[id]', params: { id: upcomingItem.id } })
+                    router.push({
+                      pathname: '/health-service/appointment/[id]',
+                      params: { id: upcomingItem.id },
+                    })
                   }
                   style={{
                     backgroundColor: BRAND,
@@ -224,9 +269,13 @@ export default function HealthServiceScreen() {
                     elevation: 2,
                   }}
                   className="active:opacity-90">
-
                   {/* Doctor row */}
-                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                    }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 13, flex: 1 }}>
                       {/* Doctor photo */}
                       <View
@@ -254,7 +303,12 @@ export default function HealthServiceScreen() {
                       {/* Name + rating */}
                       <View style={{ gap: 4, flex: 1 }}>
                         <Text
-                          style={{ fontSize: 20, fontWeight: '600', color: '#FDFDFD', letterSpacing: -0.8 }}
+                          style={{
+                            fontSize: 20,
+                            fontWeight: '600',
+                            color: '#FDFDFD',
+                            letterSpacing: -0.8,
+                          }}
                           numberOfLines={1}>
                           {upcomingStaffName}
                         </Text>
@@ -290,13 +344,22 @@ export default function HealthServiceScreen() {
                     {/* Date */}
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
                       <IconsaxCalendarIcon size={16} color="rgba(253,253,253,0.9)" />
-                      <Text style={{ fontSize: 14, fontWeight: '500', color: '#FDFDFD' }} numberOfLines={1}>
+                      <Text
+                        style={{ fontSize: 14, fontWeight: '500', color: '#FDFDFD' }}
+                        numberOfLines={1}>
                         {formatDateLabel(upcomingItem.dateKey)}
                       </Text>
                     </View>
 
                     {/* Vertical divider */}
-                    <View style={{ width: 1, height: 16, backgroundColor: 'rgba(255,255,255,0.4)', marginHorizontal: 12 }} />
+                    <View
+                      style={{
+                        width: 1,
+                        height: 16,
+                        backgroundColor: 'rgba(255,255,255,0.4)',
+                        marginHorizontal: 12,
+                      }}
+                    />
 
                     {/* Time */}
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
@@ -319,10 +382,22 @@ export default function HealthServiceScreen() {
                   }}>
                   <IconsaxCalendarSearchIcon size={48} color="#A4A7AE" />
                   <View style={{ gap: 4, alignItems: 'center' }}>
-                    <Text style={{ fontSize: 16, color: '#717680', letterSpacing: -0.32, textAlign: 'center' }}>
+                    <Text
+                      style={{
+                        fontSize: 16,
+                        color: '#717680',
+                        letterSpacing: -0.32,
+                        textAlign: 'center',
+                      }}>
                       No Appointments Today
                     </Text>
-                    <Text style={{ fontSize: 12, color: '#A4A7AE', letterSpacing: -0.24, textAlign: 'center' }}>
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        color: '#A4A7AE',
+                        letterSpacing: -0.24,
+                        textAlign: 'center',
+                      }}>
                       Click See All to see all your appointments
                     </Text>
                   </View>
@@ -336,10 +411,14 @@ export default function HealthServiceScreen() {
             OUR DOCTORS SECTION
         ══════════════════════════════════════ */}
         <View style={{ paddingHorizontal: 16, marginTop: 20, gap: 20 }}>
-
           {/* Section header + chips */}
           <View style={{ gap: 12 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}>
               <Text style={{ fontSize: 20, fontWeight: '500', color: '#000000' }}>Our Doctors</Text>
               <Pressable
                 accessibilityRole="button"
@@ -355,14 +434,14 @@ export default function HealthServiceScreen() {
               horizontal
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={{ gap: 8 }}>
-              {ROLE_CHIPS.map((chip) => {
-                const isActive = roleFilter === chip.value && chip.value !== 'all';
+              {roleChips.map((chip) => {
+                const isActive = roleFilter === chip.value;
                 return (
                   <Pressable
                     key={chip.label}
                     accessibilityRole="button"
                     accessibilityState={{ selected: isActive }}
-                    onPress={() => setRoleFilter(isActive ? 'all' : chip.value)}
+                    onPress={() => setRoleFilter(chip.value)}
                     style={{
                       paddingHorizontal: 12,
                       paddingVertical: 8,

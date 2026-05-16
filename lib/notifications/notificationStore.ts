@@ -24,6 +24,9 @@ interface NotificationState {
   /** Mark every notification in a section as read. */
   markAllReadInSection: (section: NotificationSection) => Promise<void>;
 
+  /** Mark every notification as read. */
+  markAllRead: () => Promise<void>;
+
   /** Mark a single notification as read. */
   markRead: (id: string) => Promise<void>;
 
@@ -49,7 +52,7 @@ interface NotificationState {
    */
   notifySelf: (
     userId: string | undefined,
-    payload: Omit<NotificationItem, 'id' | 'read' | 'timeLabel' | 'section'>,
+    payload: Omit<NotificationItem, 'id' | 'read' | 'timeLabel' | 'section'>
   ) => Promise<void>;
 }
 
@@ -103,14 +106,28 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
       .in('id', ids);
   },
 
-  markRead: async (id) => {
-    // Optimistic
-    set((s) => ({ items: s.items.map((n) => (n.id === id ? { ...n, read: true } : n)) }));
+  markAllRead: async () => {
+    const ids = get()
+      .items.filter((n) => !n.read)
+      .map((n) => n.id);
+    if (!ids.length) return;
+
+    set((s) => ({
+      items: s.items.map((n) => ({ ...n, read: true })),
+    }));
+
     if (!isSupabaseConfigured || !supabase) return;
     await supabase
       .from('notifications')
       .update({ read_at: new Date().toISOString() })
-      .eq('id', id);
+      .in('id', ids);
+  },
+
+  markRead: async (id) => {
+    // Optimistic
+    set((s) => ({ items: s.items.map((n) => (n.id === id ? { ...n, read: true } : n)) }));
+    if (!isSupabaseConfigured || !supabase) return;
+    await supabase.from('notifications').update({ read_at: new Date().toISOString() }).eq('id', id);
   },
 
   archive: async (id) => {
@@ -143,7 +160,7 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
           console.log('[notifications] Realtime event received:', payload);
           // Refetch to get the latest data
           get().fetchAll(userId);
-        },
+        }
       )
       .subscribe((status, err) => {
         if (err) {
