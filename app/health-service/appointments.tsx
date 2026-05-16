@@ -34,14 +34,22 @@ export default function HealthServiceAppointmentsScreen() {
     }, [loadAppointments, loadStaff, staff.length]),
   );
 
-  const active = useMemo(() =>
-    appointments
-      .filter((a) => a.status !== 'cancelled')
+  const active = useMemo(() => {
+    const now = Date.now();
+    return appointments
+      .filter((a) => {
+        if (a.status === 'cancelled') return false;
+        if (a.status === 'pending' && a.createdAt) {
+          const expiry = new Date(a.createdAt).getTime() + 60 * 60 * 1000;
+          if (expiry < now) return false;
+        }
+        return true;
+      })
       .sort((a, b) => {
         if (a.dateKey !== b.dateKey) return a.dateKey.localeCompare(b.dateKey);
         return a.startLabel.localeCompare(b.startLabel);
-      }),
-  [appointments]);
+      });
+  }, [appointments]);
 
   const filtered = useMemo(() => {
     if (activeTab === 'completed') return [];

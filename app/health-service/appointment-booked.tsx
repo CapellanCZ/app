@@ -34,6 +34,7 @@ import { IconsaxProfileIcon } from '@/components/icons/IconsaxProfileIcon';
 import { IconsaxCalendarIcon } from '@/components/icons/IconsaxCalendarIcon';
 import { IconsaxClockIcon } from '@/components/icons/IconsaxClockIcon';
 import { IconsaxArrowRightIcon } from '@/components/icons/IconsaxArrowRightIcon';
+import { StatusIcon } from '@/components/icons/StatusIcon';
 
 const GRAY_50 = '#FAFAFA';
 const GRAY_100 = '#F5F5F5';
@@ -41,6 +42,8 @@ const GRAY_200 = '#E9EAEB';
 const GRAY_500 = '#717680';
 const GRAY_800 = '#252B37';
 const GRAY_900 = '#181D27';
+const BRAND_BLUE = '#2970FF';
+const WARNING_THRESHOLD_MS = 10 * 60 * 1000;
 
 // Deterministic barcode pattern derived from check-in code
 function generateBarPattern(seed: string): number[] {
@@ -236,35 +239,61 @@ export default function AppointmentBookedScreen() {
   const [now, setNow] = useState(Date.now());
   const expiryMs = useRef(expiresAt ? Date.parse(expiresAt) : Date.now() + 60 * 60 * 1000).current;
   const warningSentRef = useRef(false);
+  const expiredSentRef = useRef(false);
 
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
   }, []);
 
-  useEffect(() => {
-    const timeUntilWarning = expiryMs - 10 * 60 * 1000 - Date.now();
-    if (timeUntilWarning <= 0 || warningSentRef.current) return;
-    const t = setTimeout(() => {
-      if (!warningSentRef.current) {
-        warningSentRef.current = true;
-        useNotificationStore.getState().notifySelf(session?.user?.id, {
-          category: 'health',
-          title: 'Check-in Code Expiring Soon!',
-          body: `Your check-in code ${checkInCode} expires in 10 minutes. Visit the clinic or cancel your appointment.`,
-          href: '/health-service/appointments',
-          notificationType: 'warning',
-        });
-      }
-    }, timeUntilWarning);
-    return () => clearTimeout(t);
-  }, [expiryMs]);
-
   const remaining = Math.max(0, expiryMs - now);
   const h = Math.floor(remaining / 3600000);
   const m = Math.floor((remaining % 3600000) / 60000);
   const s = Math.floor((remaining % 60000) / 1000);
   const pad = (n: number) => String(n).padStart(2, '0');
+  const isExpired = remaining === 0;
+  const isExpiringSoon = remaining > 0 && remaining <= WARNING_THRESHOLD_MS;
+  const remainingMinutes = Math.max(1, Math.ceil(remaining / 60000));
+
+  useEffect(() => {
+    if (isExpiringSoon && !warningSentRef.current) {
+      warningSentRef.current = true;
+      useNotificationStore.getState().notifySelf(session?.user?.id, {
+        category: 'health',
+        title: 'Ticket expiring soon',
+        body: `Your check-in ticket expires in ${remainingMinutes} minutes. Please check in or cancel your appointment to keep your slot.`,
+        href: '/health-service/appointments',
+        notificationType: 'warning',
+      });
+      toast.show({
+        variant: 'info',
+        placement: 'top',
+        duration: 5000,
+        label: 'Ticket expiring soon',
+        description: `You have ${remainingMinutes} minutes left to check in.`,
+      });
+    }
+  }, [isExpiringSoon, remainingMinutes, session?.user?.id, toast]);
+
+  useEffect(() => {
+    if (isExpired && !expiredSentRef.current) {
+      expiredSentRef.current = true;
+      useNotificationStore.getState().notifySelf(session?.user?.id, {
+        category: 'health',
+        title: 'Ticket expired',
+        body: `Your check-in ticket has expired. Book a new appointment if you still need assistance.`,
+        href: '/health-service/appointments',
+        notificationType: 'error',
+      });
+      toast.show({
+        variant: 'danger',
+        placement: 'top',
+        duration: 6000,
+        label: 'Ticket expired',
+        description: 'Your check-in ticket has expired. Please book again.',
+      });
+    }
+  }, [isExpired, session?.user?.id, toast]);
 
   const handleCancel = async () => {
     try {
@@ -427,9 +456,44 @@ export default function AppointmentBookedScreen() {
                 padding: 16,
                 alignItems: 'center',
               }}>
+              {(isExpiringSoon || isExpired) && (
+                <View
+                  style={{
+                    width: '100%',
+                    borderRadius: 16,
+                    borderWidth: 1,
+                    borderColor: '#F5F5F5',
+                    backgroundColor: '#FFFFFF',
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 14,
+                    padding: 14,
+                    marginBottom: 12,
+                  }}>
+                  <StatusIcon variant={isExpired ? 'error' : 'warning'} size={40} />
+                  <View style={{ flex: 1, gap: 4 }}>
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: GRAY_900, letterSpacing: -0.28 }}>
+                      {isExpired ? 'Ticket expired' : 'Ticket expiring soon'}
+                    </Text>
+                    <Text style={{ fontSize: 12, color: GRAY_500, lineHeight: 18 }}>
+                      {isExpired ? (
+                        'Your check-in ticket has expired. Book a new appointment if you still need assistance.'
+                      ) : (
+                        <>
+                          {'Your ticket will be canceled in '}
+                          <Text style={{ color: BRAND_BLUE, fontWeight: '600' }}>
+                            {remainingMinutes} minutes
+                          </Text>
+                          {' if you do not check in.'}
+                        </>
+                      )}
+                    </Text>
+                  </View>
+                </View>
+              )}
               <Barcode code={checkInCode ?? 'CH-001'} />
               <Text style={{ marginTop: 6, fontSize: 12, color: GRAY_500 }}>
-                Expires in {pad(h)}:{pad(m)}:{pad(s)}
+                {isExpired ? 'Expired' : `Expires in ${pad(h)}:${pad(m)}:${pad(s)}`}
               </Text>
             </View>
           </View>

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Dimensions, Modal, Pressable, Text, TouchableOpacity, View } from 'react-native';
+import { Modal, Pressable, Text, TouchableOpacity, View } from 'react-native';
 import Animated, {
   Easing,
   runOnJS,
@@ -13,8 +13,6 @@ import Svg, { Circle } from 'react-native-svg';
 import { StatusIcon } from '@/components/icons/StatusIcon';
 import { DEFAULT_SOURCE_BY_CATEGORY } from '@/lib/notifications/types';
 import type { NotificationItem, NotificationStatusType } from '@/lib/notifications/types';
-
-const SCREEN_WIDTH = Dimensions.get('window').width;
 
 export type NotificationListRowProps = {
   item: NotificationItem;
@@ -34,8 +32,8 @@ function resolveVariant(type?: NotificationStatusType): 'success' | 'info' | 'er
 function ThreeDotIcon() {
   return (
     <Svg width={18} height={8} viewBox="0 0 18 8">
-      <Circle cx={2}  cy={4} r={1.6} fill="#717680" />
-      <Circle cx={9}  cy={4} r={1.6} fill="#717680" />
+      <Circle cx={2} cy={4} r={1.6} fill="#717680" />
+      <Circle cx={9} cy={4} r={1.6} fill="#717680" />
       <Circle cx={16} cy={4} r={1.6} fill="#717680" />
     </Svg>
   );
@@ -50,23 +48,31 @@ export function NotificationListRow({
 }: NotificationListRowProps) {
   const [menuVisible, setMenuVisible] = useState(false);
   const translateX = useSharedValue(0);
+  const opacity = useSharedValue(1);
+  const scale = useSharedValue(1);
 
   useEffect(() => {
     if (animateOutDelay === undefined) return;
+    const duration = 260;
     translateX.value = withDelay(
       animateOutDelay,
-      withTiming(
-        -SCREEN_WIDTH,
-        { duration: 300, easing: Easing.in(Easing.cubic) },
-        (finished) => {
-          if (finished) runOnJS(onArchive)(item.id);
-        },
-      ),
+      withTiming(-20, { duration, easing: Easing.out(Easing.cubic) }, (finished) => {
+        if (finished) runOnJS(onArchive)(item.id);
+      })
     );
-  }, [animateOutDelay]);
+    opacity.value = withDelay(
+      animateOutDelay,
+      withTiming(0, { duration: duration - 40, easing: Easing.out(Easing.quad) })
+    );
+    scale.value = withDelay(
+      animateOutDelay,
+      withTiming(0.98, { duration, easing: Easing.out(Easing.cubic) })
+    );
+  }, [animateOutDelay, item.id, onArchive, opacity, scale, translateX]);
 
   const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: translateX.value }],
+    opacity: opacity.value,
+    transform: [{ translateX: translateX.value }, { scaleY: scale.value }],
   }));
 
   const handleMarkRead = () => {
@@ -84,82 +90,77 @@ export function NotificationListRow({
   return (
     <>
       {/* ── Card ── */}
-      <Animated.View style={animatedStyle}>
-      <View
-        style={{
-          marginBottom: isLast ? 0 : 8,
-          borderRadius: 16,
-          borderWidth: 1,
-          borderColor: '#F5F5F5',
-          backgroundColor: item.read ? '#FFFFFF' : 'rgba(245,248,255,0.9)',
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: 20,
-          paddingLeft: 18,
-          paddingRight: 12,
-          paddingVertical: 20,
-        }}>
-
-        {/* ── Left: Status icon (size=40 → 32px icon + 4px padding renders the bg+ring) ── */}
-        <View style={{ flexShrink: 0, alignSelf: 'flex-start', marginTop: 2 }}>
-          <StatusIcon variant={variant} size={40} />
-        </View>
-
-        {/* ── Right: Content column, gap 4 per Figma ── */}
-        <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
-
-          {/* Row A: title sub-col + three-dot */}
-          <View style={{ flexDirection: 'row', alignItems: 'flex-start', width: '100%' }}>
-
-            {/* Title + time·source stacked, flex:1 */}
-            <View style={{ flex: 1, gap: 4, minWidth: 0 }}>
-              {/* Title — Inter Medium 14, auto-capitalized */}
-              <Text
-                numberOfLines={2}
-                style={{
-                  fontSize: 14,
-                  fontWeight: '500',
-                  letterSpacing: -0.28,
-                  color: '#181D27',
-                  textTransform: 'capitalize',
-                }}>
-                {item.title}
-              </Text>
-
-              {/* time · source — single Text guarantees both always render */}
-              <Text
-                numberOfLines={1}
-                style={{ fontSize: 12, fontWeight: '400', color: '#717680' }}>
-                {`${item.timeLabel}  •  ${item.source ?? DEFAULT_SOURCE_BY_CATEGORY[item.category] ?? 'CampusCare'}`}
-              </Text>
-            </View>
-
-            {/* Three-dot button — shrink-0, 24×12 hit area */}
-            <TouchableOpacity
-              onPress={() => setMenuVisible(true)}
-              accessibilityRole="button"
-              accessibilityLabel="More options"
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              style={{ flexShrink: 0, marginLeft: 8, paddingTop: 2 }}>
-              <ThreeDotIcon />
-            </TouchableOpacity>
+      <Animated.View style={[{ marginBottom: isLast ? 0 : 8 }, animatedStyle]}>
+        <View
+          style={{
+            borderRadius: 16,
+            borderWidth: 1,
+            borderColor: '#F5F5F5',
+            backgroundColor: item.read ? 'transparent' : '#F5F8FFCC',
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 20,
+            paddingLeft: 18,
+            paddingRight: 12,
+            paddingVertical: 20,
+          }}>
+          {/* ── Left: Status icon (size=40 → 32px icon + 4px padding renders the bg+ring) ── */}
+          <View style={{ flexShrink: 0, alignSelf: 'flex-start', marginTop: 2 }}>
+            <StatusIcon variant={variant} size={40} />
           </View>
 
-          {/* Row B: Body — Inter Light 14 */}
-          <Text
-            numberOfLines={3}
-            style={{
-              fontSize: 14,
-              fontWeight: '300',
-              letterSpacing: -0.56,
-              color: '#000000',
-              lineHeight: 20,
-            }}>
-            {item.body}
-          </Text>
+          {/* ── Right: Content column, gap 4 per Figma ── */}
+          <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
+            {/* Row A: title sub-col + three-dot */}
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start', width: '100%' }}>
+              {/* Title + time·source stacked, flex:1 */}
+              <View style={{ flex: 1, gap: 4, minWidth: 0 }}>
+                {/* Title — Inter Medium 14, auto-capitalized */}
+                <Text
+                  numberOfLines={2}
+                  style={{
+                    fontSize: 14,
+                    fontWeight: '500',
+                    letterSpacing: -0.28,
+                    color: '#181D27',
+                    textTransform: 'capitalize',
+                  }}>
+                  {item.title}
+                </Text>
 
+                {/* time · source — single Text guarantees both always render */}
+                <Text
+                  numberOfLines={1}
+                  style={{ fontSize: 12, fontWeight: '400', color: '#717680' }}>
+                  {`${item.timeLabel}  •  ${item.source ?? DEFAULT_SOURCE_BY_CATEGORY[item.category] ?? 'CampusCare'}`}
+                </Text>
+              </View>
+
+              {/* Three-dot button — shrink-0, 24×12 hit area */}
+              <TouchableOpacity
+                onPress={() => setMenuVisible(true)}
+                accessibilityRole="button"
+                accessibilityLabel="More options"
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                style={{ flexShrink: 0, marginLeft: 8, paddingTop: 2 }}>
+                <ThreeDotIcon />
+              </TouchableOpacity>
+            </View>
+
+            {/* Row B: Body — Inter Light 14 */}
+            <Text
+              numberOfLines={3}
+              style={{
+                fontSize: 14,
+                fontWeight: '300',
+                letterSpacing: -0.56,
+                color: '#000000',
+                lineHeight: 20,
+              }}>
+              {item.body}
+            </Text>
+          </View>
         </View>
-      </View>
       </Animated.View>
 
       {/* ── Three-dot bottom-sheet modal ── */}
@@ -259,9 +260,7 @@ export function NotificationListRow({
                 }}>
                 <Text style={{ fontSize: 18, lineHeight: 22 }}>🗑</Text>
               </View>
-              <Text style={{ fontSize: 15, fontWeight: '500', color: '#EF4444' }}>
-                Archive
-              </Text>
+              <Text style={{ fontSize: 15, fontWeight: '500', color: '#EF4444' }}>Archive</Text>
             </TouchableOpacity>
           </Pressable>
         </Pressable>
