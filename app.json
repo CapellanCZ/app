@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "campuscare-application",
-    "slug": "campuscare-application",
+    "slug": "campus-care-mobile",
     "version": "1.0.0",
     "scheme": "campuscare-application",
     "platforms": [
@@ -48,13 +48,17 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.yscplln.campuscareapplication",
-      "softwareKeyboardLayoutMode": "resize"
+      "softwareKeyboardLayoutMode": "resize",
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "b4911681-8d25-46b4-a277-a633a2ef378c"
+        "projectId": "a605999a-462a-4e80-8d74-5dc0e24bfe19"
       }
-    }
+    },
+    "owner": "yscdev"
   }
 }

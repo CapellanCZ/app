@@ -91,10 +91,16 @@ export function toTimeLabel(createdAt: string): string {
 /** Convert a raw Supabase row into the UI-shaped item used by the screen. */
 export function toNotificationItem(row: NotificationRow): NotificationItem {
   const rawType = (row.notification_type ?? '').toLowerCase();
-  const notificationType: NotificationStatusType | undefined =
-    rawType === 'success' || rawType === 'error' || rawType === 'info'
+  let notificationType: NotificationStatusType | undefined =
+    rawType === 'success' || rawType === 'error' || rawType === 'info' || rawType === 'warning'
       ? (rawType as NotificationStatusType)
       : undefined;
+
+  // Fallback for "pushing data" actions in case the DB column isn't migrated
+  if (!notificationType && row.title.toLowerCase().includes('submitted')) {
+    notificationType = 'success';
+  }
+
   return {
     id: row.id,
     category: row.category,

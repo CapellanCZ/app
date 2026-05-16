@@ -3,6 +3,7 @@ import DateTimePicker, {
 } from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -54,7 +55,16 @@ const SUBMIT_BRAND = '#2970FF';
 const ICON_SUFFIX = '#717680';
 const UPLOAD_SIM_MS = 900;
 const MAX_PHOTOS = 24;
+const MAX_DOCS = 3;
 const MAX_DESC_CHARS = 300;
+
+// File size limits
+const MAX_PHOTO_SIZE_MB = 10;
+const MAX_VIDEO_SIZE_MB = 50;
+const MAX_DOC_SIZE_MB = 20;
+const MAX_PHOTO_SIZE_BYTES = MAX_PHOTO_SIZE_MB * 1024 * 1024;
+const MAX_VIDEO_SIZE_BYTES = MAX_VIDEO_SIZE_MB * 1024 * 1024;
+const MAX_DOC_SIZE_BYTES = MAX_DOC_SIZE_MB * 1024 * 1024;
 
 const HOME_TABS_ROUTE = '/(tabs)';
 
@@ -98,6 +108,7 @@ function formatDuration(seconds: number): string {
 
 type PhotoItem = { id: string; uri: string; fileName?: string; mimeType?: string | null; size?: number; uploading?: boolean };
 type VideoItem = { id: string; uri: string; fileName?: string; mimeType?: string | null; size?: number; durationLabel?: string; uploading?: boolean };
+type DocumentItem = { id: string; uri: string; fileName?: string; mimeType?: string | null; size?: number; uploading?: boolean };
 
 function UploadingTile() {
   const opacity = useSharedValue(0.9);
@@ -127,7 +138,7 @@ export default function IncidentReportScreen() {
   const [step, setStep] = useState<1 | 2 | 3>(1);
 
   const [incidentType, setIncidentType] = useState('');
-  const [incidentTypeOther, setIncidentTypeOther] = useState('');
+  const [narrative, setNarrative] = useState('');
   const [incidentDate, setIncidentDate] = useState<Date | null>(null);
   const [incidentTime, setIncidentTime] = useState<Date | null>(null);
   const [dateSheetOpen, setDateSheetOpen] = useState(false);
@@ -139,14 +150,16 @@ export default function IncidentReportScreen() {
     return t;
   });
   const [location, setLocation] = useState('');
-  const [reporterPhone, setReporterPhone] = useState('');
-  const [personsInvolved, setPersonsInvolved] = useState('');
+  const [personsInvolved, setPersonsInvolved] = useState<string[]>(['']);
   const [whatHappened, setWhatHappened] = useState('');
   const [locationError, setLocationError] = useState('');
+  const [personsErrorMsg, setPersonsErrorMsg] = useState('');
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
   const [videos, setVideos] = useState<VideoItem[]>([]);
+  const [documents, setDocuments] = useState<DocumentItem[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [discardDialogOpen, setDiscardDialogOpen] = useState(false);
+  const [attachmentError, setAttachmentError] = useState('');
 
   const draftDateRef = useRef(draftDate);
   draftDateRef.current = draftDate;
@@ -155,7 +168,6 @@ export default function IncidentReportScreen() {
 
   const selectIncidentType = useCallback((value: string) => {
     setIncidentType(value);
-    if (value !== INCIDENT_TYPE_OTHER) setIncidentTypeOther('');
   }, []);
 
   const onDateSheetOpenChange = useCallback(
@@ -233,7 +245,19 @@ export default function IncidentReportScreen() {
     });
     if (result.canceled || !result.assets?.length) return;
     const remaining = MAX_PHOTOS - photos.length;
-    const newPhotos: PhotoItem[] = result.assets.slice(0, remaining).map((asset) => ({
+
+    // Filter out oversized files and show inline error
+    const oversized = result.assets.filter(a => (a.fileSize ?? 0) > MAX_PHOTO_SIZE_BYTES);
+    if (oversized.length > 0) {
+      setAttachmentError(`${oversized.length} photo(s) exceed the ${MAX_PHOTO_SIZE_MB}MB limit and were skipped.`);
+    } else {
+      setAttachmentError('');
+    }
+
+    const validAssets = result.assets.filter(a => (a.fileSize ?? 0) <= MAX_PHOTO_SIZE_BYTES);
+    if (!validAssets.length) return;
+
+    const newPhotos: PhotoItem[] = validAssets.slice(0, remaining).map((asset) => ({
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       uri: asset.uri,
       fileName: asset.fileName ?? `photo_${Date.now()}.jpg`,
@@ -263,6 +287,14 @@ export default function IncidentReportScreen() {
     });
     if (result.canceled || !result.assets?.length) return;
     const asset = result.assets[0];
+
+    // Validate video size
+    if ((asset.fileSize ?? 0) > MAX_VIDEO_SIZE_BYTES) {
+      setAttachmentError(`Video exceeds the ${MAX_VIDEO_SIZE_MB}MB limit. Please choose a shorter clip.`);
+      return;
+    }
+    setAttachmentError('');
+
     const durationLabel = asset.duration != null ? formatDuration(asset.duration) : undefined;
     const newId = `${Date.now()}`;
     setVideos([{
@@ -289,9 +321,56 @@ export default function IncidentReportScreen() {
     setVideos([]);
   }, []);
 
+  const pickDocument = useCallback(async () => {
+    if (documents.length >= MAX_DOCS) return;
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        multiple: true,
+        copyToCacheDirectory: true,
+      });
+      if (result.canceled || !result.assets?.length) return;
+
+      const remaining = MAX_DOCS - documents.length;
+
+      // Filter oversized docs and show inline error
+      const oversized = result.assets.filter(a => (a.size ?? 0) > MAX_DOC_SIZE_BYTES);
+      if (oversized.length > 0) {
+        setAttachmentError(`${oversized.length} document(s) exceed the ${MAX_DOC_SIZE_MB}MB limit and were skipped.`);
+      } else {
+        setAttachmentError('');
+      }
+
+      const validAssets = result.assets.filter(a => (a.size ?? 0) <= MAX_DOC_SIZE_BYTES);
+      if (!validAssets.length) return;
+
+      const newDocs: DocumentItem[] = validAssets.slice(0, remaining).map((asset) => ({
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        uri: asset.uri,
+        fileName: asset.name,
+        mimeType: asset.mimeType ?? 'application/pdf',
+        size: asset.size,
+        uploading: true,
+      }));
+      setDocuments((prev) => [...prev, ...newDocs]);
+      
+      const ids = newDocs.map((p) => p.id);
+      setTimeout(() => {
+        setDocuments((prev) =>
+          prev.map((p) => (ids.includes(p.id) ? { ...p, uploading: false } : p)),
+        );
+      }, UPLOAD_SIM_MS);
+    } catch (err) {
+      console.warn(err);
+    }
+  }, [documents.length]);
+
+  const removeDocument = useCallback((id: string) => {
+    setDocuments((prev) => prev.filter((p) => p.id !== id));
+  }, []);
+
   const incidentTypeComplete =
     incidentType.length > 0 &&
-    (incidentType !== INCIDENT_TYPE_OTHER || incidentTypeOther.trim().length > 0);
+    narrative.trim().length > 0;
 
   const locationComplete = location.trim().length > 0;
 
@@ -301,18 +380,45 @@ export default function IncidentReportScreen() {
     incidentTime != null &&
     locationComplete;
 
+  const step2Complete = whatHappened.trim().length > 0;
+
+  const onStep2Next = useCallback(() => {
+    let errorMsg = '';
+    for (const p of personsInvolved) {
+      const trimmed = p.trim();
+      if (trimmed.length > 0) {
+        if (/\d/.test(trimmed)) {
+          errorMsg = 'Name should not contain numbers';
+          break;
+        }
+        if (!trimmed.includes(',')) {
+          errorMsg = 'Please use "Last name, First name, MI." format';
+          break;
+        }
+      }
+    }
+
+    if (errorMsg) {
+      setPersonsErrorMsg(errorMsg);
+      return;
+    }
+    
+    setPersonsErrorMsg('');
+    setStep(3);
+  }, [personsInvolved]);
+
   const hasUnsavedChanges = useMemo(
     () =>
       incidentType.length > 0 ||
       incidentDate != null ||
       incidentTime != null ||
       location.trim().length > 0 ||
-      reporterPhone.trim().length > 0 ||
-      personsInvolved.trim().length > 0 ||
+      personsInvolved.some((p) => p.trim().length > 0) ||
       whatHappened.trim().length > 0 ||
       photos.length > 0 ||
-      videos.length > 0,
-    [incidentType, incidentDate, incidentTime, location, reporterPhone, personsInvolved, whatHappened, photos.length, videos.length],
+      videos.length > 0 ||
+      documents.length > 0,
+    [incidentType, incidentDate, incidentTime, location, personsInvolved, whatHappened, photos.length, videos.length, documents.length],
   );
 
   const goHome = useCallback(() => {
@@ -356,13 +462,13 @@ export default function IncidentReportScreen() {
 
   const onSubmit = useCallback(async () => {
     if (submitLockedRef.current) return;
-    
+
     // Validate location is required
     if (!location.trim()) {
       setLocationError('Location is required');
       return;
     }
-    
+
     submitLockedRef.current = true;
     setIsSubmitting(true);
     try {
@@ -375,12 +481,7 @@ export default function IncidentReportScreen() {
         }
       }
 
-      const subject = incidentType === INCIDENT_TYPE_OTHER
-        ? (incidentTypeOther.trim() || 'Other')
-        : incidentType;
-
       const involvedParties = personsInvolved
-        .split(/[,\n;]+/)
         .map((s) => s.trim())
         .filter(Boolean);
 
@@ -397,19 +498,21 @@ export default function IncidentReportScreen() {
           mimeType: v.mimeType ?? 'video/mp4',
           size: v.size,
         })),
+        ...documents.filter((d) => !d.uploading).map((d) => ({
+          uri: d.uri,
+          fileName: d.fileName ?? `doc_${d.id}.pdf`,
+          mimeType: d.mimeType ?? 'application/pdf',
+          size: d.size,
+        })),
       ];
 
-      const description = reporterPhone.trim()
-        ? `${whatHappened.trim()}\n\nReporter contact: ${reporterPhone.trim()}`
-        : whatHappened.trim();
-
       const { error } = await submitIncidentReport({
-        subject,
-        description,
+        incidentType,
+        narrative: narrative.trim(),
+        impact: whatHappened.trim(),
         incidentAt,
         location: location.trim(),
         involvedParties,
-        reporterPhone: reporterPhone.trim(),
         files,
       });
 
@@ -424,9 +527,9 @@ export default function IncidentReportScreen() {
         variant: 'success',
         placement: 'top',
         duration: 5000,
-        label: 'Report submitted successfully',
+        label: 'Incident Report Submitted',
         description:
-          'Thank you. The discipline office has received your incident report and will review it. They may contact you if more information is needed.',
+          'Your incident report has been received and will be reviewed by the Discipline Office. You will be notified of any updates.',
         icon: (
           <View className="shrink-0 pt-0.5">
             <Ionicons name="checkmark-circle" size={26} color={TOAST_SUCCESS_ICON} />
@@ -442,12 +545,13 @@ export default function IncidentReportScreen() {
     }
   }, [
     router, toast,
-    incidentType, incidentTypeOther, incidentDate, incidentTime,
-    location, reporterPhone, personsInvolved, whatHappened,
-    photos, videos,
+    incidentType, narrative, incidentDate, incidentTime,
+    location, personsInvolved, whatHappened,
+    photos, videos, documents,
   ]);
 
   const filledBars = step - 1;
+  const hasEvidence = photos.length > 0 || videos.length > 0 || documents.length > 0;
 
   return (
     <DisciplineOfficeScreenShell>
@@ -455,7 +559,7 @@ export default function IncidentReportScreen() {
         {/* ── Header ── */}
         <ScreenHeader
           title="Report an Incident"
-          subtitle="View reports filed for your disciplinary concerns and track their status."
+          subtitle="Please provide accurate and detailed information to help us address this incident effectively."
           onBack={handleBack}
           paddingBottom={0}
         />
@@ -504,13 +608,28 @@ export default function IncidentReportScreen() {
                   options={INCIDENT_TYPES}
                   onChange={selectIncidentType}
                 />
-                {incidentType === INCIDENT_TYPE_OTHER && (
-                  <AppInput
-                    editable={!isSubmitting}
-                    placeholder="Briefly describe what type of incident this is"
-                    value={incidentTypeOther}
-                    onChangeText={setIncidentTypeOther}
-                  />
+                {incidentType.length > 0 && (
+                  <>
+                    <View style={styles.textareaField}>
+                      <TextInput
+                        multiline
+                        textAlignVertical="top"
+                        placeholder="Briefly describe the narrative of the incident..."
+                        placeholderTextColor="#A4A7AE"
+                        selectionColor="#2970FF"
+                        value={narrative}
+                        onChangeText={(v) => {
+                          if (v.length <= MAX_DESC_CHARS) setNarrative(v);
+                        }}
+                        editable={!isSubmitting}
+                        maxLength={MAX_DESC_CHARS}
+                        style={styles.textareaInput}
+                      />
+                    </View>
+                    <Text style={{ fontSize: 13, color: '#535862', marginTop: -4, marginLeft: 4 }}>
+                      Detailed and Factual Account of the Incident
+                    </Text>
+                  </>
                 )}
               </FormField>
 
@@ -518,99 +637,99 @@ export default function IncidentReportScreen() {
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                 {/* Date */}
                 <View style={{ width: '46%' }}>
-                  <FormField label="Date">
-                  <BottomSheet
-                    className="w-full shrink-0"
-                    isOpen={dateSheetOpen}
-                    onOpenChange={onDateSheetOpenChange}>
-                    <BottomSheet.Trigger className="w-full" accessibilityLabel="Choose incident date">
-                      <AppInput
-                        editable={false}
-                        pointerEvents="none"
-                        showSoftInputOnFocus={false}
-                        placeholder="Select date"
-                        value={dateDisplay}
-                        suffix={<IconsaxCalendarIcon size={16} color={ICON_SUFFIX} />}
-                      />
-                    </BottomSheet.Trigger>
-                    <BottomSheet.Portal>
-                      <BottomSheet.Overlay isCloseOnPress />
-                      <BottomSheet.Content
-                        snapPoints={Platform.OS === 'android' ? ['62%', '85%'] : ['48%', '72%']}
-                        index={0}>
-                        <BottomSheet.Title className="mb-1 px-1 text-base font-semibold leading-6 text-[#181D27]">
-                          Incident date
-                        </BottomSheet.Title>
-                        <Text className="mb-3 px-1 text-xs leading-4 text-[#8F9098]">
-                          Choose the date the incident occurred.
-                        </Text>
-                        <View className="items-center">
-                          <DateTimePicker
-                            value={draftDate}
-                            mode="date"
-                            display={datePickerDisplay}
-                            themeVariant="light"
-                            minimumDate={fiveYearsAgo()}
-                            maximumDate={startOfToday()}
-                            onChange={onDraftDateChange}
-                          />
-                        </View>
-                        <Button
-                          variant="primary"
-                          className="mt-4 h-12 w-full rounded-full bg-[#2970FF]"
-                          onPress={commitDate}>
-                          <Button.Label className="font-semibold text-white">Done</Button.Label>
-                        </Button>
-                      </BottomSheet.Content>
-                    </BottomSheet.Portal>
-                  </BottomSheet>
+                  <FormField label="Date of Incident">
+                    <BottomSheet
+                      className="w-full shrink-0"
+                      isOpen={dateSheetOpen}
+                      onOpenChange={onDateSheetOpenChange}>
+                      <BottomSheet.Trigger className="w-full" accessibilityLabel="Choose incident date">
+                        <AppInput
+                          editable={false}
+                          pointerEvents="none"
+                          showSoftInputOnFocus={false}
+                          placeholder="Select date"
+                          value={dateDisplay}
+                          suffix={<IconsaxCalendarIcon size={16} color={ICON_SUFFIX} />}
+                        />
+                      </BottomSheet.Trigger>
+                      <BottomSheet.Portal>
+                        <BottomSheet.Overlay isCloseOnPress />
+                        <BottomSheet.Content
+                          snapPoints={Platform.OS === 'android' ? ['62%', '85%'] : ['48%', '72%']}
+                          index={0}>
+                          <BottomSheet.Title className="mb-1 px-1 text-base font-semibold leading-6 text-[#181D27]">
+                            Incident date
+                          </BottomSheet.Title>
+                          <Text className="mb-3 px-1 text-xs leading-4 text-[#8F9098]">
+                            Choose the date the incident occurred.
+                          </Text>
+                          <View className="items-center">
+                            <DateTimePicker
+                              value={draftDate}
+                              mode="date"
+                              display={datePickerDisplay}
+                              themeVariant="light"
+                              minimumDate={fiveYearsAgo()}
+                              maximumDate={startOfToday()}
+                              onChange={onDraftDateChange}
+                            />
+                          </View>
+                          <Button
+                            variant="primary"
+                            className="mt-4 h-12 w-full rounded-full bg-[#2970FF]"
+                            onPress={commitDate}>
+                            <Button.Label className="font-semibold text-white">Done</Button.Label>
+                          </Button>
+                        </BottomSheet.Content>
+                      </BottomSheet.Portal>
+                    </BottomSheet>
                   </FormField>
                 </View>
 
                 {/* Time */}
                 <View style={{ width: '46%' }}>
-                  <FormField label="Time">
-                  <BottomSheet
-                    className="w-full shrink-0"
-                    isOpen={timeSheetOpen}
-                    onOpenChange={onTimeSheetOpenChange}>
-                    <BottomSheet.Trigger className="w-full" accessibilityLabel="Choose incident time">
-                      <AppInput
-                        editable={false}
-                        pointerEvents="none"
-                        showSoftInputOnFocus={false}
-                        placeholder="Select time"
-                        value={timeDisplay}
-                        suffix={<IconsaxClockIcon size={16} color={ICON_SUFFIX} />}
-                      />
-                    </BottomSheet.Trigger>
-                    <BottomSheet.Portal>
-                      <BottomSheet.Overlay isCloseOnPress />
-                      <BottomSheet.Content snapPoints={['48%', '72%']} index={0}>
-                        <BottomSheet.Title className="mb-1 px-1 text-base font-semibold leading-6 text-[#181D27]">
-                          Incident time
-                        </BottomSheet.Title>
-                        <Text className="mb-3 px-1 text-xs leading-4 text-[#8F9098]">
-                          Choose the time the incident occurred.
-                        </Text>
-                        <View className="items-center">
-                          <DateTimePicker
-                            value={draftTime}
-                            mode="time"
-                            display={timePickerDisplay}
-                            themeVariant="light"
-                            onChange={onDraftTimeChange}
-                          />
-                        </View>
-                        <Button
-                          variant="primary"
-                          className="mt-4 h-12 w-full rounded-full bg-[#2970FF]"
-                          onPress={commitTime}>
-                          <Button.Label className="font-semibold text-white">Done</Button.Label>
-                        </Button>
-                      </BottomSheet.Content>
-                    </BottomSheet.Portal>
-                  </BottomSheet>
+                  <FormField label="Time of Incident">
+                    <BottomSheet
+                      className="w-full shrink-0"
+                      isOpen={timeSheetOpen}
+                      onOpenChange={onTimeSheetOpenChange}>
+                      <BottomSheet.Trigger className="w-full" accessibilityLabel="Choose incident time">
+                        <AppInput
+                          editable={false}
+                          pointerEvents="none"
+                          showSoftInputOnFocus={false}
+                          placeholder="Select time"
+                          value={timeDisplay}
+                          suffix={<IconsaxClockIcon size={16} color={ICON_SUFFIX} />}
+                        />
+                      </BottomSheet.Trigger>
+                      <BottomSheet.Portal>
+                        <BottomSheet.Overlay isCloseOnPress />
+                        <BottomSheet.Content snapPoints={['48%', '72%']} index={0}>
+                          <BottomSheet.Title className="mb-1 px-1 text-base font-semibold leading-6 text-[#181D27]">
+                            Incident time
+                          </BottomSheet.Title>
+                          <Text className="mb-3 px-1 text-xs leading-4 text-[#8F9098]">
+                            Choose the time the incident occurred.
+                          </Text>
+                          <View className="items-center">
+                            <DateTimePicker
+                              value={draftTime}
+                              mode="time"
+                              display={timePickerDisplay}
+                              themeVariant="light"
+                              onChange={onDraftTimeChange}
+                            />
+                          </View>
+                          <Button
+                            variant="primary"
+                            className="mt-4 h-12 w-full rounded-full bg-[#2970FF]"
+                            onPress={commitTime}>
+                            <Button.Label className="font-semibold text-white">Done</Button.Label>
+                          </Button>
+                        </BottomSheet.Content>
+                      </BottomSheet.Portal>
+                    </BottomSheet>
                   </FormField>
                 </View>
               </View>
@@ -629,26 +748,6 @@ export default function IncidentReportScreen() {
                 />
               </FormField>
 
-              {/* Phone Number */}
-              <FormField
-                label="Phone Number"
-                hint={
-                  <Text style={{ fontSize: 12, color: '#717680', lineHeight: 16 }}>
-                    Phone number is{' '}
-                    <Text style={{ color: '#414651', textDecorationLine: 'underline' }}>optional</Text>
-                    {' '}but it can help the discipline staff so they reach you about this report.
-                  </Text>
-                }>
-                <AppInput
-                  keyboardType="phone-pad"
-                  placeholder="9XX XXX XXXX"
-                  value={reporterPhone}
-                  onChangeText={setReporterPhone}
-                  maxLength={10}
-                  prefix={<Text style={{ fontSize: 14, color: '#717680', fontWeight: '400' }}>63+</Text>}
-                  prefixDivider
-                />
-              </FormField>
             </Animated.View>
           )}
 
@@ -656,25 +755,69 @@ export default function IncidentReportScreen() {
           {step === 2 && (
             <Animated.View key="step-2" entering={FadeIn.duration(220)} style={{ gap: 20 }}>
               {/* Person(s) Involved */}
-              <FormField label="Person(s) Involved" hint="Leave blank if unknown">
-                <AppInput
-                  placeholder="Who are the persons involved in this case?"
-                  value={personsInvolved}
-                  onChangeText={setPersonsInvolved}
-                  suffix={<IconsaxPeopleIcon size={16} color={ICON_SUFFIX} />}
-                />
+              <FormField label="Person(s) Involved" hint={personsErrorMsg ? undefined : "Leave blank if unknown"}>
+                {!!personsErrorMsg && <Text style={{ color: '#F04438', fontSize: 13, marginBottom: 8, marginTop: -4 }}>{personsErrorMsg}</Text>}
+                <View style={{ gap: 12 }}>
+                  {personsInvolved.map((person, index) => (
+                    <View key={index} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <View style={{ flex: 1 }}>
+                        <AppInput
+                          placeholder="Last name, First name, MI."
+                          value={person}
+                          onChangeText={(text) => {
+                            if (personsErrorMsg) setPersonsErrorMsg('');
+                            const newPersons = [...personsInvolved];
+                            newPersons[index] = text;
+                            setPersonsInvolved(newPersons);
+                          }}
+                        />
+                      </View>
+                      {index === personsInvolved.length - 1 ? (
+                        <Pressable
+                          onPress={() => setPersonsInvolved([...personsInvolved, ''])}
+                          disabled={person.trim().length === 0}
+                          style={{
+                            width: 44,
+                            height: 44,
+                            borderRadius: 22,
+                            backgroundColor: person.trim().length === 0 ? '#F3F4F6' : '#E8F0FF',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}>
+                          <Ionicons name="add" size={20} color={person.trim().length === 0 ? '#98A2B3' : '#2970FF'} />
+                        </Pressable>
+                      ) : (
+                        <Pressable
+                          onPress={() => {
+                            const newPersons = [...personsInvolved];
+                            newPersons.splice(index, 1);
+                            setPersonsInvolved(newPersons);
+                          }}
+                          style={{
+                            width: 44,
+                            height: 44,
+                            borderRadius: 22,
+                            backgroundColor: '#FFEDF0',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}>
+                          <Ionicons name="remove" size={20} color="#F04438" />
+                        </Pressable>
+                      )}
+                    </View>
+                  ))}
+                </View>
               </FormField>
 
-              {/* What happened */}
+              {/* How It Affected You & Others */}
               <FormField
-                label="What happened?"
-                gap={6}
-                hint={`Characters: ${whatHappened.length}/${MAX_DESC_CHARS}`}>
+                label="How It Affected You / Others"
+                gap={6}>
                 <View style={styles.textareaField}>
                   <TextInput
                     multiline
                     textAlignVertical="top"
-                    placeholder="Describe what happened in as much detail as you can remember..."
+                    placeholder="How the incident affected your well-being and community or others..."
                     placeholderTextColor="#A4A7AE"
                     selectionColor="#2970FF"
                     value={whatHappened}
@@ -693,6 +836,31 @@ export default function IncidentReportScreen() {
           {/* ── STEP 3 ── */}
           {step === 3 && (
             <Animated.View key="step-3" entering={FadeIn.duration(220)} style={{ gap: 20 }}>
+              {/* Attachment error banner */}
+              {!!attachmentError && (
+                <Animated.View
+                  entering={FadeInDown.duration(200)}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 10,
+                    backgroundColor: '#FFF1F0',
+                    borderWidth: 1,
+                    borderColor: '#FFCCC7',
+                    borderRadius: 12,
+                    paddingHorizontal: 14,
+                    paddingVertical: 12,
+                  }}>
+                  <Ionicons name="warning-outline" size={18} color="#F04438" />
+                  <Text style={{ flex: 1, fontSize: 13, color: '#B42318', lineHeight: 18 }}>
+                    {attachmentError}
+                  </Text>
+                  <Pressable onPress={() => setAttachmentError('')} hitSlop={8}>
+                    <Ionicons name="close" size={16} color="#F04438" />
+                  </Pressable>
+                </Animated.View>
+              )}
+
               {/* Photos section */}
               <View style={{ gap: 4 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -815,6 +983,57 @@ export default function IncidentReportScreen() {
                   )
                 )}
               </View>
+
+              {/* Documents section */}
+              <View style={{ gap: 4, marginTop: 8 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Text style={{ fontSize: 16, fontWeight: '400', color: '#000000', lineHeight: 20 }}>Documents</Text>
+                  <Text style={{ fontSize: 16, fontWeight: '400', color: '#717680' }}>
+                    ({documents.length}/{MAX_DOCS})
+                  </Text>
+                </View>
+                <Text style={{ fontSize: 12, color: '#535862', letterSpacing: -0.24, lineHeight: 16 }}>
+                  Upload supporting documents like PDFs, Word files, etc.
+                </Text>
+              </View>
+
+              {/* Document grid */}
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+                {documents.length < MAX_DOCS && (
+                  <Pressable
+                    onPress={pickDocument}
+                    className="active:opacity-70"
+                    style={styles.addTile}>
+                    <View style={styles.addTileCircle}>
+                      <Ionicons name="add" size={24} color="#181D27" />
+                    </View>
+                  </Pressable>
+                )}
+
+                {documents.map((doc) =>
+                  doc.uploading ? (
+                    <Animated.View key={doc.id} entering={FadeInDown.duration(220)}>
+                      <UploadingTile />
+                    </Animated.View>
+                  ) : (
+                    <Animated.View
+                      key={doc.id}
+                      entering={FadeInDown.duration(250)}
+                      style={[styles.mediaTile, { backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }]}>
+                      <Ionicons name="document-text" size={32} color="#98A2B3" />
+                      <Text style={{ fontSize: 10, color: '#535862', marginTop: 4, textAlign: 'center', paddingHorizontal: 4 }} numberOfLines={1}>
+                        {doc.fileName}
+                      </Text>
+                      <Pressable
+                        onPress={() => removeDocument(doc.id)}
+                        className="active:opacity-80"
+                        style={styles.deleteBadge}>
+                        <Ionicons name="trash-outline" size={14} color="#181D27" />
+                      </Pressable>
+                    </Animated.View>
+                  )
+                )}
+              </View>
             </Animated.View>
           )}
         </KeyboardAwareScrollView>
@@ -868,7 +1087,7 @@ export default function IncidentReportScreen() {
               <Pressable
                 accessibilityRole="button"
                 disabled={whatHappened.trim().length === 0}
-                onPress={() => setStep(3)}
+                onPress={onStep2Next}
                 className="active:opacity-90"
                 style={{
                   flex: 1,
@@ -890,13 +1109,13 @@ export default function IncidentReportScreen() {
           {step === 3 && (
             <Pressable
               accessibilityRole="button"
-              disabled={isSubmitting || !locationComplete}
+              disabled={isSubmitting || !locationComplete || !hasEvidence}
               onPress={onSubmit}
               className="active:opacity-90"
               style={{
                 height: 48,
                 borderRadius: 24,
-                backgroundColor: isSubmitting || !locationComplete ? '#A8C4FF' : SUBMIT_BRAND,
+                backgroundColor: isSubmitting || !locationComplete || !hasEvidence ? '#A8C4FF' : SUBMIT_BRAND,
                 borderWidth: 2,
                 borderColor: '#84ADFF',
                 alignItems: 'center',

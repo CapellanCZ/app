@@ -250,8 +250,9 @@ export async function submitNTEResponse(
 // ─── Incident Report submission ──────────────────────────────────────────────
 
 export type SubmitIncidentParams = {
-  subject:          string;
-  description:      string;
+  incidentType:     string;
+  narrative:        string;
+  impact:           string;
   incidentAt?:      Date | null;
   location?:        string;
   involvedParties?: string[];
@@ -274,18 +275,30 @@ export async function submitIncidentReport(
   const userId = userRes.user?.id;
   if (!userId) return { error: 'Not signed in' };
 
-  // 1) Insert the row first to obtain the generated id
+  // 1) Get the student's readable student_id from the students table
+  const { data: studentRow, error: studentErr } = await supabase
+    .from('students')
+    .select('student_id')
+    .eq('id', userId)
+    .single();
+
+  if (studentErr || !studentRow) {
+    return { error: 'Student profile not found. Please complete your profile first.' };
+  }
+
+  // 2) Insert the row first to obtain the generated id
   const { data: row, error: insErr } = await supabase
     .from('discipline_incident_reports')
     .insert({
-      reporter_id:      userId,
-      subject:          params.subject,
-      description:      params.description,
-      incident_at:      params.incidentAt ? params.incidentAt.toISOString() : null,
-      location:         params.location ?? '',
-      involved_parties: (params.involvedParties ?? []).filter(Boolean),
-      attachments:      [],
-      status:           'submitted',
+      reporter_student_id: studentRow.student_id,
+      incident_type:       params.incidentType,
+      narrative:           params.narrative,
+      impact:              params.impact,
+      incident_at:         params.incidentAt ? params.incidentAt.toISOString() : null,
+      location:            params.location ?? '',
+      involved_parties:    (params.involvedParties ?? []).filter(Boolean),
+      attachments:         [],
+      status:              'submitted',
     })
     .select('id')
     .single();
@@ -326,7 +339,7 @@ export async function submitIncidentReport(
     body:             'Your incident report has been received and will be reviewed by the Discipline Office. You will be notified of any updates.',
     href:             '/discipline-office',
     source:           'Discipline Office',
-    notificationType: 'info',
+    notificationType: 'success',
   });
 
   return { error: null, reportId };
@@ -590,7 +603,7 @@ export async function submitProofOfCompliance(
     body:             'Your submission is pending Discipline Office review. You will be notified once it has been approved.',
     href:             '/discipline-office/my-sanctions',
     source:           'Discipline Office',
-    notificationType: 'info',
+    notificationType: 'success',
   });
 
   return { error: null, submissionId };
