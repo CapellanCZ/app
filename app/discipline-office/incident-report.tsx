@@ -160,6 +160,7 @@ export default function IncidentReportScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [discardDialogOpen, setDiscardDialogOpen] = useState(false);
   const [attachmentError, setAttachmentError] = useState('');
+  const [termsAccepted, setTermsAccepted] = useState(false);
 
   const draftDateRef = useRef(draftDate);
   draftDateRef.current = draftDate;
@@ -552,6 +553,7 @@ export default function IncidentReportScreen() {
 
   const filledBars = step - 1;
   const hasEvidence = photos.length > 0 || videos.length > 0 || documents.length > 0;
+  const canSubmit = !isSubmitting && locationComplete && hasEvidence && termsAccepted;
 
   return (
     <DisciplineOfficeScreenShell>
@@ -1107,28 +1109,78 @@ export default function IncidentReportScreen() {
           )}
 
           {step === 3 && (
-            <Pressable
-              accessibilityRole="button"
-              disabled={isSubmitting || !locationComplete || !hasEvidence}
-              onPress={onSubmit}
-              className="active:opacity-90"
-              style={{
-                height: 48,
-                borderRadius: 24,
-                backgroundColor: isSubmitting || !locationComplete || !hasEvidence ? '#A8C4FF' : SUBMIT_BRAND,
-                borderWidth: 2,
-                borderColor: '#84ADFF',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}>
-              {isSubmitting ? (
-                <ActivityIndicator color="#FFFFFF" size="small" />
-              ) : (
-                <Text style={{ fontSize: 16, fontWeight: '500', color: '#FFFFFF', letterSpacing: -0.32 }}>
-                  Submit Report
-                </Text>
-              )}
-            </Pressable>
+            <View style={{ gap: 12 }}>
+              {/* Terms & Conditions Checkbox */}
+              <Pressable
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: termsAccepted }}
+                accessibilityLabel="Accept terms and conditions"
+                onPress={() => setTermsAccepted((v) => !v)}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'flex-start',
+                  gap: 12,
+                  paddingHorizontal: 8,
+                  paddingVertical: 4,
+                }}>
+                {/* Checkbox control */}
+                <View
+                  style={{
+                    width: 18,
+                    height: 18,
+                    borderRadius: 5,
+                    borderWidth: 1.5,
+                    borderColor: termsAccepted ? '#2970FF' : '#DEDEE0',
+                    backgroundColor: termsAccepted ? '#2970FF' : '#FFFFFF',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginTop: 2,
+                    flexShrink: 0,
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 1 },
+                    shadowOpacity: 0.06,
+                    shadowRadius: 2,
+                    elevation: 1,
+                  }}>
+                  {termsAccepted && (
+                    <Ionicons name="checkmark" size={12} color="#FFFFFF" />
+                  )}
+                </View>
+                {/* Label */}
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 14, fontWeight: '500', color: '#18181B', letterSpacing: -0.28, lineHeight: 20 }}>
+                    Accept terms and condition
+                  </Text>
+                  <Text style={{ fontSize: 14, fontWeight: '400', color: '#71717A', letterSpacing: -0.28, lineHeight: 20, marginTop: 2 }}>
+                    I understand the consequences for false statements and statement above is truthful and accurate.
+                  </Text>
+                </View>
+              </Pressable>
+
+              {/* Submit button */}
+              <Pressable
+                accessibilityRole="button"
+                disabled={!canSubmit}
+                onPress={onSubmit}
+                className="active:opacity-90"
+                style={{
+                  height: 48,
+                  borderRadius: 24,
+                  backgroundColor: !canSubmit ? '#A8C4FF' : SUBMIT_BRAND,
+                  borderWidth: 2,
+                  borderColor: '#84ADFF',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
+                {isSubmitting ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <Text style={{ fontSize: 16, fontWeight: '500', color: '#FFFFFF', letterSpacing: -0.32 }}>
+                    Submit Report
+                  </Text>
+                )}
+              </Pressable>
+            </View>
           )}
         </KeyboardStickyView>
       </View>

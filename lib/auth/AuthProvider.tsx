@@ -8,14 +8,30 @@ import { registerPushToken } from '@/lib/notifications/registerPushToken';
 import { useScholarshipStore } from '@/lib/scholarships/scholarshipStore';
 import { useHealthServiceStore } from '@/lib/health-service/healthServiceStore';
 
-/** Extract tokens from a Supabase magic-link redirect URL hash fragment. */
+/** Extract tokens from a Supabase magic-link redirect URL.
+ *  Supabase can return tokens in the hash fragment (#access_token=...)
+ *  or as query params (?access_token=...) depending on the flow.
+ */
 function extractTokensFromUrl(url: string) {
+  // Try hash fragment first (implicit flow)
   const hash = url.split('#')[1];
-  if (!hash) return null;
-  const params = new URLSearchParams(hash);
-  const access_token = params.get('access_token');
-  const refresh_token = params.get('refresh_token');
-  if (access_token && refresh_token) return { access_token, refresh_token };
+  if (hash) {
+    const params = new URLSearchParams(hash);
+    const access_token = params.get('access_token');
+    const refresh_token = params.get('refresh_token');
+    if (access_token && refresh_token) return { access_token, refresh_token };
+  }
+
+  // Fall back to query params (PKCE flow)
+  const queryStart = url.indexOf('?');
+  if (queryStart !== -1) {
+    const query = url.slice(queryStart + 1).split('#')[0]; // strip any trailing hash
+    const params = new URLSearchParams(query);
+    const access_token = params.get('access_token');
+    const refresh_token = params.get('refresh_token');
+    if (access_token && refresh_token) return { access_token, refresh_token };
+  }
+
   return null;
 }
 

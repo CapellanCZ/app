@@ -1,3 +1,4 @@
+import { makeRedirectUri } from 'expo-auth-session';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { friendlyAuthError } from './friendlyAuthError';
 
@@ -16,11 +17,20 @@ const NOT_CONFIGURED: ApiResult = {
 export async function sendOtp(email: string): Promise<ApiResult> {
   if (!isSupabaseConfigured || !supabase) return NOT_CONFIGURED;
 
+  // Build the deep link redirect so clicking the magic link opens the app
+  const redirectTo = makeRedirectUri({
+    scheme: 'campuscare-application',
+    path: 'login',
+  });
+
   // Try to send OTP with shouldCreateUser: false
   // This will both check if user exists AND send OTP if they do
   const { error } = await supabase.auth.signInWithOtp({
     email,
-    options: { shouldCreateUser: false }, // Prevent auto-registration
+    options: {
+      shouldCreateUser: false, // Prevent auto-registration
+      emailRedirectTo: redirectTo,
+    },
   });
 
   // If error is "User not allowed", user doesn't exist
