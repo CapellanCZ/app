@@ -8,7 +8,6 @@ import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { TamaguiProvider } from 'tamagui';
 
-import { BottomTabBar } from '@/components/layout/BottomTabBar';
 import { UniwindInsetSync } from '@/components/UniwindInsetSync';
 import { AuthProvider } from '@/lib/auth/AuthProvider';
 import { NotificationHandler } from '@/components/notifications/NotificationHandler';
@@ -66,7 +65,6 @@ export default function RootLayout() {
                   options={{ headerShown: true, title: 'Modal', presentation: 'modal' }}
                 />
               </Stack>
-              <BottomTabBar />
               </View>
               </AuthProvider>
             </KeyboardProvider>

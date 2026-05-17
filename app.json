@@ -22,7 +22,8 @@
         {
           "photosPermission": "CampusCare needs access to your photo library so you can attach photos and videos to incident reports."
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,
