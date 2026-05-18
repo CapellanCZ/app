@@ -91,21 +91,14 @@ export default function NotificationScreen() {
     }
   }, [session?.user?.id]);
 
-  // Refresh when screen comes into focus; mark read on leave.
   useFocusEffect(
     useCallback(() => {
       const userId = session?.user?.id;
       if (userId) {
-        console.log('[NotificationScreen] Focused - refreshing notifications');
         fetchAll(userId).catch(() => undefined);
       }
-      return () => {
-        markAllRead();
-      };
-    }, [session?.user?.id, fetchAll, markAllRead])
+    }, [session?.user?.id, fetchAll])
   );
-
-  const unreadCount = useMemo(() => items.filter((n) => !n.read).length, [items]);
 
   const filtered = useMemo(() => {
     if (readFilter === 'unread') return items.filter((n) => !n.read);
@@ -134,6 +127,11 @@ export default function NotificationScreen() {
     return { today: t, yesterday: y, last7: l7, last30: l30 };
   }, [filtered]);
 
+  const newCount = useMemo(
+    () => filtered.filter((n) => !n.read).length,
+    [filtered],
+  );
+
   const triggerMarkAllArchive = useCallback((sectionItems: NotificationItem[]) => {
     const newMap = new Map(archivingIdsRef.current);
     sectionItems.forEach((item, index) => {
@@ -156,12 +154,13 @@ export default function NotificationScreen() {
   );
 
   const handleBack = useCallback(() => {
+    markAllRead();
     if (navigation.canGoBack()) {
       navigation.goBack();
     } else {
       router.replace('/health-service');
     }
-  }, [navigation, router]);
+  }, [markAllRead, navigation, router]);
 
   return (
     <View style={{ flex: 1, backgroundColor: '#FDFDFD' }}>
@@ -210,7 +209,7 @@ export default function NotificationScreen() {
             </Text>
             <Text style={{ marginTop: 4, fontSize: 14, color: '#717680', letterSpacing: -0.25 }}>
               You have{' '}
-              <Text style={{ fontWeight: '700', color: '#2970FF' }}>{unreadCount} new</Text>{' '}
+              <Text style={{ fontWeight: '700', color: '#2970FF' }}>{newCount} new</Text>{' '}
               notifications
             </Text>
           </View>

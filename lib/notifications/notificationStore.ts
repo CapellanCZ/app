@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { acquireNotificationsSubscription } from './realtimeSubscriptions';
 import { MOCK_NOTIFICATIONS } from './mockNotifications';
 import {
   toNotificationItem,
@@ -137,54 +138,10 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
     await supabase.from('notifications').delete().eq('id', id);
   },
 
-  subscribe: (userId) => {
-    if (!isSupabaseConfigured || !supabase) return () => {};
-    console.log('[notifications] Subscribing to realtime for user:', userId);
-
-    // Set up realtime subscription
-    const channel = supabase
-      .channel(`notifications:${userId}`, {
-        config: {
-          broadcast: { self: true },
-        },
-      })
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'notifications',
-          filter: `user_id=eq.${userId}`,
-        },
-        (payload) => {
-          console.log('[notifications] Realtime event received:', payload);
-          // Refetch to get the latest data
-          get().fetchAll(userId);
-        }
-      )
-      .subscribe((status, err) => {
-        if (err) {
-          console.error('[notifications] Subscription error:', err);
-        } else {
-          console.log('[notifications] Subscription status:', status);
-        }
-      });
-
-    // Polling fallback (every 30 seconds) as backup
-    const pollInterval = setInterval(() => {
-      console.log('[notifications] Polling for updates');
-      get().fetchAll(userId);
-    }, 30000);
-
-    // Return cleanup function
-    return () => {
-      console.log('[notifications] Unsubscribing from realtime and clearing poll');
-      clearInterval(pollInterval);
-      supabase!.removeChannel(channel).catch((err) => {
-        console.warn('[notifications] Error removing channel:', err);
-      });
-    };
-  },
+  subscribe: (userId) =>
+    acquireNotificationsSubscription(userId, () => {
+      void get().fetchAll(userId);
+    }),
 
   loadMock: () => {
     set({ items: [...MOCK_NOTIFICATIONS], loading: false, error: null });

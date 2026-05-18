@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import { healthServiceApi } from './healthServiceApi';
-import { supabase } from '../supabase';
-import { useNotificationStore } from '../notifications/notificationStore';
+import { acquireAppointmentsSubscription } from './realtimeSubscriptions';
 import type { Appointment, Staff } from './types';
 
 type HealthServiceState = {
@@ -126,41 +125,7 @@ export const useHealthServiceStore = create<HealthServiceState>((set, get) => ({
     set({ appointments: [], staff: [], loading: false, error: null });
   },
 
-  subscribeAppointments: () => {
-    if (!supabase) return () => {};
-    const client = supabase;
-    const channel = client
-      .channel('health_appointments_changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'health_appointments' },
-        async (payload: any) => {
-          get().loadAppointments();
-          // When staff confirms a pending appointment, send the student a notification
-          if (
-            payload.eventType === 'UPDATE' &&
-            payload.old?.status === 'pending' &&
-            payload.new?.status === 'confirmed'
-          ) {
-            const { data: { user } } = await client.auth.getUser();
-            if (user?.id) {
-              const staffName =
-                get().staff.find((s) => s.id === payload.new.staff_id)?.name ?? 'the provider';
-              useNotificationStore.getState().notifySelf(user.id, {
-                category: 'health',
-                title: 'Appointment Confirmed!',
-                body: `Your appointment with ${staffName} has been confirmed. Please arrive 10 minutes early.`,
-                href: '/health-service/appointments',
-                notificationType: 'success',
-              });
-            }
-          }
-        },
-      )
-      .subscribe();
-
-    return () => { client.removeChannel(channel); };
-  },
+  subscribeAppointments: () => acquireAppointmentsSubscription(get),
 }));
 
 // Helper functions for backward compatibility
