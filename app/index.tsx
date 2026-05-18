@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 
 import { useAuth } from '@/lib/auth/AuthProvider';
 
-/** Entry `/` → route to home if authenticated, login otherwise. */
+/** Entry `/` → route to Health Service if authenticated, login otherwise. */
 export default function Index() {
   const router = useRouter();
   const { session, isLoading, isConfigured } = useAuth();
@@ -15,7 +15,7 @@ export default function Index() {
     hasRedirected.current = true;
 
     if (!isConfigured || session) {
-      router.replace('/(tabs)');
+      router.replace('/health-service');
     } else {
       router.replace('/(auth)');
     }

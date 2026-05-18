@@ -313,7 +313,7 @@ export default function MyScholarshipScreen() {
         <ScreenNavbar
           title="My Scholarship"
           showMenu={false}
-          onBackPress={() => router.replace('/(tabs)')}
+          onBackPress={() => router.replace('/health-service')}
         />
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color="#2970FF" />
@@ -329,7 +329,7 @@ export default function MyScholarshipScreen() {
         <ScreenNavbar
           title="My Scholarship"
           showMenu={false}
-          onBackPress={() => router.replace('/(tabs)')}
+          onBackPress={() => router.replace('/health-service')}
         />
         <View className="flex-1 items-center justify-center px-6 gap-4">
           <IconsaxMedalFilledIcon size={52} color="#D0D5DD" />
@@ -355,7 +355,7 @@ export default function MyScholarshipScreen() {
       <ScreenNavbar
         title="My Scholarship"
         showMenu={false}
-        onBackPress={() => router.replace('/(tabs)')}
+        onBackPress={() => router.replace('/health-service')}
       />
 
       <ScrollView

@@ -67,7 +67,7 @@ const MAX_PHOTO_SIZE_BYTES = MAX_PHOTO_SIZE_MB * 1024 * 1024;
 const MAX_VIDEO_SIZE_BYTES = MAX_VIDEO_SIZE_MB * 1024 * 1024;
 const MAX_DOC_SIZE_BYTES = MAX_DOC_SIZE_MB * 1024 * 1024;
 
-const HOME_TABS_ROUTE = '/(tabs)';
+const HOME_TABS_ROUTE = '/health-service';
 
 const INCIDENT_TYPES = [
   'Academic dishonesty',

@@ -1,26 +1,41 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
-import { BottomSheet } from 'heroui-native';
-
 import {
-  ActiveScholarshipCard,
+  ActivityIndicator,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
+
+import { HomeScreenHeader } from '@/components/home/HomeScreenHeader';
+import {
   ScholarshipCard,
   ScholarshipDetailModal,
-  ScholarshipSearchBar,
-  type ScholarshipCardStatus,
+  ScholarshipFilterChips,
+  ScholarshipPendingRequirementsEmpty,
+  ScholarshipRequirementPreviewCard,
 } from '@/components/student-development-affairs';
-import { ScreenHeader } from '@/components/layout/ScreenHeader';
+import { IconsaxSearchIcon } from '@/components/icons/IconsaxSearchIcon';
 import { TAB_BAR_HEIGHT } from '@/components/layout/BottomTabBar';
+import { useAuth } from '@/lib/auth/AuthProvider';
+import { fetchStudentProfile } from '@/lib/profile/profileApi';
+import {
+  getScholarshipCardStatus,
+  programMatchesChipFilter,
+  type ScholarshipListFilter,
+} from '@/lib/scholarships/programUtils';
+import {
+  buildRequirementTrackItems,
+  countPendingRequirements,
+  getHighlightedRequirement,
+} from '@/lib/scholarships/requirementTracking';
 import { useScholarshipStore } from '@/lib/scholarships/scholarshipStore';
 import type { ScholarshipProgram } from '@/lib/scholarships/types';
-
-type SortKey = 'name_asc' | 'name_desc' | 'closes_asc';
-
-const SORT_OPTIONS: { key: SortKey; label: string }[] = [
-  { key: 'name_asc', label: 'Scholarship name (A–Z)' },
-  { key: 'name_desc', label: 'Scholarship name (Z–A)' },
-  { key: 'closes_asc', label: 'Closing date (soonest first)' },
-];
 
 function normalize(s: string) {
   return s.trim().toLowerCase();
@@ -31,122 +46,282 @@ function formatCloseDate(dateStr: string): string {
   return `Closes ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
 }
 
-function getCardStatus(program: ScholarshipProgram): ScholarshipCardStatus {
-  const slotsLeft = program.totalSlots - program.filledSlots;
-  const daysLeft = Math.ceil(
-    (new Date(program.applicationCloseDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24),
-  );
-  if (slotsLeft <= 5) return 'high_demand';
-  if (slotsLeft <= 10) return 'limited_slots';
-  if (daysLeft <= 7) return 'closing_soon';
-  return 'open';
-}
-
-/** Search band + white sheet on the same gradient shell as the home tab. */
+/** Figma 1685:3783 — Scholarships hub with grey hero, filters, and program list. */
 export default function StudentDevelopmentAffairsScreen() {
-  const { programs, myEnrollment, isLoadingPrograms, error, fetchPrograms } = useScholarshipStore();
+  const insets = useSafeAreaInsets();
+  const { session } = useAuth();
 
+  const {
+    programs,
+    myEnrollment,
+    myApplications,
+    isLoadingPrograms,
+    error,
+    fetchPrograms,
+    fetchMyEnrollment,
+    fetchMyApplications,
+    fetchApplicationById,
+    subscribeToPrograms,
+    subscribeToCompliance,
+    subscribeToMyApplications,
+  } = useScholarshipStore();
+
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [selectedProgram, setSelectedProgram] = useState<ScholarshipProgram | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [query, setQuery] = useState('');
-  const [sortKey, setSortKey] = useState<SortKey>('name_asc');
-  const [academicYearFilter, setAcademicYearFilter] = useState<string | null>(null);
-  const [sortSheetOpen, setSortSheetOpen] = useState(false);
+  const [listFilter, setListFilter] = useState<ScholarshipListFilter>('high_demand');
+  const [refreshing, setRefreshing] = useState(false);
 
-  // Programs are pre-fetched at login by AuthProvider.
-  // Only re-fetch if the store is empty (e.g. first cold load before AuthProvider fires).
   useEffect(() => {
     if (programs.length === 0 && !isLoadingPrograms) {
-      fetchPrograms();
+      void fetchPrograms();
     }
+    void fetchMyEnrollment();
+    void fetchMyApplications();
   }, []);
 
-  const academicYears = useMemo(
-    () => [...new Set(programs.map((p) => p.academicYear).filter((year): year is string => year !== null))]
-        .sort((a, b) => b.localeCompare(a)),
-    [programs],
+  useEffect(() => {
+    if (!session?.user?.id) return;
+    fetchStudentProfile(session.user.id).then((p) => {
+      if (p?.avatar_url) setAvatarUrl(p.avatar_url);
+    });
+  }, [session?.user?.id]);
+
+  useEffect(() => {
+    const unsubscribePrograms = subscribeToPrograms();
+    return unsubscribePrograms;
+  }, [subscribeToPrograms]);
+
+  useEffect(() => {
+    if (!myEnrollment?.id) return;
+    return subscribeToCompliance(myEnrollment.id);
+  }, [myEnrollment?.id, subscribeToCompliance]);
+
+  useEffect(() => {
+    if (!session?.user?.id) return;
+    return subscribeToMyApplications(session.user.id);
+  }, [session?.user?.id, subscribeToMyApplications]);
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([fetchPrograms(), fetchMyEnrollment(), fetchMyApplications()]);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [fetchMyApplications, fetchMyEnrollment, fetchPrograms]);
+
+  const requirementItems = useMemo(
+    () => buildRequirementTrackItems(myEnrollment, myApplications),
+    [myApplications, myEnrollment],
   );
 
+  const pendingRequirementsCount = useMemo(
+    () => countPendingRequirements(requirementItems),
+    [requirementItems],
+  );
+
+  const highlightedRequirement = useMemo(
+    () => getHighlightedRequirement(requirementItems),
+    [requirementItems],
+  );
+
+  const openHighlightedRequirement = useCallback(async () => {
+    if (!highlightedRequirement) return;
+    if (highlightedRequirement.kind === 'compliance') {
+      router.push('/my-scholarship');
+      return;
+    }
+    if (highlightedRequirement.application) {
+      await fetchApplicationById(highlightedRequirement.application.id);
+      router.push('/student-development-affairs/apply');
+    }
+  }, [fetchApplicationById, highlightedRequirement]);
+
   const displayed = useMemo(() => {
-    let list = [...programs];
+    let list =
+      listFilter === 'all'
+        ? [...programs]
+        : programs.filter((p) => programMatchesChipFilter(p, listFilter));
     const q = normalize(query);
     if (q.length > 0) {
       list = list.filter((p) => normalize(p.name).includes(q));
     }
-    if (academicYearFilter != null) {
-      list = list.filter((p) => p.academicYear === academicYearFilter);
-    }
-    return list.sort((a, b) => {
-      if (sortKey === 'name_asc') return a.name.localeCompare(b.name);
-      if (sortKey === 'name_desc') return b.name.localeCompare(a.name);
-      return new Date(a.applicationCloseDate).getTime() - new Date(b.applicationCloseDate).getTime();
-    });
-  }, [query, sortKey, academicYearFilter, programs]);
-
-  const selectSort = useCallback((key: SortKey) => {
-    setSortKey(key);
-    setSortSheetOpen(false);
-  }, []);
-
-  const selectYear = useCallback((value: string | null) => {
-    setAcademicYearFilter(value);
-    setSortSheetOpen(false);
-  }, []);
+    return list.sort((a, b) => a.name.localeCompare(b.name));
+  }, [listFilter, programs, query]);
 
   return (
     <View style={{ flex: 1, backgroundColor: '#FDFDFD' }}>
-      <ScreenHeader
-        title="Scholarship List"
-        subtitle="Apply for scholarships and track your enrollment status."
-        paddingBottom={8}
-      />
-      <View className="mt-2 min-h-0 flex-1 bg-transparent px-0">
-        <View className="gap-3 px-4 pt-1">
-          <ScholarshipSearchBar
-            value={query}
-            onChangeText={setQuery}
-            onSortPress={() => setSortSheetOpen(true)}
-            
-          />
-          {/*{openBanner ? (
-            <View className="mb-2">
-              <ScholarshipAnnouncementBanner message={openBanner} />
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        keyboardDismissMode="on-drag"
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
+        contentContainerStyle={{
+          paddingBottom: Math.max(insets.bottom, 12) + TAB_BAR_HEIGHT + 8,
+        }}>
+        <View style={{ padding: 8 }}>
+          <View
+            style={{
+              backgroundColor: '#F5F5F5',
+              borderRadius: 32,
+              paddingTop: insets.top,
+              paddingBottom: 20,
+              paddingHorizontal: 14,
+              gap: 24,
+            }}>
+            <HomeScreenHeader title="Scholarships" avatarUrl={avatarUrl} />
+
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                backgroundColor: '#FFFFFF',
+                borderRadius: 9999,
+                height: 45,
+                paddingHorizontal: 16,
+                gap: 12,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 1 },
+                shadowOpacity: 0.06,
+                shadowRadius: 2,
+                elevation: 2,
+              }}>
+              <IconsaxSearchIcon size={16} color="#71717A" />
+              <TextInput
+                accessibilityLabel="Search scholarships"
+                placeholder="Find scholarship here..."
+                placeholderTextColor="#71717A"
+                value={query}
+                onChangeText={setQuery}
+                style={{ flex: 1, fontSize: 16, fontWeight: '300', color: '#000', padding: 0 }}
+              />
             </View>
-          ) : null} */}
-        </View>
-        <View className="min-h-0 flex-1 rounded-t-[30px] pt-2">
-          <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: TAB_BAR_HEIGHT + 16 }}>
-            <View className="w-full gap-3 px-4 pb-4">
-              {myEnrollment ? (
-                <ActiveScholarshipCard enrollment={myEnrollment as any} />
-              ) : null}
-              {isLoadingPrograms ? (
-                <View className="items-center justify-center py-16">
-                  <ActivityIndicator size="large" color="#2970FF" />
-                  <Text className="mt-3 text-sm leading-5 text-[#717680]">Loading scholarships…</Text>
-                </View>
-              ) : error ? (
-                <View className="items-center justify-center py-10 px-4">
-                  <Text className="text-center text-sm leading-5 text-[#D92D20]">{error}</Text>
-                  <Pressable
-                    accessibilityRole="button"
-                    onPress={fetchPrograms}
-                    className="mt-4 rounded-full bg-[#2970FF] px-5 py-2.5">
-                    <Text className="text-sm font-semibold text-white">Try Again</Text>
-                  </Pressable>
-                </View>
-              ) : displayed.length === 0 ? (
-                <View className="items-center justify-center py-10 px-4">
-                  <Text className="text-center text-sm leading-5 text-[#535862]">
-                    {query.length > 0
-                      ? 'No scholarships match that name. Try another search or change filters.'
-                      : 'No scholarships are currently open.'}
+
+            <View style={{ gap: 12 }}>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text style={{ fontSize: 20, fontWeight: '500', color: '#000000' }}>
+                    Pending Requirements
                   </Text>
+                  {pendingRequirementsCount > 0 ? (
+                    <View
+                      style={{
+                        minWidth: 16,
+                        height: 16,
+                        borderRadius: 999,
+                        backgroundColor: '#F64235',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        paddingHorizontal: 4,
+                      }}>
+                      <Text
+                        style={{
+                          fontSize: 10,
+                          fontWeight: '400',
+                          color: '#FFF',
+                          textAlign: 'center',
+                          lineHeight: 12,
+                        }}>
+                        {pendingRequirementsCount > 9 ? '9+' : pendingRequirementsCount}
+                      </Text>
+                    </View>
+                  ) : null}
                 </View>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="See all requirements"
+                  onPress={() => router.push('/student-development-affairs/requirements')}
+                  hitSlop={10}
+                  className="active:opacity-70">
+                  <Text style={{ fontSize: 14, fontWeight: '400', color: '#717680' }}>See All</Text>
+                </Pressable>
+              </View>
+
+              {highlightedRequirement ? (
+                <ScholarshipRequirementPreviewCard
+                  item={highlightedRequirement}
+                  onPress={() => void openHighlightedRequirement()}
+                />
               ) : (
-                displayed.map((program) => (
+                <ScholarshipPendingRequirementsEmpty />
+              )}
+            </View>
+          </View>
+        </View>
+
+        <View style={{ paddingHorizontal: 20, marginTop: 12, gap: 20 }}>
+          <View style={{ gap: 12 }}>
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}>
+              <Text style={{ fontSize: 20, fontWeight: '500', color: '#000000' }}>
+                List of Scholarships
+              </Text>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="See all scholarships"
+                onPress={() =>
+                  router.push({
+                    pathname: '/student-development-affairs/scholarships',
+                    params: {
+                      ...(listFilter !== 'all' ? { filter: listFilter } : {}),
+                      ...(query.trim() ? { q: query.trim() } : {}),
+                    },
+                  })
+                }
+                hitSlop={10}
+                className="active:opacity-70">
+                <Text style={{ fontSize: 14, fontWeight: '400', color: '#717680' }}>See All</Text>
+              </Pressable>
+            </View>
+            <ScholarshipFilterChips
+              activeFilter={listFilter}
+              onFilterChange={setListFilter}
+            />
+          </View>
+
+          {isLoadingPrograms && programs.length === 0 ? (
+            <View className="items-center justify-center py-16">
+              <ActivityIndicator size="large" color="#2970FF" />
+              <Text className="mt-3 text-sm leading-5 text-[#717680]">Loading scholarships…</Text>
+            </View>
+          ) : error ? (
+            <View className="items-center justify-center px-4 py-10">
+              <Text className="text-center text-sm leading-5 text-[#D92D20]">{error}</Text>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => void fetchPrograms()}
+                className="mt-4 rounded-full bg-[#2970FF] px-5 py-2.5 active:opacity-80">
+                <Text className="text-sm font-semibold text-white">Try Again</Text>
+              </Pressable>
+            </View>
+          ) : displayed.length === 0 ? (
+            <View className="items-center justify-center px-4 py-10">
+              <Text className="text-center text-sm leading-5 text-[#535862]">
+                {query.length > 0
+                  ? 'No scholarships match your search. Try another keyword or filter.'
+                  : 'No scholarships match this filter.'}
+              </Text>
+            </View>
+          ) : (
+            <View style={{ gap: 12 }}>
+              {displayed.map((program, index) => (
+                <Animated.View
+                  key={program.id}
+                  entering={FadeInDown.delay(index * 55)
+                    .duration(320)
+                    .springify()
+                    .damping(18)}>
                   <ScholarshipCard
-                    key={program.id}
                     title={program.name}
                     academicYear={program.academicYear || '2024-2025'}
                     term={program.term || '1st Term'}
@@ -156,83 +331,24 @@ export default function StudentDevelopmentAffairsScreen() {
                     minGpa={program.minGpa}
                     closeDate={formatCloseDate(program.applicationCloseDate)}
                     applicationCount={program.filledSlots}
-                    status={getCardStatus(program)}
+                    status={getScholarshipCardStatus(program)}
                     onPress={() => {
                       setSelectedProgram(program);
                       setModalOpen(true);
                     }}
                   />
-                ))
-              )}
+                </Animated.View>
+              ))}
             </View>
-          </ScrollView>
+          )}
         </View>
-      </View>
+      </ScrollView>
 
       <ScholarshipDetailModal
         program={selectedProgram}
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
       />
-
-      <BottomSheet isOpen={sortSheetOpen} onOpenChange={setSortSheetOpen}>
-        <BottomSheet.Portal>
-          <BottomSheet.Overlay isCloseOnPress />
-          <BottomSheet.Content snapPoints={['52%', '72%']} index={0}>
-            <BottomSheet.Title className="mb-3 px-1 text-base font-semibold leading-6 text-[#181D27]">
-              Sort & filter
-            </BottomSheet.Title>
-            <ScrollView
-              className="max-h-[420px]"
-              keyboardShouldPersistTaps="handled"
-              showsVerticalScrollIndicator={false}>
-              <Text className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-[#8F9098]">
-                Sort by
-              </Text>
-              {SORT_OPTIONS.map((opt) => (
-                <Pressable
-                  key={opt.key}
-                  accessibilityRole="button"
-                  className="rounded-xl px-3 py-3.5 active:bg-[#FAFAFA]"
-                  onPress={() => selectSort(opt.key)}>
-                  <Text
-                    className={`text-sm leading-5 ${sortKey === opt.key ? 'font-semibold text-[#2970FF]' : 'text-[#181D27]'}`}>
-                    {opt.label}
-                  </Text>
-                </Pressable>
-              ))}
-              {academicYears.length > 0 ? (
-                <>
-                  <Text className="mb-2 mt-4 px-1 text-xs font-semibold uppercase tracking-wide text-[#8F9098]">
-                    Academic Year
-                  </Text>
-                  <Pressable
-                    accessibilityRole="button"
-                    className="rounded-xl px-3 py-3.5 active:bg-[#FAFAFA]"
-                    onPress={() => selectYear(null)}>
-                    <Text
-                      className={`text-sm leading-5 ${academicYearFilter === null ? 'font-semibold text-[#2970FF]' : 'text-[#181D27]'}`}>
-                      All years
-                    </Text>
-                  </Pressable>
-                  {academicYears.map((year) => (
-                    <Pressable
-                      key={year}
-                      accessibilityRole="button"
-                      className="rounded-xl px-3 py-3.5 active:bg-[#FAFAFA]"
-                      onPress={() => selectYear(year)}>
-                      <Text
-                        className={`text-sm leading-5 ${academicYearFilter === year ? 'font-semibold text-[#2970FF]' : 'text-[#181D27]'}`}>
-                        AY {year}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </>
-              ) : null}
-            </ScrollView>
-          </BottomSheet.Content>
-        </BottomSheet.Portal>
-      </BottomSheet>
     </View>
   );
 }

@@ -7,7 +7,7 @@
 export const ROUTES = {
   // --- Tabs ---
   tabs: '/(tabs)',
-  home: '/(tabs)',
+  home: '/health-service',
   appointments: '/(tabs)/appointments',
   notifications: '/(tabs)/notification',
   profile: '/(tabs)/profiles',
@@ -24,6 +24,8 @@ export const ROUTES = {
   disciplineIncidentReport: '/discipline-office/incident-report',
   disciplineUploadProof: '/discipline-office/upload-proof',
   studentDevelopmentAffairs: '/student-development-affairs',
+  scholarshipRequirements: '/student-development-affairs/requirements',
+  scholarshipList: '/student-development-affairs/scholarships',
   referrals: '/referrals',
   myScholarship: '/my-scholarship',
 

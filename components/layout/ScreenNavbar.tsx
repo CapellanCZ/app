@@ -61,7 +61,7 @@ export function ScreenNavbar({
     if (navigation.canGoBack()) {
       navigation.goBack();
     } else {
-      router.replace('/(tabs)');
+      router.replace('/health-service');
     }
   };
 

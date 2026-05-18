@@ -9,6 +9,8 @@ export default function StudentDevelopmentAffairsLayout() {
         animation: 'slide_from_right',
       }}>
       <Stack.Screen name="index" />
+      <Stack.Screen name="requirements" />
+      <Stack.Screen name="scholarships" />
       <Stack.Screen name="apply" />
       <Stack.Screen name="about-scholarship" />
     </Stack>

@@ -11,7 +11,7 @@ export function AuthBackRow() {
     if (router.canGoBack()) {
       router.back();
     } else {
-      router.replace('/(tabs)');
+      router.replace('/health-service');
     }
   }, [router]);
 

@@ -724,6 +724,62 @@ export async function submitComplianceItem(input: SubmitComplianceInput): Promis
 // REALTIME SUBSCRIPTIONS
 // ============================================
 
+function removeStaleChannel(client: NonNullable<typeof supabase>, channelName: string) {
+  const topic = `realtime:${channelName}`;
+  for (const existing of client.getChannels()) {
+    if (existing.topic === topic) {
+      void client.removeChannel(existing);
+    }
+  }
+}
+
+export function subscribeToMyApplications(studentId: string, onChange: () => void) {
+  if (!supabase) return () => {};
+
+  const client = supabase;
+  const channelName = `scholarship_applications:student:${studentId}`;
+  removeStaleChannel(client, channelName);
+
+  const channel = client
+    .channel(channelName)
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'scholarship_applications',
+        filter: `student_id=eq.${studentId}`,
+      },
+      () => onChange(),
+    )
+    .subscribe();
+
+  return () => {
+    void client.removeChannel(channel);
+  };
+}
+
+export function subscribeToPrograms(onChange: () => void) {
+  if (!supabase) return () => {};
+
+  const client = supabase;
+  const channelName = 'scholarship_programs_changes';
+  removeStaleChannel(client, channelName);
+
+  const channel = client
+    .channel(channelName)
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'scholarship_programs' },
+      () => onChange(),
+    )
+    .subscribe();
+
+  return () => {
+    void client.removeChannel(channel);
+  };
+}
+
 export function subscribeToApplication(
   applicationId: string,
   callback: (payload: { eventType: string; new: ScholarshipApplication; old: ScholarshipApplication | null }) => void
@@ -755,10 +811,14 @@ export function subscribeToComplianceItems(
   enrollmentId: string,
   callback: (payload: { eventType: string; new: ComplianceItem; old: ComplianceItem | null }) => void
 ) {
-  if (!supabase) throw () => {};
+  if (!supabase) return () => {};
 
-  return supabase
-    .channel(`compliance:${enrollmentId}`)
+  const client = supabase;
+  const channelName = `compliance:${enrollmentId}`;
+  removeStaleChannel(client, channelName);
+
+  const channel = client
+    .channel(channelName)
     .on(
       'postgres_changes',
       {
@@ -773,7 +833,11 @@ export function subscribeToComplianceItems(
           new: mapComplianceItemRow(payload.new as ComplianceItemRow),
           old: payload.old ? mapComplianceItemRow(payload.old as ComplianceItemRow) : null,
         });
-      }
+      },
     )
     .subscribe();
+
+  return () => {
+    void client.removeChannel(channel);
+  };
 }

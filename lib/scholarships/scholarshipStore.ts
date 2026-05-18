@@ -14,6 +14,11 @@ import type {
   ScholarshipStatus,
 } from './types';
 import * as api from './scholarshipApi';
+import {
+  acquireComplianceSubscription,
+  acquireMyApplicationsSubscription,
+  acquireProgramsSubscription,
+} from './realtimeSubscriptions';
 
 // ============================================
 // STORE STATE TYPE
@@ -74,6 +79,8 @@ type ScholarshipState = {
   submitCompliance: (itemId: string, enrollmentId: string, file: File | Blob, fileName: string, mimeType: string) => Promise<void>;
   
   // Actions - Realtime
+  subscribeToPrograms: () => (() => void);
+  subscribeToMyApplications: (studentId: string) => (() => void);
   subscribeToApplication: (applicationId: string) => (() => void);
   subscribeToCompliance: (enrollmentId: string) => (() => void);
   
@@ -402,6 +409,18 @@ export const useScholarshipStore = create<ScholarshipState>((set, get) => ({
   // REALTIME SUBSCRIPTIONS
   // ============================================
   
+  subscribeToPrograms: () => {
+    return acquireProgramsSubscription(() => {
+      void get().fetchPrograms();
+    });
+  },
+
+  subscribeToMyApplications: (studentId: string) => {
+    return acquireMyApplicationsSubscription(studentId, () => {
+      void get().fetchMyApplications();
+    });
+  },
+
   subscribeToApplication: (applicationId: string) => {
     console.log('[scholarships] Subscribing to application:', applicationId);
     
@@ -434,31 +453,9 @@ export const useScholarshipStore = create<ScholarshipState>((set, get) => ({
   },
 
   subscribeToCompliance: (enrollmentId: string) => {
-    console.log('[scholarships] Subscribing to compliance items:', enrollmentId);
-    
-    const channel = api.subscribeToComplianceItems(enrollmentId, (payload) => {
-      console.log('[scholarships] Compliance update received:', payload.eventType);
-      
-      // Update enrollment's compliance items
-      set((state) => {
-        if (!state.myEnrollment || state.myEnrollment.id !== enrollmentId) return {};
-        
-        return {
-          myEnrollment: {
-            ...state.myEnrollment,
-            complianceItems: state.myEnrollment.complianceItems.map(item =>
-              item.id === payload.new.id ? { ...item, ...payload.new } : item
-            ),
-          },
-        };
-      });
+    return acquireComplianceSubscription(enrollmentId, () => {
+      void get().fetchMyEnrollment();
     });
-    
-    // Return cleanup function
-    return () => {
-      console.log('[scholarships] Unsubscribing from compliance:', enrollmentId);
-      channel.unsubscribe();
-    };
   },
 
   // ============================================

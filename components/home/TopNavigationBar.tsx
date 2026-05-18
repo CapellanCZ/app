@@ -65,7 +65,7 @@ export function TopNavigationBar({
         <Pressable
           accessibilityLabel="Open menu"
           hitSlop={12}
-          onPress={() => router.push('/(tabs)')}>
+          onPress={() => router.push('/health-service')}>
           <IconsaxMenuIcon color={TITLE_COLOR} size={36} />
         </Pressable>
       ) : (

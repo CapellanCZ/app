@@ -45,7 +45,7 @@ export default function Login() {
   }, []);
 
   useEffect(() => {
-    if (session) router.replace('/(tabs)');
+    if (session) router.replace('/health-service');
   }, [session, router]);
 
   useEffect(() => {

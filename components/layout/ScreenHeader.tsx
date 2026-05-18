@@ -32,7 +32,7 @@ export function ScreenHeader({
     if (router.canGoBack()) {
       router.back();
     } else {
-      router.replace('/(tabs)');
+      router.replace('/health-service');
     }
   };
 

@@ -159,7 +159,7 @@ export default function NotificationScreen() {
     if (navigation.canGoBack()) {
       navigation.goBack();
     } else {
-      router.replace('/(tabs)');
+      router.replace('/health-service');
     }
   }, [navigation, router]);
 

@@ -15,11 +15,9 @@ import {
   mapNTEToCardProps,
 } from '@/lib/discipline-office/disciplineApi';
 
-import {
-  DisciplineOfficeScreenShell,
-  ScreenHeader,
-  NTECard,
-} from '@/components/discipline-office';
+import { HomeScreenHeader } from '@/components/home/HomeScreenHeader';
+import { DisciplineOfficeScreenShell, NTECard } from '@/components/discipline-office';
+import { fetchStudentProfile } from '@/lib/profile/profileApi';
 import { IconsaxArrowDownIcon } from '@/components/icons/IconsaxArrowDownIcon';
 import { IconsaxBriefcaseIcon } from '@/components/icons/IconsaxBriefcaseIcon';
 import { IconsaxPaperIcon } from '@/components/icons/IconsaxPaperIcon';
@@ -27,9 +25,9 @@ import { IconsaxCloseCircleIcon } from '@/components/icons/IconsaxCloseCircleIco
 import { IconsaxEditIcon } from '@/components/icons/IconsaxEditIcon';
 import { IconsaxLikeIcon } from '@/components/icons/IconsaxLikeIcon';
 import { IconsaxInfoCircleIcon } from '@/components/icons/IconsaxInfoCircleIcon';
-import { SCHEDULE_PARTNER } from '@/lib/health-service/bookingScheduleTheme';
-
-const T = SCHEDULE_PARTNER;
+function formatDateLabel(date: Date): string {
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
 
 // ── Stats Strip ───────────────────────────────────────────────────────────────
 
@@ -179,6 +177,7 @@ function PendingNTEBanner({
 
 // ── Quick Action Card ─────────────────────────────────────────────────────────
 
+/** Figma 1685:7264 — three equal-width action cards in one row. */
 function QuickActionCard({
   icon,
   label,
@@ -196,37 +195,41 @@ function QuickActionCard({
       accessibilityLabel={accessibilityLabel}
       onPress={onPress}
       style={{
-        width: 160,
+        flex: 1,
+        minWidth: 0,
         backgroundColor: '#FFFFFF',
         borderRadius: 16,
-        paddingHorizontal: 16,
-        paddingVertical: 20,
+        paddingHorizontal: 20,
+        paddingVertical: 24,
         shadowColor: '#000000',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.02,
         shadowRadius: 2,
         elevation: 2,
-        gap: 12,
+        gap: 16,
+        justifyContent: 'center',
       }}
       className="active:opacity-75">
       <View
         style={{
           width: 44,
           height: 44,
-          borderRadius: 999,
+          borderRadius: 99,
           backgroundColor: '#F5F5F5',
+          padding: 6,
           alignItems: 'center',
           justifyContent: 'center',
+          overflow: 'hidden',
         }}>
         {icon}
       </View>
       <Text
         style={{
           fontSize: 14,
-          fontWeight: '500',
+          fontWeight: '400',
           color: '#000000',
           letterSpacing: -0.28,
-          lineHeight: 20,
+          lineHeight: 18,
         }}>
         {label}
       </Text>
@@ -302,10 +305,18 @@ export default function DisciplineOfficeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { session } = useAuth();
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const [hasLoaded, setHasLoaded] = useState(false);
 
   const scrollRef = useRef<ScrollView>(null);
+
+  useEffect(() => {
+    if (!session?.user?.id) return;
+    fetchStudentProfile(session.user.id).then((p) => {
+      if (p?.avatar_url) setAvatarUrl(p.avatar_url);
+    });
+  }, [session?.user?.id]);
 
   const [ntes, setNtes] = useState<ReturnType<typeof mapNTEToCardProps>[]>([]);
   const [openCasesCount, setOpenCasesCount] = useState(0);
@@ -379,12 +390,6 @@ export default function DisciplineOfficeScreen() {
 
   return (
     <DisciplineOfficeScreenShell>
-      <ScreenHeader
-        title="Discipline Office"
-        subtitle="Reports are reviewed fairly. You can track your case and sanctions here."
-        paddingBottom={8}
-      />
-
       <ScrollView
         ref={scrollRef}
         className="flex-1 bg-transparent"
@@ -392,104 +397,102 @@ export default function DisciplineOfficeScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{
-          paddingHorizontal: 16,
-          paddingTop: 16,
-          paddingBottom: Math.max(insets.bottom, 16) + TAB_BAR_HEIGHT + 8,
-          gap: 28,
+          paddingBottom: Math.max(insets.bottom, 12) + TAB_BAR_HEIGHT + 8,
         }}>
+        {/* Grey hero — same shell as Scholarships; discipline-specific content inside */}
+        <View style={{ padding: 8 }}>
+          <View
+            style={{
+              backgroundColor: '#F5F5F5',
+              borderRadius: 32,
+              paddingTop: insets.top,
+              paddingBottom: 20,
+              paddingHorizontal: 14,
+              gap: 24,
+            }}>
+            <HomeScreenHeader title="Discipline Office" avatarUrl={avatarUrl} />
 
-        {/* ── Stats Strip ── */}
-        <StatsStrip
-          noticeCount={nteCount}
-          openCases={openCasesCount}
-          sanctions={sanctionsCount}
-        />
+            <StatsStrip
+              noticeCount={nteCount}
+              openCases={openCasesCount}
+              sanctions={sanctionsCount}
+            />
 
-        {/* ── Clean Record Banner ── */}
-        {hasLoaded && isClean && !bannerDismissed && (
-          <CleanRecordBanner onDismiss={() => setBannerDismissed(true)} />
-        )}
+            {hasLoaded && isClean && !bannerDismissed ? (
+              <CleanRecordBanner onDismiss={() => setBannerDismissed(true)} />
+            ) : null}
 
-        {/* ── Pending NTE Urgent Banner ── */}
-        {pendingNTECount > 0 && (
-          <PendingNTEBanner count={pendingNTECount} />
-        )}
+            {pendingNTECount > 0 ? <PendingNTEBanner count={pendingNTECount} /> : null}
 
-        {/* ── Quick Actions ── */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{
-            flexDirection: 'row',
-            gap: 12,
-            paddingRight: 16,
-          }}>
-          <QuickActionCard
-            icon={<IconsaxEditIcon size={20} color="#0A0D12" />}
-            label="Report an Incident"
-            accessibilityLabel="Open incident report form"
-            onPress={() => router.push('/discipline-office/incident-report')}
-          />
-          <QuickActionCard
-            icon={<IconsaxBriefcaseIcon size={20} color="#0A0D12" />}
-            label="View my Cases"
-            accessibilityLabel="View my cases"
-            onPress={() => router.push('/discipline-office/my-cases')}
-          />
-          <QuickActionCard
-            icon={<IconsaxPaperIcon size={20} color="#0A0D12" />}
-            label="View my Sanctions"
-            accessibilityLabel="View my sanctions"
-            onPress={() => router.push('/discipline-office/my-sanctions')}
-          />
-        </ScrollView>
-
-        {/* ── Notice to Explain ── */}
-        <CollapsibleSection title="Notice to Explain" defaultExpanded>
-          {ntes.length > 0 ? (
-            <View style={{ gap: 12 }}>
-              {ntes.map((item) => (
-                <NTECard
-                  key={item.id}
-                  variant="default"
-                  id={item.id}
-                  caseType={item.caseType}
-                  description={item.description}
-                  issuedAtLabel={item.issuedAtLabel}
-                  deadlineLabel={item.deadlineLabel}
-                  status={item.status}
-                  isOverdue={item.isOverdue}
-                  respondedAtLabel={item.respondedAtLabel}
-                  waivedAtLabel={item.waivedAtLabel}
-                  onRespond={() =>
-                    router.push({
-                      pathname: '/discipline-office/statement-of-explanation',
-                      params: {
-                        nteId: item.id,
-                        caseType: item.caseType,
-                        issuedAtLabel: item.issuedAtLabel,
-                        deadlineLabel: item.deadlineLabel,
-                        onResponded: item.id, // Pass NTE ID to identify which one was responded to
-                      },
-                    })
-                  }
-                />
-              ))}
+            <View style={{ flexDirection: 'row', alignItems: 'stretch', gap: 16 }}>
+              <QuickActionCard
+                icon={<IconsaxEditIcon size={20} color="#0A0D12" />}
+                label="Report an Incident"
+                accessibilityLabel="Open incident report form"
+                onPress={() => router.push('/discipline-office/incident-report')}
+              />
+              <QuickActionCard
+                icon={<IconsaxPaperIcon size={20} color="#0A0D12" />}
+                label="View my Sanctions"
+                accessibilityLabel="View my sanctions"
+                onPress={() => router.push('/discipline-office/my-sanctions')}
+              />
+              <QuickActionCard
+                icon={<IconsaxBriefcaseIcon size={20} color="#0A0D12" />}
+                label="View my Cases"
+                accessibilityLabel="View my cases"
+                onPress={() => router.push('/discipline-office/my-cases')}
+              />
             </View>
-          ) : (
-            <Text
-              style={{
-                fontSize: 16,
-                fontWeight: '400',
-                color: '#535862',
-                textAlign: 'center',
-                paddingVertical: 32,
-              }}>
-              Nothing to see here...
-            </Text>
-          )}
-        </CollapsibleSection>
+          </View>
+        </View>
 
+        <View style={{ paddingHorizontal: 20, marginTop: 12 }}>
+          <CollapsibleSection title="Notice to Explain" defaultExpanded>
+            {ntes.length > 0 ? (
+              <View style={{ gap: 12 }}>
+                {ntes.map((item) => (
+                  <NTECard
+                    key={item.id}
+                    variant="default"
+                    id={item.id}
+                    caseType={item.caseType}
+                    description={item.description}
+                    issuedAtLabel={item.issuedAtLabel}
+                    deadlineLabel={item.deadlineLabel}
+                    status={item.status}
+                    isOverdue={item.isOverdue}
+                    respondedAtLabel={item.respondedAtLabel}
+                    waivedAtLabel={item.waivedAtLabel}
+                    onRespond={() =>
+                      router.push({
+                        pathname: '/discipline-office/statement-of-explanation',
+                        params: {
+                          nteId: item.id,
+                          caseType: item.caseType,
+                          issuedAtLabel: item.issuedAtLabel,
+                          deadlineLabel: item.deadlineLabel,
+                          onResponded: item.id,
+                        },
+                      })
+                    }
+                  />
+                ))}
+              </View>
+            ) : (
+              <Text
+                style={{
+                  fontSize: 16,
+                  fontWeight: '400',
+                  color: '#535862',
+                  textAlign: 'center',
+                  paddingVertical: 32,
+                }}>
+                Nothing to see here...
+              </Text>
+            )}
+          </CollapsibleSection>
+        </View>
       </ScrollView>
     </DisciplineOfficeScreenShell>
   );

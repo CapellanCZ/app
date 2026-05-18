@@ -5,26 +5,33 @@ import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-na
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BriefcaseIcon } from '@/components/icons/BriefcaseIcon';
-import { HomeIcon } from '@/components/icons/HomeIcon';
 import { IconsaxMedalIcon } from '@/components/icons/IconsaxMedalIcon';
 import { IconsaxProfileIcon } from '@/components/icons/IconsaxProfileIcon';
 import { StethoscopeIcon } from '@/components/icons/StethoscopeIcon';
 
 export const TAB_BAR_HEIGHT = 80;
 
-const VISIBLE_ROUTES = [
-  '/',
-  '/(tabs)',
-  '/(tabs)/index',
-  '/discipline-office',
-  '/health-service',
-  '/student-development-affairs',
-  '/(tabs)/profiles',
-  '/profiles',
-];
+function normalizePathname(pathname: string): string {
+  const trimmed = pathname.replace(/\/$/, '');
+  return trimmed === '' ? '/' : trimmed;
+}
 
 function isTabBarVisible(pathname: string): boolean {
-  return VISIBLE_ROUTES.includes(pathname);
+  const path = normalizePathname(pathname);
+
+  if (path === '/(tabs)/profiles' || path.endsWith('/profiles')) return true;
+
+  // Department hub index screens only (hide on nested stack screens).
+  if (path === '/discipline-office' || path === '/discipline-office/index') return true;
+  if (path === '/health-service' || path === '/health-service/index') return true;
+  if (
+    path === '/student-development-affairs' ||
+    path === '/student-development-affairs/index'
+  ) {
+    return true;
+  }
+
+  return false;
 }
 
 const ACTIVE_BG = '#2970FF';
@@ -37,31 +44,34 @@ type Tab = {
   match: (pathname: string) => boolean;
 };
 
+function isDepartmentIndex(pathname: string, base: string): boolean {
+  const path = normalizePathname(pathname);
+  return path === base || path === `${base}/index`;
+}
+
 const TABS: Tab[] = [
   {
-    key: 'home',
-    route: '/(tabs)',
-    match: (p) => p === '/' || p === '/(tabs)' || p === '/(tabs)/index',
+    key: 'health',
+    route: '/health-service',
+    match: (p) => isDepartmentIndex(p, '/health-service'),
   },
   {
     key: 'discipline',
     route: '/discipline-office',
-    match: (p) => p.startsWith('/discipline-office'),
-  },
-  {
-    key: 'health',
-    route: '/health-service',
-    match: (p) => p.startsWith('/health-service'),
+    match: (p) => isDepartmentIndex(p, '/discipline-office'),
   },
   {
     key: 'student-dev',
     route: '/student-development-affairs',
-    match: (p) => p.startsWith('/student-development-affairs'),
+    match: (p) => isDepartmentIndex(p, '/student-development-affairs'),
   },
   {
     key: 'profile',
     route: '/(tabs)/profiles',
-    match: (p) => p === '/(tabs)/profiles' || p.endsWith('/profiles'),
+    match: (p) => {
+      const path = normalizePathname(p);
+      return path === '/(tabs)/profiles' || path.endsWith('/profiles');
+    },
   },
 ];
 
@@ -69,7 +79,6 @@ function TabIcon({ tabKey, focused }: { tabKey: string; focused: boolean }) {
   const color = focused ? ICON_ACTIVE : ICON_INACTIVE;
   const size = 22;
 
-  if (tabKey === 'home') return <HomeIcon size={size} color={color} />;
   if (tabKey === 'discipline') return <BriefcaseIcon size={size} color={color} />;
   if (tabKey === 'health') return <StethoscopeIcon size={size} color={color} />;
   if (tabKey === 'student-dev') return <IconsaxMedalIcon size={size} color={color} />;

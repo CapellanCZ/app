@@ -158,6 +158,7 @@ export const useHealthServiceStore = create<HealthServiceState>((set, get) => ({
         },
       )
       .subscribe();
+
     return () => { client.removeChannel(channel); };
   },
 }));
