@@ -23,7 +23,7 @@ import {
 import { IconsaxSearchIcon } from '@/components/icons/IconsaxSearchIcon';
 import { TAB_BAR_HEIGHT } from '@/components/layout/BottomTabBar';
 import { useAuth } from '@/lib/auth/AuthProvider';
-import { fetchStudentProfile } from '@/lib/profile/profileApi';
+import { useProfileStore } from '@/lib/profile/profileStore';
 import {
   getScholarshipCardStatus,
   programMatchesChipFilter,
@@ -66,7 +66,7 @@ export default function StudentDevelopmentAffairsScreen() {
     subscribeToMyApplications,
   } = useScholarshipStore();
 
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const avatarUrl = useProfileStore((s) => s.profile?.avatar_url ?? null);
   const [selectedProgram, setSelectedProgram] = useState<ScholarshipProgram | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -80,13 +80,6 @@ export default function StudentDevelopmentAffairsScreen() {
     void fetchMyEnrollment();
     void fetchMyApplications();
   }, []);
-
-  useEffect(() => {
-    if (!session?.user?.id) return;
-    fetchStudentProfile(session.user.id).then((p) => {
-      if (p?.avatar_url) setAvatarUrl(p.avatar_url);
-    });
-  }, [session?.user?.id]);
 
   useEffect(() => {
     const unsubscribePrograms = subscribeToPrograms();

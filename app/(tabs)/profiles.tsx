@@ -5,7 +5,8 @@ import { TAB_BAR_HEIGHT } from '@/components/layout/BottomTabBar';
 import { useRouter } from 'expo-router';
 
 import { useAuth } from '@/lib/auth/AuthProvider';
-import { fetchStudentProfile, pickAndUploadAvatar, type StudentProfile } from '@/lib/profile/profileApi';
+import { pickAndUploadAvatar } from '@/lib/profile/profileApi';
+import { useProfileStore } from '@/lib/profile/profileStore';
 import { useScholarshipStore } from '@/lib/scholarships/scholarshipStore';
 import { IconsaxNotificationIcon } from '@/components/icons/IconsaxNotificationIcon';
 import { IconsaxInfoCircleIcon } from '@/components/icons/IconsaxInfoCircleIcon';
@@ -20,71 +21,44 @@ import {
   UserInfoCard,
 } from '@/components/profile';
 
-function maskEmail(email: string): string {
-  const [local, domain] = email.split('@');
-  if (!local || !domain) return email;
-  const visible = local.slice(0, 2);
-  return `${visible}${'*'.repeat(Math.min(local.length - 2, 5))}@${domain}`;
-}
-
 export default function ProfileTab() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { session } = useAuth();
-  const { myEnrollment, fetchMyEnrollment } = useScholarshipStore();
+  const { fetchMyEnrollment } = useScholarshipStore();
+  const profile = useProfileStore((s) => s.profile);
+  const fetchProfile = useProfileStore((s) => s.fetchProfile);
+  const setAvatarUrl = useProfileStore((s) => s.setAvatarUrl);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
-  const [profile, setProfile] = useState<StudentProfile | null>(null);
-  const [loading, setLoading] = useState(true);
   const [avatarUploading, setAvatarUploading] = useState(false);
 
   useEffect(() => {
-    if (!session?.user?.id) {
-      console.log('[Profile] No session user ID');
+    if (!session?.user?.id) return;
+
+    const userId = session.user.id;
+    const cached = useProfileStore.getState().profile;
+    if (cached?.id === userId) {
+      console.log('[Profile] using prefetched profile from store');
+      void fetchMyEnrollment();
       return;
     }
-    console.log('[Profile] Fetching profile for user:', session.user.id);
-    console.log('[Profile] User email:', session.user.email);
-    console.log('[Profile] User metadata:', session.user.user_metadata);
-    setLoading(true);
-    Promise.all([
-      fetchStudentProfile(session.user.id),
+
+    void Promise.all([
+      fetchProfile(userId, {
+        email: session.user.email ?? undefined,
+        userMetadata: session.user.user_metadata,
+      }),
       fetchMyEnrollment(),
-    ])
-      .then(([profileData]) => {
-        console.log('[Profile] Fetched profile:', profileData);
-        // Fallback to auth metadata if no students table row exists
-        if (!profileData && session.user.user_metadata) {
-          const meta = session.user.user_metadata;
-          const fallbackProfile: StudentProfile = {
-            id: session.user.id,
-            email: session.user.email ?? meta.email ?? '',
-            first_name: meta.first_name ?? '',
-            last_name: meta.last_name ?? '',
-            program: meta.program ?? '',
-            student_id: meta.student_id ?? '',
-            avatar_url: meta.avatar_url ?? null,
-          };
-          console.log('[Profile] Using metadata fallback:', fallbackProfile);
-          setProfile(fallbackProfile);
-        } else {
-          setProfile(profileData);
-        }
-      })
-      .catch((err) => {
-        console.error('[Profile] Error fetching profile:', err);
-      })
-      .finally(() => setLoading(false));
-  }, [session?.user?.id, fetchMyEnrollment]);
+    ]);
+  }, [session?.user?.id, session?.user?.email, session?.user?.user_metadata, fetchProfile, fetchMyEnrollment]);
 
   const handleChangeAvatar = useCallback(async () => {
     if (!session?.user?.id || avatarUploading) return;
     setAvatarUploading(true);
     const url = await pickAndUploadAvatar(session.user.id);
-    if (url) setProfile((p) => p ? { ...p, avatar_url: url } : p);
+    if (url) setAvatarUrl(url);
     setAvatarUploading(false);
-  }, [session?.user?.id, avatarUploading]);
-
-
+  }, [session?.user?.id, avatarUploading, setAvatarUrl]);
 
   const name = profile
     ? `${profile.first_name} ${profile.last_name}`.trim() || 'Nationalian'

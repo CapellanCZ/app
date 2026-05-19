@@ -8,16 +8,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TAB_BAR_HEIGHT } from '@/components/layout/BottomTabBar';
 
 import { useAuth } from '@/lib/auth/AuthProvider';
-import {
-  fetchCasesByStudent,
-  fetchNTEsByStudent,
-  fetchSanctionsByStudent,
-  mapNTEToCardProps,
-} from '@/lib/discipline-office/disciplineApi';
+import { useDisciplineOfficeStore } from '@/lib/discipline-office/disciplineOfficeStore';
+import { useProfileStore } from '@/lib/profile/profileStore';
 
 import { HomeScreenHeader } from '@/components/home/HomeScreenHeader';
 import { DisciplineOfficeScreenShell, NTECard } from '@/components/discipline-office';
-import { fetchStudentProfile } from '@/lib/profile/profileApi';
 import { IconsaxArrowDownIcon } from '@/components/icons/IconsaxArrowDownIcon';
 import { IconsaxBriefcaseIcon } from '@/components/icons/IconsaxBriefcaseIcon';
 import { IconsaxPaperIcon } from '@/components/icons/IconsaxPaperIcon';
@@ -305,60 +300,32 @@ export default function DisciplineOfficeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { session } = useAuth();
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const avatarUrl = useProfileStore((s) => s.profile?.avatar_url ?? null);
+  const { ntes, openCasesCount, sanctionsCount, hasLoaded, refreshHub, patchNte } =
+    useDisciplineOfficeStore();
   const [bannerDismissed, setBannerDismissed] = useState(false);
-  const [hasLoaded, setHasLoaded] = useState(false);
 
   const scrollRef = useRef<ScrollView>(null);
 
-  useEffect(() => {
-    if (!session?.user?.id) return;
-    fetchStudentProfile(session.user.id).then((p) => {
-      if (p?.avatar_url) setAvatarUrl(p.avatar_url);
-    });
-  }, [session?.user?.id]);
+  const studentId =
+    useProfileStore((s) => s.profile?.student_id) ??
+    (session?.user?.user_metadata?.student_id as string | undefined) ??
+    '';
 
-  const [ntes, setNtes] = useState<ReturnType<typeof mapNTEToCardProps>[]>([]);
-  const [openCasesCount, setOpenCasesCount] = useState(0);
-  const [sanctionsCount, setSanctionsCount] = useState(0);
-
-  const studentId = (session?.user?.user_metadata?.student_id as string | undefined) ?? '';
-
-  // Initial fetch
   useEffect(() => {
     if (!studentId) return;
-    let cancelled = false;
-    Promise.all([
-      fetchNTEsByStudent(studentId),
-      fetchCasesByStudent(studentId),
-      fetchSanctionsByStudent(studentId),
-    ]).then(([rawNTEs, rawCases, rawSanctions]) => {
-      if (cancelled) return;
-      setNtes(rawNTEs.filter((n) => n.status !== 'escalated').map(mapNTEToCardProps));
-      setOpenCasesCount(rawCases.length);
-      setSanctionsCount(rawSanctions.length);
-      setHasLoaded(true);
-    });
-    return () => { cancelled = true; };
-  }, [studentId]);
+    if (hasLoaded) {
+      console.log('[disciplineOffice] screen opened with prefetched hub data');
+      return;
+    }
+    void refreshHub(studentId);
+  }, [studentId, hasLoaded, refreshHub]);
 
-  // Refetch data when screen is focused (e.g., after submitting statement of explanation)
   useFocusEffect(
     useCallback(() => {
       if (!studentId) return;
-      let cancelled = false;
-      Promise.all([
-        fetchNTEsByStudent(studentId),
-        fetchCasesByStudent(studentId),
-        fetchSanctionsByStudent(studentId),
-      ]).then(([rawNTEs, rawCases, rawSanctions]) => {
-        if (cancelled) return;
-        setNtes(rawNTEs.filter((n) => n.status !== 'escalated').map(mapNTEToCardProps));
-        setOpenCasesCount(rawCases.length);
-        setSanctionsCount(rawSanctions.length);
-      });
-      return () => { cancelled = true; };
-    }, [studentId]),
+      void refreshHub(studentId);
+    }, [studentId, refreshHub]),
   );
 
   // Check if returning from statement explanation with responded NTE
@@ -367,21 +334,14 @@ export default function DisciplineOfficeScreen() {
       const respondedNTEId = router.params?.respondedNTEId as string | undefined;
       if (respondedNTEId) {
         // Optimistically update the NTE status before refetching
-        setNtes((prev) =>
-          prev.map((nte) =>
-            nte.id === respondedNTEId
-              ? {
-                  ...nte,
-                  status: 'responded' as const,
-                  respondedAtLabel: formatDateLabel(new Date()),
-                }
-              : nte,
-          ),
-        );
+        patchNte(respondedNTEId, {
+          status: 'responded',
+          respondedAtLabel: formatDateLabel(new Date()),
+        });
         // Clear the param to avoid re-triggering
         router.setParams({ respondedNTEId: undefined });
       }
-    }, [router]),
+    }, [patchNte, router]),
   );
 
   const nteCount = ntes.length;

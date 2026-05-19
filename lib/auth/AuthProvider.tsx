@@ -5,8 +5,10 @@ import type { Session } from '@supabase/supabase-js';
 
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { registerPushToken } from '@/lib/notifications/registerPushToken';
-import { useScholarshipStore } from '@/lib/scholarships/scholarshipStore';
+import { useDisciplineOfficeStore } from '@/lib/discipline-office/disciplineOfficeStore';
 import { useHealthServiceStore } from '@/lib/health-service/healthServiceStore';
+import { useProfileStore } from '@/lib/profile/profileStore';
+import { useScholarshipStore } from '@/lib/scholarships/scholarshipStore';
 
 /** Extract tokens from a Supabase magic-link redirect URL.
  *  Supabase can return tokens in the hash fragment (#access_token=...)
@@ -129,6 +131,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       resetHealthService();
     }
   }, [session?.user?.id]);
+
+  // Pre-fetch student profile (avatar) and discipline hub stats after login.
+  const { fetchProfile, reset: resetProfile } = useProfileStore();
+  const { refreshHub, reset: resetDisciplineOffice } = useDisciplineOfficeStore();
+  useEffect(() => {
+    if (!session?.user?.id) {
+      if (session === null && !isLoading) {
+        resetProfile();
+        resetDisciplineOffice();
+      }
+      return;
+    }
+
+    const userId = session.user.id;
+    const metaStudentId = session.user.user_metadata?.student_id as string | undefined;
+
+    const profileState = useProfileStore.getState();
+    const disciplineState = useDisciplineOfficeStore.getState();
+    if (profileState.profile?.id === userId && disciplineState.hasLoaded) {
+      console.log('[AuthProvider] profile and discipline hub already prefetched');
+      return;
+    }
+
+    void fetchProfile(userId, {
+      email: session.user.email ?? undefined,
+      userMetadata: session.user.user_metadata,
+    }).then((profile) => {
+      const studentId = profile?.student_id ?? metaStudentId ?? '';
+      if (studentId) void refreshHub(studentId);
+    });
+  }, [session?.user?.id, session, isLoading, fetchProfile, refreshHub, resetProfile, resetDisciplineOffice]);
 
   return (
     <AuthContext.Provider value={{ session, isLoading, isConfigured: isSupabaseConfigured }}>

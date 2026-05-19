@@ -22,7 +22,7 @@ import {
   staffNameForAppointment,
 } from '../../lib/health-service/healthServiceStore';
 import { useAuth } from '../../lib/auth/AuthProvider';
-import { fetchStudentProfile } from '../../lib/profile/profileApi';
+import { useProfileStore } from '@/lib/profile/profileStore';
 import { HomeScreenHeader } from '@/components/home/HomeScreenHeader';
 import { IconsaxSearchIcon } from '../../components/icons/IconsaxSearchIcon';
 import { IconsaxCalendarIcon } from '@/components/icons/IconsaxCalendarIcon';
@@ -60,7 +60,7 @@ export default function HealthServiceScreen() {
   const { width: windowWidth } = useWindowDimensions();
 
   const { session } = useAuth();
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const avatarUrl = useProfileStore((s) => s.profile?.avatar_url ?? null);
 
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('all');
   const [search, setSearch] = useState('');
@@ -77,13 +77,6 @@ export default function HealthServiceScreen() {
     const unsubscribe = subscribeAppointments();
     return unsubscribe;
   }, []);
-
-  useEffect(() => {
-    if (!session?.user?.id) return;
-    fetchStudentProfile(session.user.id).then((p) => {
-      if (p?.avatar_url) setAvatarUrl(p.avatar_url);
-    });
-  }, [session?.user?.id]);
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);

@@ -11,16 +11,17 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { TAB_BAR_HEIGHT } from '@/components/layout/BottomTabBar';
+import { EmptyStateNotifIllustration } from '@/components/notifications/EmptyStateNotifIllustration';
 import { NotificationListRow } from '@/components/notifications/NotificationListRow';
 import { Ionicons } from '@expo/vector-icons';
 import { SettingIcon } from '@/components/icons/SettingIcon';
 import { IconsaxArrowLeftIcon } from '@/components/icons/IconsaxArrowLeftIcon';
-import { SCHEDULE_PARTNER } from '@/lib/health-service/bookingScheduleTheme';
 import { useAuth } from '@/lib/auth/AuthProvider';
 import { useNotificationStore } from '@/lib/notifications/notificationStore';
 import type { NotificationItem } from '@/lib/notifications/types';
 
-const BRAND = SCHEDULE_PARTNER.brand;
+const BRAND = '#2970FF';
 
 type ReadFilter = 'all' | 'unread';
 
@@ -46,7 +47,7 @@ function SectionHeader({ title, onMarkAllRead }: SectionHeaderProps) {
           fontSize: 14,
           fontWeight: '400',
           textTransform: 'uppercase',
-          color: SCHEDULE_PARTNER.textMuted,
+          color: '#717680',
         }}>
         {title}
       </Text>
@@ -162,15 +163,18 @@ export default function NotificationScreen() {
     }
   }, [markAllRead, navigation, router]);
 
+  const isEmpty = filtered.length === 0;
+
   return (
     <View style={{ flex: 1, backgroundColor: '#FDFDFD' }}>
       <ScrollView
         keyboardDismissMode="on-drag"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
+          flexGrow: isEmpty ? 1 : undefined,
           paddingTop: insets.top + 16,
           paddingHorizontal: 20,
-          paddingBottom: Math.max(insets.bottom, 16) + 28,
+          paddingBottom: Math.max(insets.bottom, 16) + TAB_BAR_HEIGHT + 8,
         }}>
         <View
           style={{
@@ -224,18 +228,37 @@ export default function NotificationScreen() {
           </Pressable>
         </View>
 
-        {filtered.length === 0 ? (
-          <View className="mt-8 items-center rounded-2xl border border-[#E8EEF4] bg-white px-5 py-10">
+        {isEmpty ? (
+          <View
+            style={{
+              flex: 1,
+              justifyContent: 'center',
+              alignItems: 'center',
+              paddingHorizontal: 24,
+            }}>
+            <EmptyStateNotifIllustration size={160} />
             <Text
               style={{
+                marginTop: 24,
+                fontSize: 24,
+                fontWeight: '600',
+                color: '#181D27',
+                letterSpacing: -0.48,
                 textAlign: 'center',
-                fontSize: 15,
-                lineHeight: 22,
-                color: SCHEDULE_PARTNER.textMuted,
               }}>
-              {readFilter === 'unread'
-                ? 'No unread notifications. Switch to All to see earlier updates.'
-                : 'No notifications yet.'}
+              No Notification Yet
+            </Text>
+            <Text
+              style={{
+                marginTop: 8,
+                fontSize: 14,
+                fontWeight: '400',
+                color: '#717680',
+                letterSpacing: -0.28,
+                lineHeight: 20,
+                textAlign: 'center',
+              }}>
+              You have no notifications right now.{'\n'}Come back later
             </Text>
           </View>
         ) : (
