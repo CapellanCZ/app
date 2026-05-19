@@ -8,7 +8,10 @@ import {
   View,
 } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { fadeSlideUpEntering } from '@/lib/animations/fadeSlideUp';
 
 import { IconsaxArrowLeftIcon } from '@/components/icons/IconsaxArrowLeftIcon';
 import { IconsaxSearchIcon } from '@/components/icons/IconsaxSearchIcon';
@@ -20,7 +23,6 @@ import {
 import {
   getScholarshipCardStatus,
   programMatchesChipFilter,
-  type ScholarshipChipFilter,
   type ScholarshipListFilter,
 } from '@/lib/scholarships/programUtils';
 import { useScholarshipStore } from '@/lib/scholarships/scholarshipStore';
@@ -71,8 +73,8 @@ export default function AllScholarshipsScreen() {
     }, [fetchPrograms, isLoadingPrograms, programs.length]),
   );
 
-  const handleChipPress = useCallback((filter: ScholarshipChipFilter) => {
-    setListFilter((prev) => (prev === filter ? 'all' : filter));
+  const handleChipPress = useCallback((filter: ScholarshipListFilter) => {
+    setListFilter(filter);
   }, []);
 
   const filtered = useMemo(() => {
@@ -207,24 +209,25 @@ export default function AllScholarshipsScreen() {
               </Text>
             ) : (
               <View style={{ gap: 12 }}>
-                {filtered.map((program) => (
-                  <ScholarshipCard
-                    key={program.id}
-                    title={program.name}
-                    academicYear={program.academicYear || '2024-2025'}
-                    term={program.term || '1st Term'}
-                    slotsLeft={program.totalSlots - program.filledSlots}
-                    tuitionPercent={program.tuitionDiscountPercent}
-                    miscPercent={program.miscDiscountPercent}
-                    minGpa={program.minGpa}
-                    closeDate={formatCloseDate(program.applicationCloseDate)}
-                    applicationCount={program.filledSlots}
-                    status={getScholarshipCardStatus(program)}
-                    onPress={() => {
-                      setSelectedProgram(program);
-                      setModalOpen(true);
-                    }}
-                  />
+                {filtered.map((program, index) => (
+                  <Animated.View key={program.id} entering={fadeSlideUpEntering(index)}>
+                    <ScholarshipCard
+                      title={program.name}
+                      academicYear={program.academicYear || '2024-2025'}
+                      term={program.term || '1st Term'}
+                      slotsLeft={program.totalSlots - program.filledSlots}
+                      tuitionPercent={program.tuitionDiscountPercent}
+                      miscPercent={program.miscDiscountPercent}
+                      minGpa={program.minGpa}
+                      closeDate={formatCloseDate(program.applicationCloseDate)}
+                      applicationCount={program.filledSlots}
+                      status={getScholarshipCardStatus(program)}
+                      onPress={() => {
+                        setSelectedProgram(program);
+                        setModalOpen(true);
+                      }}
+                    />
+                  </Animated.View>
                 ))}
               </View>
             )}

@@ -7,6 +7,7 @@ import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-na
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TAB_BAR_HEIGHT } from '@/components/layout/BottomTabBar';
 
+import { fadeSlideUpEntering } from '@/lib/animations/fadeSlideUp';
 import { useAuth } from '@/lib/auth/AuthProvider';
 import { useDisciplineOfficeStore } from '@/lib/discipline-office/disciplineOfficeStore';
 import { useProfileStore } from '@/lib/profile/profileStore';
@@ -411,32 +412,33 @@ export default function DisciplineOfficeScreen() {
           <CollapsibleSection title="Notice to Explain" defaultExpanded>
             {ntes.length > 0 ? (
               <View style={{ gap: 12 }}>
-                {ntes.map((item) => (
-                  <NTECard
-                    key={item.id}
-                    variant="default"
-                    id={item.id}
-                    caseType={item.caseType}
-                    description={item.description}
-                    issuedAtLabel={item.issuedAtLabel}
-                    deadlineLabel={item.deadlineLabel}
-                    status={item.status}
-                    isOverdue={item.isOverdue}
-                    respondedAtLabel={item.respondedAtLabel}
-                    waivedAtLabel={item.waivedAtLabel}
-                    onRespond={() =>
-                      router.push({
-                        pathname: '/discipline-office/statement-of-explanation',
-                        params: {
-                          nteId: item.id,
-                          caseType: item.caseType,
-                          issuedAtLabel: item.issuedAtLabel,
-                          deadlineLabel: item.deadlineLabel,
-                          onResponded: item.id,
-                        },
-                      })
-                    }
-                  />
+                {ntes.map((item, index) => (
+                  <Animated.View key={item.id} entering={fadeSlideUpEntering(index)}>
+                    <NTECard
+                      variant="default"
+                      id={item.id}
+                      caseType={item.caseType}
+                      description={item.description}
+                      issuedAtLabel={item.issuedAtLabel}
+                      deadlineLabel={item.deadlineLabel}
+                      status={item.status}
+                      isOverdue={item.isOverdue}
+                      respondedAtLabel={item.respondedAtLabel}
+                      waivedAtLabel={item.waivedAtLabel}
+                      onRespond={() =>
+                        router.push({
+                          pathname: '/discipline-office/statement-of-explanation',
+                          params: {
+                            nteId: item.id,
+                            caseType: item.caseType,
+                            issuedAtLabel: item.issuedAtLabel,
+                            deadlineLabel: item.deadlineLabel,
+                            onResponded: item.id,
+                          },
+                        })
+                      }
+                    />
+                  </Animated.View>
                 ))}
               </View>
             ) : (

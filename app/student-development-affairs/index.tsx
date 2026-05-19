@@ -8,9 +8,11 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+
+import { fadeSlideUpEntering } from '@/lib/animations/fadeSlideUp';
 
 import { HomeScreenHeader } from '@/components/home/HomeScreenHeader';
 import {
@@ -70,7 +72,7 @@ export default function StudentDevelopmentAffairsScreen() {
   const [selectedProgram, setSelectedProgram] = useState<ScholarshipProgram | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [query, setQuery] = useState('');
-  const [listFilter, setListFilter] = useState<ScholarshipListFilter>('high_demand');
+  const [listFilter, setListFilter] = useState<ScholarshipListFilter>('all');
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
@@ -308,12 +310,7 @@ export default function StudentDevelopmentAffairsScreen() {
           ) : (
             <View style={{ gap: 12 }}>
               {displayed.map((program, index) => (
-                <Animated.View
-                  key={program.id}
-                  entering={FadeInDown.delay(index * 55)
-                    .duration(320)
-                    .springify()
-                    .damping(18)}>
+                <Animated.View key={program.id} entering={fadeSlideUpEntering(index)}>
                   <ScholarshipCard
                     title={program.name}
                     academicYear={program.academicYear || '2024-2025'}

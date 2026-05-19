@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 
+import { resolveAvatarDisplayUrl } from './avatarUtils';
 import { fetchStudentProfile, type StudentProfile } from './profileApi';
 
 export type FetchProfileOptions = {
@@ -40,13 +41,21 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
     const existing = get().profile;
     if (existing?.id === userId) {
       console.log('[profileStore] profile already prefetched');
-      return existing;
+      return {
+        ...existing,
+        avatar_url: resolveAvatarDisplayUrl(existing.avatar_url),
+      };
     }
 
     set({ isLoading: true });
     let profile = await fetchStudentProfile(userId);
     if (!profile) {
       profile = studentProfileFromMetadata(userId, options?.email, options?.userMetadata);
+    } else if (profile.avatar_url) {
+      profile = {
+        ...profile,
+        avatar_url: resolveAvatarDisplayUrl(profile.avatar_url),
+      };
     }
     set({ profile, isLoading: false });
     return profile;
@@ -54,7 +63,9 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
 
   setAvatarUrl: (avatarUrl) =>
     set((state) => ({
-      profile: state.profile ? { ...state.profile, avatar_url: avatarUrl } : state.profile,
+      profile: state.profile
+        ? { ...state.profile, avatar_url: resolveAvatarDisplayUrl(avatarUrl, true) }
+        : state.profile,
     })),
 
   reset: () => set({ profile: null, isLoading: false }),

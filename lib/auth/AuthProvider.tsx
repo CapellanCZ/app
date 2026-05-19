@@ -52,7 +52,6 @@ const AuthContext = createContext<AuthContextValue>({
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-
   useEffect(() => {
     if (!isSupabaseConfigured || !supabase) {
       setIsLoading(false);
@@ -147,11 +146,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const userId = session.user.id;
     const metaStudentId = session.user.user_metadata?.student_id as string | undefined;
 
-    const profileState = useProfileStore.getState();
-    const disciplineState = useDisciplineOfficeStore.getState();
-    if (profileState.profile?.id === userId && disciplineState.hasLoaded) {
-      console.log('[AuthProvider] profile and discipline hub already prefetched');
-      return;
+    // Fire profile fetch; once resolved use the DB student_id (most reliable).
+    // In parallel, kick off discipline hub with metadata student_id immediately
+    // so counters appear even before the profile query finishes.
+    if (metaStudentId) {
+      void refreshHub(metaStudentId);
     }
 
     void fetchProfile(userId, {
@@ -161,10 +160,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const studentId = profile?.student_id ?? metaStudentId ?? '';
       if (studentId) void refreshHub(studentId);
     });
-  }, [session?.user?.id, session, isLoading, fetchProfile, refreshHub, resetProfile, resetDisciplineOffice]);
+  }, [session?.user?.id]);
 
   return (
-    <AuthContext.Provider value={{ session, isLoading, isConfigured: isSupabaseConfigured }}>
+    <AuthContext.Provider
+      value={{
+        session,
+        isLoading,
+        isConfigured: isSupabaseConfigured,
+      }}>
       {children}
     </AuthContext.Provider>
   );

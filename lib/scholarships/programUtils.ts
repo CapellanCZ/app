@@ -22,7 +22,9 @@ export function programMatchesChipFilter(
   return getScholarshipCardStatus(program) === filter;
 }
 
-export const SCHOLARSHIP_CHIP_FILTERS: { key: ScholarshipChipFilter; label: string }[] = [
+/** Includes `all` so the See All screen can show a matching selected chip when no status filter applies. */
+export const SCHOLARSHIP_CHIP_FILTERS: { key: ScholarshipListFilter; label: string }[] = [
+  { key: 'all', label: 'All' },
   { key: 'high_demand', label: 'High Demand' },
   { key: 'limited_slots', label: 'Limited Slots' },
   { key: 'closing_soon', label: 'Closing Soon' },

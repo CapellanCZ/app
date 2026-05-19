@@ -1,5 +1,5 @@
 import { router, usePathname } from 'expo-router';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Platform, Pressable, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -16,18 +16,20 @@ function normalizePathname(pathname: string): string {
   return trimmed === '' ? '/' : trimmed;
 }
 
-function isTabBarVisible(pathname: string): boolean {
+function isDepartmentIndex(pathname: string, base: string): boolean {
+  const path = normalizePathname(pathname);
+  return path === base || path === `${base}/index`;
+}
+
+function isTabBarVisible(pathname: string, sdaoRoute: string): boolean {
   const path = normalizePathname(pathname);
 
   if (path === '/(tabs)/profiles' || path.endsWith('/profiles')) return true;
 
-  // Department hub index screens only (hide on nested stack screens).
   if (path === '/discipline-office' || path === '/discipline-office/index') return true;
   if (path === '/health-service' || path === '/health-service/index') return true;
-  if (
-    path === '/student-development-affairs' ||
-    path === '/student-development-affairs/index'
-  ) {
+  if (path === sdaoRoute || path === `${sdaoRoute}/index`) return true;
+  if (path === '/student-development-affairs' || path === '/student-development-affairs/index') {
     return true;
   }
 
@@ -43,37 +45,6 @@ type Tab = {
   route: string;
   match: (pathname: string) => boolean;
 };
-
-function isDepartmentIndex(pathname: string, base: string): boolean {
-  const path = normalizePathname(pathname);
-  return path === base || path === `${base}/index`;
-}
-
-const TABS: Tab[] = [
-  {
-    key: 'health',
-    route: '/health-service',
-    match: (p) => isDepartmentIndex(p, '/health-service'),
-  },
-  {
-    key: 'discipline',
-    route: '/discipline-office',
-    match: (p) => isDepartmentIndex(p, '/discipline-office'),
-  },
-  {
-    key: 'student-dev',
-    route: '/student-development-affairs',
-    match: (p) => isDepartmentIndex(p, '/student-development-affairs'),
-  },
-  {
-    key: 'profile',
-    route: '/(tabs)/profiles',
-    match: (p) => {
-      const path = normalizePathname(p);
-      return path === '/(tabs)/profiles' || path.endsWith('/profiles');
-    },
-  },
-];
 
 function TabIcon({ tabKey, focused }: { tabKey: string; focused: boolean }) {
   const color = focused ? ICON_ACTIVE : ICON_INACTIVE;
@@ -122,14 +93,44 @@ function AnimatedTabPill({ focused, children }: { focused: boolean; children: Re
 export function BottomTabBar() {
   const insets = useSafeAreaInsets();
   const pathname = usePathname();
+  const sdaoRoute = '/student-development-affairs';
+
+  const tabs: Tab[] = useMemo(
+    () => [
+      {
+        key: 'health',
+        route: '/health-service',
+        match: (p) => isDepartmentIndex(p, '/health-service'),
+      },
+      {
+        key: 'discipline',
+        route: '/discipline-office',
+        match: (p) => isDepartmentIndex(p, '/discipline-office'),
+      },
+      {
+        key: 'student-dev',
+        route: sdaoRoute,
+        match: (p) => isDepartmentIndex(p, sdaoRoute),
+      },
+      {
+        key: 'profile',
+        route: '/(tabs)/profiles',
+        match: (p) => {
+          const path = normalizePathname(p);
+          return path === '/(tabs)/profiles' || path.endsWith('/profiles');
+        },
+      },
+    ],
+    [sdaoRoute],
+  );
 
   const bottomOffset = Math.max(insets.bottom, Platform.OS === 'android' ? 12 : 8);
 
-  if (!isTabBarVisible(pathname)) return null;
+  if (!isTabBarVisible(pathname, sdaoRoute)) return null;
 
   function handlePress(tab: Tab, focused: boolean) {
     if (focused) return;
-    router.replace(tab.route as any);
+    router.replace(tab.route as never);
   }
 
   return (
@@ -157,7 +158,7 @@ export function BottomTabBar() {
           shadowRadius: 20,
           elevation: 14,
         }}>
-        {TABS.map((tab) => {
+        {tabs.map((tab) => {
           const focused = tab.match(pathname);
           return (
             <Pressable

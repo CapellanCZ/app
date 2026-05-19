@@ -3,8 +3,7 @@ import { ActivityIndicator, View } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import { useAuth } from '@/lib/auth/AuthProvider';
-
-/** Entry `/` → route to Health Service if authenticated, login otherwise. */
+/** Entry `/` → student home or login. */
 export default function Index() {
   const router = useRouter();
   const { session, isLoading, isConfigured } = useAuth();
@@ -12,13 +11,20 @@ export default function Index() {
 
   useEffect(() => {
     if (isLoading || hasRedirected.current) return;
+
     hasRedirected.current = true;
 
-    if (!isConfigured || session) {
-      router.replace('/health-service');
-    } else {
-      router.replace('/(auth)');
+    if (!isConfigured) {
+      router.replace('/(tabs)' as never);
+      return;
     }
+
+    if (session) {
+      router.replace('/(tabs)' as never);
+      return;
+    }
+
+    router.replace('/(auth)');
   }, [isLoading, isConfigured, session, router]);
 
   return (

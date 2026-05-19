@@ -4,7 +4,6 @@ import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   InteractionManager,
   Keyboard,
@@ -16,12 +15,8 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomSheet, useToast } from 'heroui-native';
 
-import { IconsaxCalendarIcon } from '@/components/icons/IconsaxCalendarIcon';
-import { IconsaxDangerFilledIcon } from '@/components/icons/IconsaxDangerFilledIcon';
 import { IconsaxMedalFilledIcon } from '@/components/icons/IconsaxMedalFilledIcon';
 import { IconsaxMegaphoneIcon } from '@/components/icons/IconsaxMegaphoneIcon';
-import { IconsaxSearchIcon } from '@/components/icons/IconsaxSearchIcon';
-import { IconsaxTickCircleIcon } from '@/components/icons/IconsaxTickCircleIcon';
 import { GradientText } from '@/components/GradientText';
 import { ScreenNavbar } from '@/components/ScreenNavbar';
 import { useScholarshipStore } from '@/lib/scholarships/scholarshipStore';
@@ -38,20 +33,6 @@ const STATUS_DOT_COLOR: Record<string, string> = {
   suspended: '#F04438',
 };
 
-function formatDueDate(dateStr: string): string {
-  const d = new Date(dateStr);
-  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-}
-
-function getDaysLeftLabel(daysUntilDue: number | undefined, status: string): string {
-  if (status === 'overdue') return 'Overdue';
-  if (status === 'verified') return 'Verified';
-  if (status === 'waived') return 'Waived';
-  if (daysUntilDue == null) return '';
-  if (daysUntilDue <= 0) return 'Due today';
-  if (daysUntilDue === 1) return '1 day left';
-  return `${daysUntilDue} days left`;
-}
 
 function ComplianceItemCard({
   item,
@@ -62,94 +43,8 @@ function ComplianceItemCard({
   isUploadingThis: boolean;
   onUpload: (item: ComplianceItem) => void;
 }) {
-  const isActionable = item.status === 'pending' || item.status === 'rejected' || item.status === 'overdue';
-  const isUnderReview = item.status === 'submitted';
-  const isVerified = item.status === 'verified' || item.status === 'waived';
-
-  return (
-    <View className="rounded-2xl border border-[rgba(164,167,174,0.24)] bg-white p-5">
-      <View className="flex-row items-center justify-between gap-3">
-        <Text className="min-w-0 flex-1 text-base font-semibold capitalize leading-6 text-[#181D27]">
-          {item.name}
-        </Text>
-        {isUploadingThis ? (
-          <View className="flex-row items-center gap-2 rounded-2xl bg-[#EAF2FF] px-3 py-2.5">
-            <ActivityIndicator size="small" color="#2970FF" />
-            <Text className="text-sm font-semibold text-[#2970FF]">Uploading…</Text>
-          </View>
-        ) : isActionable ? (
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => onUpload(item)}
-            className="flex-row items-center gap-1.5 rounded-2xl bg-[#2970FF] px-3 py-2.5 active:opacity-80">
-            <Text className="text-sm font-semibold text-white">
-              {item.status === 'rejected' ? 'Re-submit' : 'Upload'}
-            </Text>
-            <Ionicons name="chevron-forward" size={18} color="#FFFFFF" />
-          </Pressable>
-        ) : isUnderReview ? (
-          <View className="flex-row items-center gap-2 rounded-xl bg-[#EAF2FF] px-3 py-2">
-            <Text className="text-sm font-semibold capitalize tracking-wide text-[#006FFD]">
-              Under review
-            </Text>
-            <IconsaxSearchIcon size={16} color="#006FFD" />
-          </View>
-        ) : isVerified ? (
-          <View className="flex-row items-center gap-2 rounded-xl bg-[#ECFDF3] px-3 py-2">
-            <Text className="text-sm font-semibold capitalize tracking-wide text-[#027A48]">
-              {item.status === 'waived' ? 'Waived' : 'Verified'}
-            </Text>
-            <IconsaxTickCircleIcon size={16} color="#027A48" />
-          </View>
-        ) : null}
-      </View>
-
-      <View className="my-4 h-px w-full border-t border-dashed border-[#E4E7EC]" />
-
-      <View className="flex-row flex-wrap items-center gap-3">
-        <View className="flex-row items-center gap-2">
-          <IconsaxCalendarIcon size={22} color="#717680" />
-          <Text className="text-[15px] font-normal leading-5 text-[#717680]">
-            {formatDueDate(item.dueDate)}
-          </Text>
-        </View>
-        <View className="size-1.5 rounded-full bg-[#717680]" />
-        <Text
-          className={`text-[15px] font-normal leading-5 ${item.status === 'overdue' ? 'text-[#F04438]' : 'text-[#717680]'}`}>
-          {getDaysLeftLabel(item.daysUntilDue, item.status)}
-        </Text>
-      </View>
-
-      {item.status === 'pending' && (item.daysUntilDue ?? 99) <= 7 ? (
-        <View className="mt-4 flex-row items-start gap-3 rounded-xl bg-[#FFFaeb] px-4 py-3.5">
-          <View className="pt-0.5">
-            <IconsaxDangerFilledIcon size={24} color="#F79009" />
-          </View>
-          <Text className="flex-1 text-sm font-normal leading-6 text-[#181D27]">
-            {item.description ?? `Please upload your ${item.name} soon.`}
-          </Text>
-        </View>
-      ) : item.status === 'overdue' ? (
-        <View className="mt-4 flex-row items-start gap-3 rounded-xl bg-[#FEF3F2] px-4 py-3.5">
-          <View className="pt-0.5">
-            <IconsaxDangerFilledIcon size={24} color="#F04438" />
-          </View>
-          <Text className="flex-1 text-sm font-normal leading-6 text-[#181D27]">
-            This submission is overdue. Upload immediately to avoid suspension.
-          </Text>
-        </View>
-      ) : item.status === 'rejected' ? (
-        <View className="mt-4 flex-row items-start gap-3 rounded-xl bg-[#FEF3F2] px-4 py-3.5">
-          <View className="pt-0.5">
-            <IconsaxDangerFilledIcon size={24} color="#F04438" />
-          </View>
-          <Text className="flex-1 text-sm font-normal leading-6 text-[#181D27]">
-            Your submission was rejected. Please re-upload a valid document.
-          </Text>
-        </View>
-      ) : null}
-    </View>
-  );
+  // TODO: Replace with custom card UI design
+  return <View />;
 }
 
 /** Figma 1263:3151 — personal scholarship progress + requirement cards. */

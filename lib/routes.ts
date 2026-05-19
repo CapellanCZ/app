@@ -28,6 +28,8 @@ export const ROUTES = {
   scholarshipList: '/student-development-affairs/scholarships',
   referrals: '/referrals',
   myScholarship: '/my-scholarship',
+  sdao: '/sdao',
+  sdaoPrograms: '/sdao/programs',
 
   // --- Settings ---
   personalInfo: '/personal-info',

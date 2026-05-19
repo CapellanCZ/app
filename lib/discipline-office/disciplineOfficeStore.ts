@@ -29,10 +29,7 @@ export const useDisciplineOfficeStore = create<DisciplineOfficeState>((set, get)
 
   refreshHub: async (studentId) => {
     if (!studentId) return;
-
-    if (get().hasLoaded) {
-      console.log('[disciplineOffice] hub already prefetched');
-    }
+    if (get().isLoading) return;
 
     const showLoading = !get().hasLoaded;
     if (showLoading) set({ isLoading: true });
