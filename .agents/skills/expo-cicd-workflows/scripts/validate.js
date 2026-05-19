@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-disable import/no-unresolved */
 
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';

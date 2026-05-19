@@ -328,7 +328,7 @@ export default function StatementOfExplanationScreen() {
                 <Text style={styles.mediaSectionCount}>({videos.length}/1)</Text>
               </View>
               <Text style={styles.mediaSectionHint}>
-                Add an optional video that's about 1 minute long or less.
+                Add an optional video that&apos;s about 1 minute long or less.
               </Text>
             </View>
             <View style={styles.mediaGrid}>

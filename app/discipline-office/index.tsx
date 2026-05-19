@@ -117,7 +117,7 @@ function CleanRecordBanner({ onDismiss }: { onDismiss: () => void }) {
           color: '#FFFFFF',
           lineHeight: 20,
         }}>
-        You're disciplinary records are clean. Keep up the good work!
+        You&apos;re disciplinary records are clean. Keep up the good work!
       </Text>
       <Pressable
         onPress={onDismiss}

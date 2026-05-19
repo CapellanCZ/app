@@ -77,7 +77,7 @@ export default function PersonalInfoScreen() {
             lineHeight: 18,
             color: SCHEDULE_PARTNER.textMuted,
           }}>
-          To update your personal information, please coordinate with the Registrar's Office.
+          To update your personal information, please coordinate with the Registrar&apos;s Office.
         </Text>
       </ScrollView>
     </View>

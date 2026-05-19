@@ -134,7 +134,7 @@ export default function NotificationSettingsScreen() {
             lineHeight: 18,
             color: SCHEDULE_PARTNER.textMuted,
           }}>
-          You can manage notification permissions in your device's System Settings.
+          You can manage notification permissions in your device&apos;s System Settings.
         </Text>
       </ScrollView>
     </View>

@@ -927,7 +927,7 @@ export default function IncidentReportScreen() {
                   </Text>
                 </View>
                 <Text style={{ fontSize: 12, color: '#535862', letterSpacing: -0.24, lineHeight: 16 }}>
-                  Add an optional video that's about 1 minute long or less.
+                  Add an optional video that&apos;s about 1 minute long or less.
                 </Text>
               </View>
 

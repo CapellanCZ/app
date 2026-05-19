@@ -1,4 +1,5 @@
 // deno-lint-ignore-file no-explicit-any
+/* eslint-disable import/no-unresolved */
 /**
  * send-push — Supabase Edge Function
  *

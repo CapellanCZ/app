@@ -4,6 +4,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   InteractionManager,
   Keyboard,
@@ -15,6 +16,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomSheet, useToast } from 'heroui-native';
 
+import { IconsaxDangerFilledIcon } from '@/components/icons/IconsaxDangerFilledIcon';
 import { IconsaxMedalFilledIcon } from '@/components/icons/IconsaxMedalFilledIcon';
 import { IconsaxMegaphoneIcon } from '@/components/icons/IconsaxMegaphoneIcon';
 import { GradientText } from '@/components/GradientText';
@@ -232,7 +234,7 @@ export default function MyScholarshipScreen() {
             No active scholarship
           </Text>
           <Text className="text-center text-sm leading-5 text-[#717680]">
-            You don't have an active scholarship yet. Browse available scholarships and apply.
+            You don&apos;t have an active scholarship yet. Browse available scholarships and apply.
           </Text>
           <Pressable
             accessibilityRole="button"

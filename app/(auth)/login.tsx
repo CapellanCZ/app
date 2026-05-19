@@ -106,9 +106,9 @@ export default function Login() {
           {step === 'email' && (
             <View style={styles.content}>
               <View style={styles.textBlock}>
-                <Text style={styles.title}>Welcome back! Let's get you started</Text>
+                <Text style={styles.title}>Welcome back! Let&apos;s get you started</Text>
                 <Text style={styles.subtitle}>
-                  Enter your school email then we'll send you the temporary login code.
+                  Enter your school email then we&apos;ll send you the temporary login code.
                 </Text>
               </View>
 

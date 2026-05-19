@@ -2,7 +2,9 @@ import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { createElement } from 'react';
 
+/* eslint-disable-next-line import/no-unresolved */
 import { pingSdaoAdmin } from '@/lib/scholarships/sdaoAdminApi';
+/* eslint-disable-next-line import/no-unresolved */
 import { SDAO_ADMIN_TABLES, sdaoTablePath } from '@/lib/scholarships/sdaoAdminConfig';
 
 export function SdaoWebOverview() {

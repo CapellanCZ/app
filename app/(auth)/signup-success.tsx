@@ -141,7 +141,7 @@ export default function SignupSuccess() {
             ]}>
             <Text style={styles.title}>Registered Successfully!</Text>
             <Text style={styles.subtitle}>
-              Your account is ready. Let's begin for a better student welfare experience
+              Your account is ready. Let&apos;s begin for a better student welfare experience
             </Text>
           </Animated.View>
         </View>

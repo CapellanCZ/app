@@ -2,7 +2,9 @@ import { usePathname, useRouter } from 'expo-router';
 import { Pressable, Text, View } from 'react-native';
 
 import { useAuth } from '@/lib/auth/AuthProvider';
+/* eslint-disable-next-line import/no-unresolved */
 import { SDAO_MAIN_NAV } from '@/lib/scholarships/sdaoNavConfig';
+/* eslint-disable-next-line import/no-unresolved */
 import { SDAO_ROUTE_PREFIX } from '@/lib/scholarships/sdaoAdminConfig';
 
 export function SdaoWebSidebar() {

@@ -58,7 +58,7 @@ export default function MyCasesScreen() {
             <View style={styles.emptyState}>
               <Text style={styles.emptyTitle}>No cases on file</Text>
               <Text style={styles.emptySubtitle}>
-                You don't have any disciplinary cases yet. That's a good thing.
+                You don&apos;t have any disciplinary cases yet. That&apos;s a good thing.
               </Text>
             </View>
           ) : (

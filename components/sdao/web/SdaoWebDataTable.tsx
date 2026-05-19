@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { createElement } from 'react';
 
+/* eslint-disable-next-line import/no-unresolved */
 import { deleteSdaoRow, listSdaoRows, type SdaoRow } from '@/lib/scholarships/sdaoAdminApi';
+/* eslint-disable-next-line import/no-unresolved */
 import type { SdaoTableConfig } from '@/lib/scholarships/sdaoAdminConfig';
 
 function formatCell(value: unknown): string {
