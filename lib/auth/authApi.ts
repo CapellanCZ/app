@@ -17,6 +17,7 @@ const NOT_CONFIGURED: ApiResult = {
 export async function sendOtp(email: string): Promise<ApiResult> {
   if (!isSupabaseConfigured || !supabase) return NOT_CONFIGURED;
 
+<<<<<<< HEAD
   // Build the deep link redirect so clicking the magic link opens the app
   const redirectTo = makeRedirectUri({
     scheme: 'campuscare-application',
@@ -33,6 +34,15 @@ export async function sendOtp(email: string): Promise<ApiResult> {
     },
   });
 
+=======
+  // Try to send OTP with shouldCreateUser: false
+  // This will both check if user exists AND send OTP if they do
+  const { error } = await supabase.auth.signInWithOtp({
+    email,
+    options: { shouldCreateUser: false }, // Prevent auto-registration
+  });
+
+>>>>>>> 26a0c50e4d510725d1d3fffd83ea8ce0bbb9abf7
   // If error is "User not allowed", user doesn't exist
   if (error && error.message.includes('User not allowed')) {
     return { 

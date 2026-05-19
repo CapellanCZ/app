@@ -358,7 +358,14 @@ export default function DisciplineOfficeScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{
+<<<<<<< HEAD
           paddingBottom: Math.max(insets.bottom, 12) + TAB_BAR_HEIGHT + 8,
+=======
+          paddingHorizontal: 16,
+          paddingTop: 16,
+          paddingBottom: Math.max(insets.bottom, 16) + TAB_BAR_HEIGHT + 8,
+          gap: 28,
+>>>>>>> 26a0c50e4d510725d1d3fffd83ea8ce0bbb9abf7
         }}>
         {/* Grey hero — same shell as Scholarships; discipline-specific content inside */}
         <View style={{ padding: 8 }}>

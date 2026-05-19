@@ -9,6 +9,7 @@ import { useDisciplineOfficeStore } from '@/lib/discipline-office/disciplineOffi
 import { useHealthServiceStore } from '@/lib/health-service/healthServiceStore';
 import { useProfileStore } from '@/lib/profile/profileStore';
 import { useScholarshipStore } from '@/lib/scholarships/scholarshipStore';
+import { useHealthServiceStore } from '@/lib/health-service/healthServiceStore';
 
 /** Extract tokens from a Supabase magic-link redirect URL.
  *  Supabase can return tokens in the hash fragment (#access_token=...)
@@ -131,6 +132,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [session?.user?.id]);
 
+<<<<<<< HEAD
   // Pre-fetch student profile (avatar) and discipline hub stats after login.
   const { fetchProfile, reset: resetProfile } = useProfileStore();
   const { refreshHub, reset: resetDisciplineOffice } = useDisciplineOfficeStore();
@@ -162,6 +164,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
   }, [session?.user?.id]);
 
+=======
+>>>>>>> 26a0c50e4d510725d1d3fffd83ea8ce0bbb9abf7
   return (
     <AuthContext.Provider
       value={{

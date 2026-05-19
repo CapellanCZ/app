@@ -22,6 +22,7 @@ import {
   ScholarshipPendingRequirementsEmpty,
   ScholarshipRequirementPreviewCard,
 } from '@/components/student-development-affairs';
+<<<<<<< HEAD
 import { IconsaxSearchIcon } from '@/components/icons/IconsaxSearchIcon';
 import { TAB_BAR_HEIGHT } from '@/components/layout/BottomTabBar';
 import { useAuth } from '@/lib/auth/AuthProvider';
@@ -36,6 +37,10 @@ import {
   countPendingRequirements,
   getHighlightedRequirement,
 } from '@/lib/scholarships/requirementTracking';
+=======
+import { ScreenHeader } from '@/components/layout/ScreenHeader';
+import { TAB_BAR_HEIGHT } from '@/components/layout/BottomTabBar';
+>>>>>>> 26a0c50e4d510725d1d3fffd83ea8ce0bbb9abf7
 import { useScholarshipStore } from '@/lib/scholarships/scholarshipStore';
 import type { ScholarshipProgram } from '@/lib/scholarships/types';
 
@@ -192,6 +197,7 @@ export default function StudentDevelopmentAffairsScreen() {
                 style={{ flex: 1, fontSize: 16, fontWeight: '300', color: '#000', padding: 0 }}
               />
             </View>
+<<<<<<< HEAD
 
             <View style={{ gap: 12 }}>
               <View
@@ -203,6 +209,37 @@ export default function StudentDevelopmentAffairsScreen() {
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   <Text style={{ fontSize: 20, fontWeight: '500', color: '#000000' }}>
                     Pending Requirements
+=======
+          ) : null} */}
+        </View>
+        <View className="min-h-0 flex-1 rounded-t-[30px] pt-2">
+          <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: TAB_BAR_HEIGHT + 16 }}>
+            <View className="w-full gap-3 px-4 pb-4">
+              {myEnrollment ? (
+                <ActiveScholarshipCard enrollment={myEnrollment as any} />
+              ) : null}
+              {isLoadingPrograms ? (
+                <View className="items-center justify-center py-16">
+                  <ActivityIndicator size="large" color="#2970FF" />
+                  <Text className="mt-3 text-sm leading-5 text-[#717680]">Loading scholarships…</Text>
+                </View>
+              ) : error ? (
+                <View className="items-center justify-center py-10 px-4">
+                  <Text className="text-center text-sm leading-5 text-[#D92D20]">{error}</Text>
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={fetchPrograms}
+                    className="mt-4 rounded-full bg-[#2970FF] px-5 py-2.5">
+                    <Text className="text-sm font-semibold text-white">Try Again</Text>
+                  </Pressable>
+                </View>
+              ) : displayed.length === 0 ? (
+                <View className="items-center justify-center py-10 px-4">
+                  <Text className="text-center text-sm leading-5 text-[#535862]">
+                    {query.length > 0
+                      ? 'No scholarships match that name. Try another search or change filters.'
+                      : 'No scholarships are currently open.'}
+>>>>>>> 26a0c50e4d510725d1d3fffd83ea8ce0bbb9abf7
                   </Text>
                   {pendingRequirementsCount > 0 ? (
                     <View

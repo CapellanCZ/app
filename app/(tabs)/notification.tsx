@@ -17,11 +17,19 @@ import { NotificationListRow } from '@/components/notifications/NotificationList
 import { Ionicons } from '@expo/vector-icons';
 import { SettingIcon } from '@/components/icons/SettingIcon';
 import { IconsaxArrowLeftIcon } from '@/components/icons/IconsaxArrowLeftIcon';
+<<<<<<< HEAD
+=======
+import { SCHEDULE_PARTNER } from '@/lib/health-service/bookingScheduleTheme';
+>>>>>>> 26a0c50e4d510725d1d3fffd83ea8ce0bbb9abf7
 import { useAuth } from '@/lib/auth/AuthProvider';
 import { useNotificationStore } from '@/lib/notifications/notificationStore';
 import type { NotificationItem } from '@/lib/notifications/types';
 
+<<<<<<< HEAD
 const BRAND = '#2970FF';
+=======
+const BRAND = SCHEDULE_PARTNER.brand;
+>>>>>>> 26a0c50e4d510725d1d3fffd83ea8ce0bbb9abf7
 
 type ReadFilter = 'all' | 'unread';
 
@@ -92,13 +100,24 @@ export default function NotificationScreen() {
     }
   }, [session?.user?.id]);
 
+<<<<<<< HEAD
+=======
+  // Refresh when screen comes into focus; mark read on leave.
+>>>>>>> 26a0c50e4d510725d1d3fffd83ea8ce0bbb9abf7
   useFocusEffect(
     useCallback(() => {
       const userId = session?.user?.id;
       if (userId) {
+<<<<<<< HEAD
+=======
+        console.log('[NotificationScreen] Focused - refreshing notifications');
+>>>>>>> 26a0c50e4d510725d1d3fffd83ea8ce0bbb9abf7
         fetchAll(userId).catch(() => undefined);
       }
-    }, [session?.user?.id, fetchAll])
+      return () => {
+        markAllRead();
+      };
+    }, [session?.user?.id, fetchAll, markAllRead])
   );
 
   const filtered = useMemo(() => {
@@ -155,6 +174,7 @@ export default function NotificationScreen() {
   );
 
   const handleBack = useCallback(() => {
+<<<<<<< HEAD
     markAllRead();
     if (navigation.canGoBack()) {
       navigation.goBack();
@@ -164,6 +184,14 @@ export default function NotificationScreen() {
   }, [markAllRead, navigation, router]);
 
   const isEmpty = filtered.length === 0;
+=======
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      router.replace('/(tabs)');
+    }
+  }, [navigation, router]);
+>>>>>>> 26a0c50e4d510725d1d3fffd83ea8ce0bbb9abf7
 
   return (
     <View style={{ flex: 1, backgroundColor: '#FDFDFD' }}>
@@ -213,7 +241,11 @@ export default function NotificationScreen() {
             </Text>
             <Text style={{ marginTop: 4, fontSize: 14, color: '#717680', letterSpacing: -0.25 }}>
               You have{' '}
+<<<<<<< HEAD
               <Text style={{ fontWeight: '700', color: '#2970FF' }}>{newCount} new</Text>{' '}
+=======
+              <Text style={{ fontWeight: '700', color: '#2970FF' }}>{unreadCount} new</Text>{' '}
+>>>>>>> 26a0c50e4d510725d1d3fffd83ea8ce0bbb9abf7
               notifications
             </Text>
           </View>
@@ -228,6 +260,7 @@ export default function NotificationScreen() {
           </Pressable>
         </View>
 
+<<<<<<< HEAD
         {isEmpty ? (
           <View
             style={{
@@ -259,6 +292,20 @@ export default function NotificationScreen() {
                 textAlign: 'center',
               }}>
               You have no notifications right now.{'\n'}Come back later
+=======
+        {filtered.length === 0 ? (
+          <View className="mt-8 items-center rounded-2xl border border-[#E8EEF4] bg-white px-5 py-10">
+            <Text
+              style={{
+                textAlign: 'center',
+                fontSize: 15,
+                lineHeight: 22,
+                color: SCHEDULE_PARTNER.textMuted,
+              }}>
+              {readFilter === 'unread'
+                ? 'No unread notifications. Switch to All to see earlier updates.'
+                : 'No notifications yet.'}
+>>>>>>> 26a0c50e4d510725d1d3fffd83ea8ce0bbb9abf7
             </Text>
           </View>
         ) : (

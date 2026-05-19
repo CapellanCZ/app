@@ -28,11 +28,19 @@ export function GetStartedHero({ onSignIn, onSignUp, onTerms, onPrivacy }: GetSt
           source={require('../../assets/student-model.optimized.png')}
           style={{
             width: screenW * 0.90,
+<<<<<<< HEAD
             height: '75%',
             position: 'absolute',
             bottom: 0,
             alignSelf: 'center',
             left: screenW * 0.06,
+=======
+            height: '80%',
+            position: 'absolute',
+            bottom: 0,
+            alignSelf: 'center',
+            left: screenW * 0.05,
+>>>>>>> 26a0c50e4d510725d1d3fffd83ea8ce0bbb9abf7
           }}
           resizeMode="contain"
         />

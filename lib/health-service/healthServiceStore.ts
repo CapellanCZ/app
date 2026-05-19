@@ -1,6 +1,11 @@
 import { create } from 'zustand';
 import { healthServiceApi } from './healthServiceApi';
+<<<<<<< HEAD
 import { acquireAppointmentsSubscription } from './realtimeSubscriptions';
+=======
+import { supabase } from '../supabase';
+import { useNotificationStore } from '../notifications/notificationStore';
+>>>>>>> 26a0c50e4d510725d1d3fffd83ea8ce0bbb9abf7
 import type { Appointment, Staff } from './types';
 
 type HealthServiceState = {
@@ -75,6 +80,92 @@ export const useHealthServiceStore = create<HealthServiceState>((set, get) => ({
       });
       throw error; // Re-throw so UI can handle it
     }
+<<<<<<< HEAD
+=======
+  },
+
+  cancelAppointment: async (id) => {
+    set({ loading: true, error: null });
+    try {
+      await healthServiceApi.cancelAppointment(id);
+      // Update local state
+      set(state => ({
+        appointments: state.appointments.map(apt =>
+          apt.id === id ? { ...apt, status: 'cancelled' as const } : apt
+        ).filter(apt => apt.status !== 'cancelled') as Appointment[],
+        loading: false
+      }));
+    } catch (error) {
+      console.error('Failed to cancel appointment:', error);
+      set({ 
+        error: error instanceof Error ? error.message : 'Failed to cancel appointment',
+        loading: false 
+      });
+      throw error;
+    }
+  },
+
+  confirmAppointment: async (id) => {
+    set({ loading: true, error: null });
+    try {
+      await healthServiceApi.confirmAppointmentByProvider(id);
+      // Reload appointments to get the updated status and ticket
+      await get().loadAppointments();
+    } catch (error) {
+      console.error('Failed to confirm appointment:', error);
+      set({ 
+        error: error instanceof Error ? error.message : 'Failed to confirm appointment',
+        loading: false 
+      });
+      throw error;
+    }
+  },
+
+  refreshData: async () => {
+    await Promise.all([
+      get().loadAppointments(),
+      get().loadStaff(),
+    ]);
+  },
+
+  reset: () => {
+    set({ appointments: [], staff: [], loading: false, error: null });
+  },
+
+  subscribeAppointments: () => {
+    if (!supabase) return () => {};
+    const client = supabase;
+    const channel = client
+      .channel('health_appointments_changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'health_appointments' },
+        async (payload: any) => {
+          get().loadAppointments();
+          // When staff confirms a pending appointment, send the student a notification
+          if (
+            payload.eventType === 'UPDATE' &&
+            payload.old?.status === 'pending' &&
+            payload.new?.status === 'confirmed'
+          ) {
+            const { data: { user } } = await client.auth.getUser();
+            if (user?.id) {
+              const staffName =
+                get().staff.find((s) => s.id === payload.new.staff_id)?.name ?? 'the provider';
+              useNotificationStore.getState().notifySelf(user.id, {
+                category: 'health',
+                title: 'Appointment Confirmed!',
+                body: `Your appointment with ${staffName} has been confirmed. Please arrive 10 minutes early.`,
+                href: '/health-service/appointments',
+                notificationType: 'success',
+              });
+            }
+          }
+        },
+      )
+      .subscribe();
+    return () => { client.removeChannel(channel); };
+>>>>>>> 26a0c50e4d510725d1d3fffd83ea8ce0bbb9abf7
   },
 
   cancelAppointment: async (id) => {

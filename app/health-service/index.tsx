@@ -12,9 +12,12 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+<<<<<<< HEAD
 import Animated from 'react-native-reanimated';
 
 import { fadeSlideUpEntering } from '@/lib/animations/fadeSlideUp';
+=======
+>>>>>>> 26a0c50e4d510725d1d3fffd83ea8ce0bbb9abf7
 
 import { HealthServiceScreenShell } from '../../components/health-service/HealthServiceScreenShell';
 import { ProviderCard } from '../../components/health-service/ProviderCard';
@@ -25,7 +28,11 @@ import {
   staffNameForAppointment,
 } from '../../lib/health-service/healthServiceStore';
 import { useAuth } from '../../lib/auth/AuthProvider';
+<<<<<<< HEAD
 import { useProfileStore } from '@/lib/profile/profileStore';
+=======
+import { fetchStudentProfile } from '../../lib/profile/profileApi';
+>>>>>>> 26a0c50e4d510725d1d3fffd83ea8ce0bbb9abf7
 import { HomeScreenHeader } from '@/components/home/HomeScreenHeader';
 import { IconsaxSearchIcon } from '../../components/icons/IconsaxSearchIcon';
 import { IconsaxCalendarIcon } from '@/components/icons/IconsaxCalendarIcon';
@@ -63,7 +70,11 @@ export default function HealthServiceScreen() {
   const { width: windowWidth } = useWindowDimensions();
 
   const { session } = useAuth();
+<<<<<<< HEAD
   const avatarUrl = useProfileStore((s) => s.profile?.avatar_url ?? null);
+=======
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+>>>>>>> 26a0c50e4d510725d1d3fffd83ea8ce0bbb9abf7
 
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('all');
   const [search, setSearch] = useState('');
@@ -81,6 +92,16 @@ export default function HealthServiceScreen() {
     return unsubscribe;
   }, []);
 
+<<<<<<< HEAD
+=======
+  useEffect(() => {
+    if (!session?.user?.id) return;
+    fetchStudentProfile(session.user.id).then((p) => {
+      if (p?.avatar_url) setAvatarUrl(p.avatar_url);
+    });
+  }, [session?.user?.id]);
+
+>>>>>>> 26a0c50e4d510725d1d3fffd83ea8ce0bbb9abf7
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
@@ -475,17 +496,26 @@ export default function HealthServiceScreen() {
                 No providers match your search.
               </Text>
             ) : (
+<<<<<<< HEAD
               filteredStaff.map((s, index) => (
                 <Animated.View
                   key={s.id}
                   entering={fadeSlideUpEntering(index)}
                   style={{ width: cardWidth }}>
+=======
+              filteredStaff.map((s) => (
+                <View key={s.id} style={{ width: cardWidth }}>
+>>>>>>> 26a0c50e4d510725d1d3fffd83ea8ce0bbb9abf7
                   <ProviderCard
                     staff={s}
                     availableToday={true}
                     onPress={() => router.push(`/health-service/book/${s.id}`)}
                   />
+<<<<<<< HEAD
                 </Animated.View>
+=======
+                </View>
+>>>>>>> 26a0c50e4d510725d1d3fffd83ea8ce0bbb9abf7
               ))
             )}
           </View>

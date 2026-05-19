@@ -2,9 +2,12 @@ import { useCallback, useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
+<<<<<<< HEAD
 import Animated from 'react-native-reanimated';
 
 import { fadeSlideUpEntering } from '@/lib/animations/fadeSlideUp';
+=======
+>>>>>>> 26a0c50e4d510725d1d3fffd83ea8ce0bbb9abf7
 
 import { HealthServiceScreenShell } from '../../components/health-service/HealthServiceScreenShell';
 import { ProviderCard } from '../../components/health-service/ProviderCard';
@@ -191,17 +194,26 @@ export default function AllDoctorsScreen() {
               </Text>
             ) : (
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 29 }}>
+<<<<<<< HEAD
                 {filteredStaff.map((s, index) => (
                   <Animated.View
                     key={s.id}
                     entering={fadeSlideUpEntering(index)}
                     style={{ width: cardWidth }}>
+=======
+                {filteredStaff.map((s) => (
+                  <View key={s.id} style={{ width: cardWidth }}>
+>>>>>>> 26a0c50e4d510725d1d3fffd83ea8ce0bbb9abf7
                     <ProviderCard
                       staff={s}
                       availableToday={true}
                       onPress={() => router.push(`/health-service/book/${s.id}`)}
                     />
+<<<<<<< HEAD
                   </Animated.View>
+=======
+                  </View>
+>>>>>>> 26a0c50e4d510725d1d3fffd83ea8ce0bbb9abf7
                 ))}
               </View>
             )}
