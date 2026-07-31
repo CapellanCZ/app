@@ -114,7 +114,7 @@ export function LogoutModal({ visible, onConfirm, onCancel }: LogoutModalProps) 
               paddingHorizontal: 24,
               marginBottom: 32,
             }}>
-            You&apos;ll need to use your magic link to sign back in. This action will log you out of your account.
+            You&apos;ll need to use your One-Time Password to sign back in. This action will log you out of your account.
           </Text>
 
           {/* Primary */}

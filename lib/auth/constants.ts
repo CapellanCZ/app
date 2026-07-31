@@ -1,3 +1,7 @@
-export const NU_DOMAIN = '@students.nu-dasma.edu.ph';
-export const PLACEHOLDER_NU_EMAIL = 'capellancz@students.nu-dasma.edu.ph';
+/** Resend cooldown for OTP login (seconds). */
 export const RESEND_COOLDOWN_SECONDS = 60;
+
+/** Loose email shape check — enrollment is enforced by OTP + patients row. */
+export function isValidEmail(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+}

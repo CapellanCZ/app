@@ -1,106 +1,58 @@
 import * as ImagePicker from 'expo-image-picker';
+import { fetchPatientByAuthUserId } from '@/lib/patients/patientsApi';
+import type { Patient } from '@/lib/patients/types';
 import { supabase } from '@/lib/supabase';
 
 import { avatarStoragePath, resolveAvatarDisplayUrl } from './avatarUtils';
 
+/** UI profile shape — sourced from `patients` after login. */
 export type StudentProfile = {
+  /** Auth user id (used for cache matching). */
   id: string;
   email: string;
   first_name: string;
   last_name: string;
+  /** Mapped from patients.affiliation */
   program: string;
   student_id: string;
+  employee_id?: string;
+  patient_type?: string;
+  full_name?: string;
   avatar_url: string | null;
 };
 
-function withResolvedAvatar(row: StudentProfile): StudentProfile {
+export function patientToProfile(patient: Patient, authUserId: string): StudentProfile {
+  const parts = patient.full_name.trim().split(/\s+/).filter(Boolean);
+  const first_name = parts[0] ?? '';
+  const last_name = parts.slice(1).join(' ');
+
   return {
-    ...row,
-    avatar_url: resolveAvatarDisplayUrl(row.avatar_url),
+    id: authUserId,
+    email: patient.email ?? '',
+    first_name,
+    last_name,
+    full_name: patient.full_name,
+    program:
+      patient.affiliation?.trim() ||
+      (patient.patient_type === 'faculty' ? 'Faculty' : patient.patient_type === 'student' ? 'Student' : ''),
+    student_id: patient.student_id ?? '',
+    employee_id: patient.employee_id ?? undefined,
+    patient_type: patient.patient_type,
+    avatar_url: null,
   };
 }
 
-async function persistAvatarPath(userId: string, storagePath: string): Promise<boolean> {
-  if (!supabase) return false;
-
-  const { data, error } = await supabase
-    .from('students')
-    .update({ avatar_url: storagePath })
-    .eq('id', userId)
-    .select('id')
-    .maybeSingle();
-
-  if (!error && data) return true;
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (user?.email) {
-    const { data: byEmail, error: emailError } = await supabase
-      .from('students')
-      .update({ avatar_url: storagePath })
-      .eq('email', user.email)
-      .select('id')
-      .maybeSingle();
-    if (!emailError && byEmail) return true;
-  }
-
-  console.error('[profileApi] persistAvatarPath failed:', error);
-  return false;
+/**
+ * Fetch profile for the authenticated user from CampusCare `patients`
+ * (linked via auth_user_id).
+ */
+export async function fetchStudentProfile(authUserId: string): Promise<StudentProfile | null> {
+  const patient = await fetchPatientByAuthUserId(authUserId);
+  if (!patient) return null;
+  return patientToProfile(patient, authUserId);
 }
 
-async function recoverAvatarFromStorage(userId: string): Promise<string | null> {
-  if (!supabase) return null;
-
-  const { data: files, error } = await supabase.storage.from('avatars').list(userId, { limit: 5 });
-  if (error || !files?.length) return null;
-
-  const avatarFile = files.find((f) => f.name?.startsWith('avatar.'));
-  if (!avatarFile?.name) return null;
-
-  const path = `${userId}/${avatarFile.name}`;
-  await persistAvatarPath(userId, path);
-  return resolveAvatarDisplayUrl(path);
-}
-
-async function finalizeProfile(row: StudentProfile): Promise<StudentProfile> {
-  if (row.avatar_url) return withResolvedAvatar(row);
-
-  const recovered = await recoverAvatarFromStorage(row.id);
-  if (!recovered) return row;
-
-  return { ...row, avatar_url: recovered };
-}
-
-/** Fetch the student row for the authenticated user (by auth user id, then email fallback). */
-export async function fetchStudentProfile(userId: string): Promise<StudentProfile | null> {
-  if (!supabase) return null;
-
-  const { data: byId } = await supabase
-    .from('students')
-    .select('id, email, first_name, last_name, program, student_id, avatar_url')
-    .eq('id', userId)
-    .maybeSingle();
-  if (byId) return finalizeProfile(byId as StudentProfile);
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user?.email) return null;
-
-  const { data: byEmail, error } = await supabase
-    .from('students')
-    .select('id, email, first_name, last_name, program, student_id, avatar_url')
-    .eq('email', user.email)
-    .maybeSingle();
-  if (error) {
-    console.error('[profileApi] fetchStudentProfile', error);
-    return null;
-  }
-  return byEmail ? finalizeProfile(byEmail as StudentProfile) : null;
-}
-
-/** Pick a photo from the library and upload it to the avatars bucket. Returns the public URL. */
+/** Pick a photo and upload to the avatars bucket. Avatar is local/session only (patients has no avatar column). */
 export async function pickAndUploadAvatar(userId: string): Promise<string | null> {
   if (!supabase) return null;
 
@@ -135,11 +87,12 @@ export async function pickAndUploadAvatar(userId: string): Promise<string | null
     return null;
   }
 
-  const saved = await persistAvatarPath(userId, filePath);
-  if (!saved) {
-    console.error('[profileApi] avatar uploaded but students.avatar_url was not updated (check RLS)');
-    return null;
-  }
+  const publicUrl = resolveAvatarDisplayUrl(filePath, true);
 
-  return resolveAvatarDisplayUrl(filePath, true);
+  // Persist path on auth metadata only — patients table has no avatar_url.
+  await supabase.auth.updateUser({
+    data: { avatar_url: filePath },
+  });
+
+  return publicUrl;
 }

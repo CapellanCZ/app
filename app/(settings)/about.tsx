@@ -7,9 +7,7 @@ import { SCHEDULE_PARTNER } from '@/lib/health-service/bookingScheduleTheme';
 const BRAND = SCHEDULE_PARTNER.brand;
 
 const FEATURES = [
-  { label: 'Health Service Office', detail: 'Book appointments and manage health records' },
-  { label: 'Student Development', detail: 'Scholarships, opportunities, and campus events' },
-  { label: 'Discipline Office', detail: 'Case tracking and conduct management' },
+  { label: 'Health Service Office', detail: 'Book appointments and manage clinic visits' },
   { label: 'Referrals', detail: 'Office-to-office referral coordination' },
 ];
 
@@ -95,7 +93,7 @@ export default function AboutScreen() {
               lineHeight: 21,
               color: SCHEDULE_PARTNER.textMuted,
             }}>
-            CampusCare is a centralized student welfare application designed to streamline access to campus services. It connects students with the Health Service Office, Student Development and Activities Office, Discipline Office, and more — all in one place.
+            CampusCare is a centralized campus clinic application designed to streamline access to health services. It connects students and faculty with the Health Service Office for appointments, visits, and related campus care — all in one place.
           </Text>
         </View>
 

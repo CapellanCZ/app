@@ -7,7 +7,6 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '@/lib/auth/AuthProvider';
 import { pickAndUploadAvatar } from '@/lib/profile/profileApi';
 import { useProfileStore } from '@/lib/profile/profileStore';
-import { useScholarshipStore } from '@/lib/scholarships/scholarshipStore';
 import { IconsaxNotificationIcon } from '@/components/icons/IconsaxNotificationIcon';
 import { IconsaxInfoCircleIcon } from '@/components/icons/IconsaxInfoCircleIcon';
 import { UserEditIcon } from '@/components/icons/UserEditIcon';
@@ -24,8 +23,7 @@ import {
 export default function ProfileTab() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { session } = useAuth();
-  const { fetchMyEnrollment } = useScholarshipStore();
+  const { session, patient } = useAuth();
   const profile = useProfileStore((s) => s.profile);
   const fetchProfile = useProfileStore((s) => s.fetchProfile);
   const setAvatarUrl = useProfileStore((s) => s.setAvatarUrl);
@@ -37,20 +35,15 @@ export default function ProfileTab() {
 
     const userId = session.user.id;
     const cached = useProfileStore.getState().profile;
-    if (cached?.id === userId) {
-      console.log('[Profile] using prefetched profile from store');
-      void fetchMyEnrollment();
+    if (cached?.id === userId && (cached.full_name || cached.first_name)) {
       return;
     }
 
-    void Promise.all([
-      fetchProfile(userId, {
-        email: session.user.email ?? undefined,
-        userMetadata: session.user.user_metadata,
-      }),
-      fetchMyEnrollment(),
-    ]);
-  }, [session?.user?.id, session?.user?.email, session?.user?.user_metadata, fetchProfile, fetchMyEnrollment]);
+    void fetchProfile(userId, {
+      email: session.user.email ?? undefined,
+      userMetadata: session.user.user_metadata,
+    });
+  }, [session?.user?.id, session?.user?.email, session?.user?.user_metadata, fetchProfile]);
 
   const handleChangeAvatar = useCallback(async () => {
     if (!session?.user?.id || avatarUploading) return;
@@ -60,10 +53,12 @@ export default function ProfileTab() {
     setAvatarUploading(false);
   }, [session?.user?.id, avatarUploading, setAvatarUrl]);
 
-  const name = profile
-    ? `${profile.first_name} ${profile.last_name}`.trim() || 'Nationalian'
-    : 'Nationalian';
-  const email = profile?.email ?? '—';
+  const name =
+    patient?.full_name?.trim() ||
+    profile?.full_name?.trim() ||
+    (profile ? `${profile.first_name} ${profile.last_name}`.trim() : '') ||
+    'CampusCare user';
+  const email = patient?.email ?? profile?.email ?? session?.user?.email ?? '—';
   const avatarUrl = profile?.avatar_url ?? null;
 
   return (
@@ -94,8 +89,6 @@ export default function ProfileTab() {
           email={email}
           avatarUrl={avatarUrl}
           onAvatarPress={handleChangeAvatar}
-          onApplyPress={() => router.push('/student-development-affairs')}
-          style={{ marginBottom: 24 }}
         />
 
         <ProfileSection title="Account">

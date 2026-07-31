@@ -3,29 +3,42 @@ import { ActivityIndicator, View } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import { useAuth } from '@/lib/auth/AuthProvider';
-/** Entry `/` → student home or login. */
+
+/** Entry `/` → clinic home, not-enrolled, or login. */
 export default function Index() {
   const router = useRouter();
-  const { session, isLoading, isConfigured } = useAuth();
+  const { session, isLoading, isConfigured, enrollmentStatus, isEnrollmentLoading } = useAuth();
   const hasRedirected = useRef(false);
 
   useEffect(() => {
-    if (isLoading || hasRedirected.current) return;
-
-    hasRedirected.current = true;
+    if (isLoading) return;
 
     if (!isConfigured) {
-      router.replace('/(tabs)' as never);
+      if (hasRedirected.current) return;
+      hasRedirected.current = true;
+      router.replace('/(auth)');
       return;
     }
 
-    if (session) {
-      router.replace('/(tabs)' as never);
+    if (!session) {
+      if (hasRedirected.current) return;
+      hasRedirected.current = true;
+      router.replace('/(auth)');
       return;
     }
 
-    router.replace('/(auth)');
-  }, [isLoading, isConfigured, session, router]);
+    if (isEnrollmentLoading || enrollmentStatus === 'unknown') return;
+
+    if (hasRedirected.current) return;
+    hasRedirected.current = true;
+
+    if (enrollmentStatus === 'not_enrolled') {
+      router.replace('/(auth)/not-enrolled' as never);
+      return;
+    }
+
+    router.replace('/(tabs)' as never);
+  }, [isLoading, isConfigured, session, enrollmentStatus, isEnrollmentLoading, router]);
 
   return (
     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFFFFF' }}>

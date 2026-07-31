@@ -6,18 +6,16 @@ type UserInfoCardProps = {
   email: string;
   avatarUrl: string | null;
   onAvatarPress: () => void;
-  onApplyPress: () => void;
 };
 
 /**
- * User info card with avatar, name, email, blue glow, and Apply button.
+ * User info card with avatar, name, email, and blue glow.
  */
 export function UserInfoCard({
   name,
   email,
   avatarUrl,
   onAvatarPress,
-  onApplyPress,
 }: UserInfoCardProps) {
   const initial = name.charAt(0).toUpperCase();
 
@@ -119,31 +117,6 @@ export function UserInfoCard({
           </Text>
         </View>
       </View>
-
-      {/* Apply for Scholarship button */}
-      <Pressable
-        onPress={onApplyPress}
-        style={{
-          backgroundColor: '#181D27',
-          borderRadius: 24,
-          paddingVertical: 12,
-          paddingHorizontal: 16,
-          alignItems: 'center',
-          justifyContent: 'center',
-          borderWidth: 1,
-          borderColor: '#2A2F3D',
-        }}
-        className="active:opacity-80">
-        <Text
-          style={{
-            fontSize: 16,
-            fontWeight: '300',
-            color: '#FFFFFF',
-            letterSpacing: -0.2,
-          }}>
-          Apply for Scholarship
-        </Text>
-      </Pressable>
     </View>
   );
 }

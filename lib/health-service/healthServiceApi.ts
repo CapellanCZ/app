@@ -2,7 +2,7 @@
  * API-shaped surface for Health Service data with Supabase backend integration.
  */
 import { supabase } from '../supabase';
-import type { Appointment, SlotPeriod, Staff, QueueTicket } from './types';
+import type { Appointment, SlotPeriod, Staff, StaffRole, QueueTicket } from './types';
 
 function dateKey(d: Date): string {
   const x = new Date(d);
@@ -67,28 +67,47 @@ export type HealthServiceApi = {
   expireOldTickets(): Promise<number>;
 };
 
+function mapWebRoleToStaffRole(role: string): StaffRole | null {
+  if (role === 'physician' || role === 'doctor') return 'doctor';
+  if (role === 'nurse') return 'nurse';
+  if (role === 'dentist') return 'dentist';
+  return null;
+}
+
+const STAFF_ROLE_LABEL: Record<StaffRole, string> = {
+  doctor: 'Physician',
+  nurse: 'Nurse',
+  dentist: 'Dentist',
+};
+
 function createSupabaseHealthServiceApi(): HealthServiceApi {
   return {
     async listStaff() {
       if (!supabase) throw new Error('Supabase not configured');
-      
+
+      // CampusCare clinic staff live in `public.users` (web_role), not health_staff.
       const { data, error } = await supabase
-        .from('health_staff')
-        .select('*')
+        .from('users')
+        .select('id, full_name, avatar_url, primary_role, is_active')
         .eq('is_active', true)
-        .order('name');
-      
+        .in('primary_role', ['physician', 'doctor', 'nurse', 'dentist'])
+        .order('full_name');
+
       if (error) throw error;
-      
-      return data.map(staff => ({
-        id: staff.id,
-        name: staff.name,
-        role: staff.role,
-        specialtyLabel: staff.specialty_label,
-        photoUrl: staff.photo_url,
-        priceLabel: staff.price_label,
-        rating: staff.rating,
-      }));
+
+      return (data ?? [])
+        .map((row) => {
+          const role = mapWebRoleToStaffRole(String(row.primary_role));
+          if (!role) return null;
+          return {
+            id: row.id as string,
+            name: row.full_name as string,
+            role,
+            specialtyLabel: STAFF_ROLE_LABEL[role],
+            photoUrl: (row.avatar_url as string | null) ?? undefined,
+          } satisfies Staff;
+        })
+        .filter((s): s is Staff => s !== null);
     },
 
     async getOpenSlotLabels(staffId, day, period) {

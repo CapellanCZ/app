@@ -23,7 +23,7 @@ const BG      = '#FFFFFF';
  * - `numeric`    → digits only `0-9`
  * - `alpha`      → letters only `a-zA-Z` (plus space)
  * - `alphanumeric` → letters + digits (plus space)
- * - `email`      → letters, `@ . _ - +` (no digits, no spaces)
+ * - `email`      → letters, digits, `@ . _ - +`
  */
 export type AppInputType = 'text' | 'numeric' | 'alpha' | 'alphanumeric' | 'email';
 
@@ -32,7 +32,7 @@ const FILTERS: Record<AppInputType, RegExp | null> = {
   numeric: /[^0-9]/g,
   alpha: /[^a-zA-Z ]/g,
   alphanumeric: /[^a-zA-Z0-9 ]/g,
-  email: /[^a-zA-Z@._\-+]/g,
+  email: /[^a-zA-Z0-9@._\-+]/g,
 };
 
 export type AppInputProps = Omit<TextInputProps, 'style'> & {

@@ -10,12 +10,11 @@ const BG         = '#F5F5F5';
 
 export type GetStartedHeroProps = {
   onSignIn: () => void;
-  onSignUp: () => void;
   onTerms?: () => void;
   onPrivacy?: () => void;
 };
 
-export function GetStartedHero({ onSignIn, onSignUp, onTerms, onPrivacy }: GetStartedHeroProps) {
+export function GetStartedHero({ onSignIn, onTerms, onPrivacy }: GetStartedHeroProps) {
   const insets = useSafeAreaInsets();
   const { width: screenW } = useWindowDimensions();
 
@@ -28,19 +27,11 @@ export function GetStartedHero({ onSignIn, onSignUp, onTerms, onPrivacy }: GetSt
           source={require('../../assets/student-model.optimized.png')}
           style={{
             width: screenW * 0.90,
-<<<<<<< HEAD
             height: '75%',
             position: 'absolute',
             bottom: 0,
             alignSelf: 'center',
             left: screenW * 0.06,
-=======
-            height: '80%',
-            position: 'absolute',
-            bottom: 0,
-            alignSelf: 'center',
-            left: screenW * 0.05,
->>>>>>> 26a0c50e4d510725d1d3fffd83ea8ce0bbb9abf7
           }}
           resizeMode="contain"
         />
@@ -79,7 +70,6 @@ export function GetStartedHero({ onSignIn, onSignUp, onTerms, onPrivacy }: GetSt
           {/* Buttons */}
           <View style={styles.btnStack}>
             <AppButton label="Sign in with Email" onPress={onSignIn} variant="primary" />
-            <AppButton label="I don't have an account" onPress={onSignUp} variant="secondary" />
           </View>
 
           {/* Legal */}

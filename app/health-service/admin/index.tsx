@@ -170,11 +170,7 @@ export default function HealthServiceAdminScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Patient Check-in</Text>
           <Text style={styles.sectionSubtitle}>
-<<<<<<< HEAD
             Enter the patient&apos;s check-in code to reveal their patient number
-=======
-            Enter the patient's check-in code to reveal their patient number
->>>>>>> 26a0c50e4d510725d1d3fffd83ea8ce0bbb9abf7
           </Text>
           
           <View style={styles.checkInContainer}>

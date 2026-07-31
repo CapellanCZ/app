@@ -7,6 +7,7 @@ import { AppointmentListCard } from '../../components/health-service/Appointment
 import { HealthServiceScreenShell } from '../../components/health-service/HealthServiceScreenShell';
 import { IconsaxArrowLeftIcon } from '@/components/icons/IconsaxArrowLeftIcon';
 import { IconsaxCalendarSearchIcon } from '@/components/icons/IconsaxCalendarSearchIcon';
+import { TAB_BAR_HEIGHT } from '@/components/layout/BottomTabBar';
 import { formatAppointmentDateLong } from '../../lib/health-service/appointmentDisplay';
 import { useHealthServiceStore } from '../../lib/health-service/healthServiceStore';
 
@@ -63,7 +64,7 @@ export default function HealthServiceAppointmentsScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
           paddingTop: insets.top + 16,
-          paddingBottom: Math.max(insets.bottom, 16) + 28,
+          paddingBottom: Math.max(insets.bottom, 16) + TAB_BAR_HEIGHT + 8,
           gap: 24,
         }}>
 

@@ -54,11 +54,8 @@ export default function RootLayout() {
                 <Stack.Screen name="index" />
                 <Stack.Screen name="(auth)" />
                 <Stack.Screen name="(tabs)" options={{ animation: 'fade', animationDuration: 120 }} />
-                <Stack.Screen name="student-development-affairs" options={{ animation: 'fade', animationDuration: 120 }} />
-                <Stack.Screen name="discipline-office" options={{ animation: 'fade', animationDuration: 120 }} />
                 <Stack.Screen name="health-service" options={{ animation: 'fade', animationDuration: 120 }} />
                 <Stack.Screen name="referrals" />
-                <Stack.Screen name="my-scholarship" />
                 <Stack.Screen name="logout" />
                 <Stack.Screen name="(settings)" />
                 <Stack.Screen

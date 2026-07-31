@@ -18,16 +18,8 @@ const FAQS: FAQItem[] = [
     a: 'Yes. Open the appointment from the Health Service screen and tap "Cancel Appointment." Cancellations must be made at least 2 hours before the scheduled time.',
   },
   {
-    q: 'How do I apply for a scholarship?',
-    a: 'Navigate to the Student Development tab and tap "Apply for a Scholarship." Fill in the required details and submit your application. Track its status from the same screen.',
-  },
-  {
-    q: 'What should I do if I receive a discipline notice?',
-    a: 'Read the notice carefully and respond within the deadline indicated. You may access the Discipline Office tab for details, or visit the office in person during working hours.',
-  },
-  {
     q: 'Why is my account not loading data?',
-    a: 'Ensure you have a stable internet connection. If the issue persists, try signing out and signing back in via your magic link email. Contact IT Support if the problem continues.',
+    a: 'Ensure you have a stable internet connection. If the issue persists, try signing out and signing back in with your One-Time Password. Contact IT Support if the problem continues.',
   },
   {
     q: 'How do I update my personal information?',

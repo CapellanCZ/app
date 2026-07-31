@@ -2,7 +2,7 @@ import { Stack } from 'expo-router';
 import { useColorScheme } from 'react-native';
 
 /**
- * Unauthenticated routes (login, register, forgot-password, etc.).
+ * Unauthenticated routes (get-started, login, not-enrolled).
  * The `(auth)` segment is omitted from the URL — e.g. this stack serves `/login`.
  */
 export default function AuthLayout() {
@@ -15,12 +15,7 @@ export default function AuthLayout() {
         headerShown: false,
         contentStyle: { flex: 1, backgroundColor: sceneBackground },
       }}>
-      {/* Get Started — full screen card */}
-      <Stack.Screen
-        name="index"
-        options={{ animation: 'fade' }}
-      />
-      {/* Login & Signup — transparent route so custom BottomSheetModal can animate in */}
+      <Stack.Screen name="index" options={{ animation: 'fade' }} />
       <Stack.Screen
         name="login"
         options={{
@@ -29,14 +24,7 @@ export default function AuthLayout() {
           contentStyle: { backgroundColor: 'transparent' },
         }}
       />
-      <Stack.Screen
-        name="signup"
-        options={{
-          presentation: 'transparentModal',
-          animation: 'none',
-          contentStyle: { backgroundColor: 'transparent' },
-        }}
-      />
+      <Stack.Screen name="not-enrolled" options={{ animation: 'fade' }} />
     </Stack>
   );
 }

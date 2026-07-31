@@ -15,18 +15,15 @@ import { AppButton } from '@/components/ui/AppButton';
 import { AppInput } from '@/components/ui/AppInput';
 import { BottomSheetModal, type BottomSheetModalHandle } from '@/components/ui/BottomSheetModal';
 import { IconsaxEnvelopeIcon } from '@/components/icons/IconsaxEnvelopeIcon';
-import { NU_DOMAIN, RESEND_COOLDOWN_SECONDS } from '@/lib/auth/constants';
-
-const BRAND = '#2970FF';
+import { isValidEmail, RESEND_COOLDOWN_SECONDS } from '@/lib/auth/constants';
 
 type Step = 'email' | 'verify';
 
 export default function Login() {
   const router = useRouter();
-  const { session } = useAuth();
+  const { session, enrollmentStatus, isEnrollmentLoading } = useAuth();
   const sheetRef = useRef<BottomSheetModalHandle>(null);
   const isMountedRef = useRef(true);
-  const goToSignup = () => sheetRef.current?.dismiss(() => router.replace('/signup'));
 
   const [email, setEmail] = useState('');
   const [step, setStep] = useState<Step>('email');
@@ -45,9 +42,15 @@ export default function Login() {
   }, []);
 
   useEffect(() => {
-    if (!session) return;
-    router.replace('/(tabs)' as never);
-  }, [session, router]);
+    if (!session || isEnrollmentLoading || enrollmentStatus === 'unknown') return;
+    if (enrollmentStatus === 'not_enrolled') {
+      router.replace('/(auth)/not-enrolled' as never);
+      return;
+    }
+    if (enrollmentStatus === 'enrolled') {
+      router.replace('/(tabs)' as never);
+    }
+  }, [session, enrollmentStatus, isEnrollmentLoading, router]);
 
   useEffect(() => {
     if (cooldown <= 0) {
@@ -67,8 +70,8 @@ export default function Login() {
     setError(null);
     setFieldError(null);
     const trimmed = email.trim().toLowerCase();
-    if (!trimmed) { setFieldError('Please enter your NU email.'); return; }
-    if (!trimmed.endsWith(NU_DOMAIN)) { setFieldError('Only @students.nu-dasma.edu.ph emails are allowed.'); return; }
+    if (!trimmed) { setFieldError('Please enter your school email.'); return; }
+    if (!isValidEmail(trimmed)) { setFieldError('Please enter a valid email address.'); return; }
     setLoading(true);
     const result = await apiSendOtp(trimmed);
     setLoading(false);
@@ -106,9 +109,9 @@ export default function Login() {
           {step === 'email' && (
             <View style={styles.content}>
               <View style={styles.textBlock}>
-                <Text style={styles.title}>Welcome back! Let&apos;s get you started</Text>
+                <Text style={styles.title}>Let&apos;s get you started</Text>
                 <Text style={styles.subtitle}>
-                  Enter your school email then we&apos;ll send you the temporary login code.
+                  Enter your school email then we&apos;ll send you the One-Time Password.
                 </Text>
               </View>
 
@@ -120,6 +123,9 @@ export default function Login() {
                 placeholder="johndoe@students.nu-dasma.edu.ph"
                 autoCapitalize="none"
                 autoCorrect={false}
+                autoComplete="email"
+                textContentType="emailAddress"
+                importantForAutofill="yes"
                 clearButtonMode="while-editing"
                 keyboardType="email-address"
                 value={email}
@@ -130,19 +136,12 @@ export default function Login() {
               />
 
               <AppButton
-                label="Continue"
+                label="Send One-Time Password"
                 onPress={handleSend}
                 loading={loading}
                 variant="primary"
                 disabled={!email.trim()}
               />
-
-              <Text style={styles.footerText}>
-                {'Don\u2019t have an account? '}
-                <Text style={styles.footerLink} onPress={goToSignup}>
-                  Sign up
-                </Text>
-              </Text>
             </View>
           )}
 
@@ -229,18 +228,6 @@ const styles = StyleSheet.create({
     letterSpacing: -0.32,
     color: '#717680',
     lineHeight: 24,
-  },
-  footerText: {
-    fontSize: 14,
-    color: '#A4A7AE',
-    textAlign: 'center',
-    letterSpacing: -0.24,
-    lineHeight: 14,
-    marginTop: 4,
-  },
-  footerLink: {
-    fontWeight: '500',
-    color: '#717680',
   },
   otpBlock: {
     alignItems: 'center',

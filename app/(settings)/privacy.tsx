@@ -10,11 +10,11 @@ const SECTIONS = [
   },
   {
     heading: '2. How We Use Your Information',
-    body: 'Your information is used to provide and personalize the CampusCare experience, process appointment bookings, send campus-related notifications, manage scholarship and discipline records, and comply with institutional policies.',
+    body: 'Your information is used to provide and personalize the CampusCare experience, process clinic appointment bookings, send campus-related notifications, and comply with institutional policies.',
   },
   {
     heading: '3. Data Sharing',
-    body: 'We do not sell or rent your personal information to third parties. Your data may be shared with authorized university offices (e.g., Health Service Office, Discipline Office, SDAO) strictly for service delivery purposes.',
+    body: 'We do not sell or rent your personal information to third parties. Your data may be shared with authorized university offices (e.g., Health Service Office) strictly for service delivery purposes.',
   },
   {
     heading: '4. Health Information',

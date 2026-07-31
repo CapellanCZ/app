@@ -14,22 +14,13 @@ export const ROUTES = {
 
   // --- Auth ---
   login: '/login',
-  signup: '/signup',
+  notEnrolled: '/(auth)/not-enrolled',
   logout: '/logout',
 
   // --- Features ---
   healthService: '/health-service',
   healthServiceAppointments: '/health-service/appointments',
-  disciplineOffice: '/discipline-office',
-  disciplineIncidentReport: '/discipline-office/incident-report',
-  disciplineUploadProof: '/discipline-office/upload-proof',
-  studentDevelopmentAffairs: '/student-development-affairs',
-  scholarshipRequirements: '/student-development-affairs/requirements',
-  scholarshipList: '/student-development-affairs/scholarships',
   referrals: '/referrals',
-  myScholarship: '/my-scholarship',
-  sdao: '/sdao',
-  sdaoPrograms: '/sdao/programs',
 
   // --- Settings ---
   personalInfo: '/personal-info',

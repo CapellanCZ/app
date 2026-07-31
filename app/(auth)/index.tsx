@@ -8,7 +8,6 @@ export default function GetStarted() {
   return (
     <GetStartedHero
       onSignIn={() => router.push('/login')}
-      onSignUp={() => router.push('/signup')}
       onTerms={() => router.push('/terms')}
       onPrivacy={() => router.push('/privacy')}
     />

@@ -1,17 +1,9 @@
 import { ScrollView, Text, View } from 'react-native';
 
 import { ScreenNavbar } from '@/components/ScreenNavbar';
+import { useAuth } from '@/lib/auth/AuthProvider';
 import { SCHEDULE_PARTNER } from '@/lib/health-service/bookingScheduleTheme';
-
-const FIELDS: { label: string; value: string }[] = [
-  { label: 'Full Name', value: 'Juan Dela Cruz' },
-  { label: 'Student ID', value: '2024-000123' },
-  { label: 'Email', value: 'j.delacruz@student.edu.ph' },
-  { label: 'Program', value: 'BS Computer Science' },
-  { label: 'Year Level', value: '2nd Year' },
-  { label: 'Section', value: 'CS-201' },
-  { label: 'College', value: 'College of Engineering & Technology' },
-];
+import { useProfileStore } from '@/lib/profile/profileStore';
 
 function InfoRow({ label, value, isLast }: { label: string; value: string; isLast?: boolean }) {
   return (
@@ -24,17 +16,49 @@ function InfoRow({ label, value, isLast }: { label: string; value: string; isLas
         backgroundColor: SCHEDULE_PARTNER.surface,
         gap: 2,
       }}>
-      <Text style={{ fontSize: 11, fontWeight: '600', color: SCHEDULE_PARTNER.textMuted, textTransform: 'uppercase', letterSpacing: 0.4 }}>
+      <Text
+        style={{
+          fontSize: 11,
+          fontWeight: '600',
+          color: SCHEDULE_PARTNER.textMuted,
+          textTransform: 'uppercase',
+          letterSpacing: 0.4,
+        }}>
         {label}
       </Text>
-      <Text style={{ fontSize: 15, color: SCHEDULE_PARTNER.textPrimary }}>
-        {value}
-      </Text>
+      <Text style={{ fontSize: 15, color: SCHEDULE_PARTNER.textPrimary }}>{value}</Text>
     </View>
   );
 }
 
 export default function PersonalInfoScreen() {
+  const { patient, session } = useAuth();
+  const profile = useProfileStore((s) => s.profile);
+
+  const fullName =
+    patient?.full_name?.trim() ||
+    profile?.full_name?.trim() ||
+    (profile ? `${profile.first_name} ${profile.last_name}`.trim() : '') ||
+    '—';
+  const email = patient?.email ?? profile?.email ?? session?.user?.email ?? '—';
+  const patientType = patient?.patient_type ?? profile?.patient_type;
+  const idLabel = patientType === 'faculty' ? 'Employee ID' : 'Student ID';
+  const idValue =
+    (patientType === 'faculty'
+      ? patient?.employee_id ?? profile?.employee_id
+      : patient?.student_id ?? profile?.student_id) || '—';
+  const affiliation = patient?.affiliation ?? profile?.program ?? '—';
+  const typeLabel =
+    patientType === 'faculty' ? 'Faculty' : patientType === 'student' ? 'Student' : '—';
+
+  const fields = [
+    { label: 'Full Name', value: fullName },
+    { label: idLabel, value: idValue },
+    { label: 'Email', value: email },
+    { label: 'Type', value: typeLabel },
+    { label: 'Affiliation', value: affiliation },
+  ];
+
   return (
     <View style={{ flex: 1, backgroundColor: '#FDFDFD' }}>
       <ScreenNavbar title="Personal Information" />
@@ -55,7 +79,7 @@ export default function PersonalInfoScreen() {
             textTransform: 'uppercase',
             color: SCHEDULE_PARTNER.textMuted,
           }}>
-          Student Details
+          Patient Details
         </Text>
         <View
           style={{
@@ -64,8 +88,8 @@ export default function PersonalInfoScreen() {
             borderColor: SCHEDULE_PARTNER.cardBorder,
             overflow: 'hidden',
           }}>
-          {FIELDS.map((f, i) => (
-            <InfoRow key={f.label} label={f.label} value={f.value} isLast={i === FIELDS.length - 1} />
+          {fields.map((f, i) => (
+            <InfoRow key={f.label} label={f.label} value={f.value} isLast={i === fields.length - 1} />
           ))}
         </View>
 
@@ -77,7 +101,7 @@ export default function PersonalInfoScreen() {
             lineHeight: 18,
             color: SCHEDULE_PARTNER.textMuted,
           }}>
-          To update your personal information, please coordinate with the Registrar&apos;s Office.
+          To update your personal information, please contact the campus clinic admin.
         </Text>
       </ScrollView>
     </View>

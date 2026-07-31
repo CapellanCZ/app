@@ -24,16 +24,6 @@ const PUSH_TOGGLES: ToggleItem[] = [
     description: 'Important school-wide updates',
   },
   {
-    id: 'scholarships',
-    label: 'Scholarship Updates',
-    description: 'New openings and application status',
-  },
-  {
-    id: 'discipline',
-    label: 'Discipline Notices',
-    description: 'Case updates and hearing schedules',
-  },
-  {
     id: 'health',
     label: 'Health Alerts',
     description: 'Clinic announcements and health notices',

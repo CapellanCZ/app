@@ -27,7 +27,6 @@ export function HomeScreenHeader({ title = 'Home', avatarUrl }: HomeScreenHeader
 
   return (
     <View
-<<<<<<< HEAD
       style={{
         height: ROW_HEIGHT,
         width: '100%',
@@ -102,52 +101,6 @@ export function HomeScreenHeader({ title = 'Home', avatarUrl }: HomeScreenHeader
           accessibilityIgnoresInvertColors
         />
       </Pressable>
-=======
-      className="w-full flex-row items-center justify-between pb-2 pl-1"
-      style={{ paddingTop: Math.max(8) }}>
-      <Text className="text-[32px] font-bold leading-9 text-[#1F2024]">{title}</Text>
-      <View className="flex-row items-center gap-2">
-        <Pressable
-          accessibilityLabel="Notifications"
-          accessibilityRole="button"
-          hitSlop={10}
-          className="size-11 items-center justify-center rounded-full bg-white border border-black/5"
-          onPress={() => router.push('/(tabs)/notification')}>
-          <IconsaxNotificationIcon size={22} color={ICON_MUTED} />
-          {unreadCount > 0 && (
-            <View
-              style={{
-                position: 'absolute',
-                top: 10 ,
-                right: 12,
-                minWidth: 8,
-                height: 8,
-                borderRadius: 8,
-                backgroundColor: '#EF4444',
-                alignItems: 'center',
-                justifyContent: 'center',
-                paddingHorizontal: 3,
-              }}>
-            </View>
-          )}
-        </Pressable>
-        <Pressable
-          accessibilityLabel="Profile"
-          accessibilityRole="button"
-          hitSlop={10}
-          onPress={() => router.push('/(tabs)/profiles')}
-          style={{ width: 44, height: 44, borderRadius: 24, borderWidth: 1, borderColor: '#FFFFFF' }}>
-          <View style={{ flex: 1, borderRadius: 20, overflow: 'hidden' }}>
-            <Image
-              source={avatarUrl ? { uri: avatarUrl } : profileCirclePlaceholder}
-              style={{ width: '100%', height: '100%' }}
-              resizeMode="cover"
-              accessibilityIgnoresInvertColors
-            />
-          </View>
-        </Pressable>
-      </View>
->>>>>>> 26a0c50e4d510725d1d3fffd83ea8ce0bbb9abf7
     </View>
   );
 }
