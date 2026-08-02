@@ -3,7 +3,7 @@ import { isSupabaseConfigured, supabase } from '@/lib/supabase';
 import type { Patient } from './types';
 
 const PATIENT_SELECT =
-  'id, auth_user_id, full_name, email, patient_type, student_id, employee_id, affiliation, phone';
+  'id, auth_user_id, full_name, email, patient_type, student_id, employee_id, affiliation, phone, avatar_url';
 
 /**
  * Loads the enrolled campus patient linked to the auth user.

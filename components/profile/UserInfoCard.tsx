@@ -1,5 +1,7 @@
-import { Image, Pressable, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
+
+import { GreyAvatar } from '@/components/profile/GreyAvatar';
 
 type UserInfoCardProps = {
   name: string;
@@ -17,8 +19,6 @@ export function UserInfoCard({
   avatarUrl,
   onAvatarPress,
 }: UserInfoCardProps) {
-  const initial = name.charAt(0).toUpperCase();
-
   return (
     <View
       style={{
@@ -72,28 +72,8 @@ export function UserInfoCard({
 
       {/* Avatar + Name row */}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-        <Pressable
-          onPress={onAvatarPress}
-          style={{
-            width: 52,
-            height: 52,
-            borderRadius: 26,
-            backgroundColor: '#E5E7EB',
-            overflow: 'hidden',
-          }}>
-          {avatarUrl ? (
-            <Image
-              source={{ uri: avatarUrl }}
-              style={{ width: '100%', height: '100%' }}
-              resizeMode="cover"
-            />
-          ) : (
-            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ fontSize: 20, fontWeight: '600', color: '#9CA3AF' }}>
-                {initial}
-              </Text>
-            </View>
-          )}
+        <Pressable onPress={onAvatarPress}>
+          <GreyAvatar size={52} name={name} avatarUrl={avatarUrl} />
         </Pressable>
         <View style={{ flex: 1, gap: 4 }}>
           <Text

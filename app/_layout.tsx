@@ -8,7 +8,6 @@ import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { TamaguiProvider } from 'tamagui';
 
-import { BottomTabBar } from '@/components/layout/BottomTabBar';
 import { UniwindInsetSync } from '@/components/UniwindInsetSync';
 import { AuthProvider } from '@/lib/auth/AuthProvider';
 import { NotificationHandler } from '@/components/notifications/NotificationHandler';
@@ -24,6 +23,10 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
   const [fontsLoaded] = useFonts({
     InstrumentSans: require('../assets/fonts/InstrumentSans-Variable.ttf'),
+    'Inter-Regular': require('@tamagui/font-inter/otf/Inter-Regular.otf'),
+    'Inter-Medium': require('@tamagui/font-inter/otf/Inter-Medium.otf'),
+    'Inter-SemiBold': require('@tamagui/font-inter/otf/Inter-SemiBold.otf'),
+    'Inter-Bold': require('@tamagui/font-inter/otf/Inter-Bold.otf'),
   });
 
   if (!fontsLoaded) {
@@ -63,7 +66,6 @@ export default function RootLayout() {
                   options={{ headerShown: true, title: 'Modal', presentation: 'modal' }}
                 />
               </Stack>
-              <BottomTabBar />
               </View>
               </AuthProvider>
             </KeyboardProvider>

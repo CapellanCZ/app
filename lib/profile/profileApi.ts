@@ -38,7 +38,7 @@ export function patientToProfile(patient: Patient, authUserId: string): StudentP
     student_id: patient.student_id ?? '',
     employee_id: patient.employee_id ?? undefined,
     patient_type: patient.patient_type,
-    avatar_url: null,
+    avatar_url: patient.avatar_url ?? null,
   };
 }
 
@@ -52,7 +52,7 @@ export async function fetchStudentProfile(authUserId: string): Promise<StudentPr
   return patientToProfile(patient, authUserId);
 }
 
-/** Pick a photo and upload to the avatars bucket. Avatar is local/session only (patients has no avatar column). */
+/** Pick a photo, upload to `avatars`, and persist path on `patients.avatar_url`. */
 export async function pickAndUploadAvatar(userId: string): Promise<string | null> {
   if (!supabase) return null;
 
@@ -87,12 +87,19 @@ export async function pickAndUploadAvatar(userId: string): Promise<string | null
     return null;
   }
 
-  const publicUrl = resolveAvatarDisplayUrl(filePath, true);
+  const { error: dbError } = await supabase.rpc('set_my_patient_avatar', {
+    p_avatar_url: filePath,
+  });
 
-  // Persist path on auth metadata only — patients table has no avatar_url.
+  if (dbError) {
+    console.error('[profileApi] set_my_patient_avatar', dbError);
+    return null;
+  }
+
+  // Keep auth metadata in sync for session fallbacks.
   await supabase.auth.updateUser({
     data: { avatar_url: filePath },
   });
 
-  return publicUrl;
+  return resolveAvatarDisplayUrl(filePath, true);
 }

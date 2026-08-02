@@ -5,8 +5,8 @@
 @source './node_modules/heroui-native/lib';
 
 @theme {
-  /* Native: matches expo-font family name. Web: falls back until you load the font via <link> or similar. */
-  --font-sans: InstrumentSans, ui-sans-serif, system-ui, sans-serif;
+  /* Inter — loaded via expo-font in app/_layout.tsx */
+  --font-sans: Inter-Regular, Inter, ui-sans-serif, system-ui, sans-serif;
 
   /* Body md: 16px - components using token text-md */
   --text-md: 1rem;

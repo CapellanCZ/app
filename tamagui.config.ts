@@ -4,29 +4,30 @@ import { animations } from '@tamagui/config/v5-reanimated';
 import { createInterFont } from '@tamagui/font-inter';
 import { createTamagui } from 'tamagui';
 
-/** PostScript / `useFonts` key — must match `app/_layout.tsx`. */
-const instrumentFamily = 'InstrumentSans';
-
-const instrumentFace = {
-  100: { normal: instrumentFamily },
-  200: { normal: instrumentFamily },
-  300: { normal: instrumentFamily },
-  400: { normal: instrumentFamily },
-  500: { normal: instrumentFamily },
-  600: { normal: instrumentFamily },
-  700: { normal: instrumentFamily },
-  800: { normal: instrumentFamily },
-  900: { normal: instrumentFamily },
+/**
+ * Inter faces — keys must match `useFonts` in `app/_layout.tsx`.
+ * Separate OTF files per weight (RN cannot synthesize Inter weights from one family).
+ */
+const interFace = {
+  100: { normal: 'Inter-Regular' },
+  200: { normal: 'Inter-Regular' },
+  300: { normal: 'Inter-Regular' },
+  400: { normal: 'Inter-Regular' },
+  500: { normal: 'Inter-Medium' },
+  600: { normal: 'Inter-SemiBold' },
+  700: { normal: 'Inter-Bold' },
+  800: { normal: 'Inter-Bold' },
+  900: { normal: 'Inter-Bold' },
 } as const;
 
-const instrumentFamilyStack = isWeb
-  ? `${instrumentFamily}, -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif`
-  : instrumentFamily;
+const interFamilyStack = isWeb
+  ? `Inter, Inter-Regular, -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif`
+  : 'Inter-Regular';
 
 const bodyFont = createInterFont(
   {
-    family: instrumentFamilyStack,
-    face: instrumentFace,
+    family: interFamilyStack,
+    face: interFace,
     weight: {
       1: '400',
     },
@@ -39,8 +40,8 @@ const bodyFont = createInterFont(
 
 const headingFont = createInterFont(
   {
-    family: instrumentFamilyStack,
-    face: instrumentFace,
+    family: interFamilyStack,
+    face: interFace,
     weight: {
       0: '600',
       6: '700',

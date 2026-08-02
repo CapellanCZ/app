@@ -36,13 +36,17 @@ export type QueueTicket = {
   status: QueueTicketStatus;
 };
 
-export type AppointmentStatus = 'pending' | 'confirmed' | 'cancelled';
+export type AppointmentStatus = 'pending' | 'confirmed' | 'cancelled' | 'completed';
 
 export type Appointment = {
   id: string;
   staffId: string;
   dateKey: string;
   startLabel: string;
+  /** End time label from `ends_at` — used for Figma range display. */
+  endLabel?: string;
+  /** Visit reason / symptoms from `appointments.reason`. */
+  reason?: string | null;
   status: AppointmentStatus;
   checkInCode?: string;
   /** ISO timestamp of when the appointment row was created (used to anchor the 1-hr check-in expiry). */

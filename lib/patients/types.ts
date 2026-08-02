@@ -11,6 +11,8 @@ export type Patient = {
   employee_id: string | null;
   affiliation: string | null;
   phone: string | null;
+  /** Storage path or public URL in `avatars` bucket. */
+  avatar_url: string | null;
 };
 
 export type EnrollmentStatus = 'unknown' | 'enrolled' | 'not_enrolled';

@@ -1,10 +1,9 @@
 import { useRouter } from 'expo-router';
-import { Image, Pressable, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
 import { IconsaxNotificationIcon } from '@/components/icons/IconsaxNotificationIcon';
+import { GreyAvatar } from '@/components/profile/GreyAvatar';
 import { useNotificationStore } from '@/lib/notifications/notificationStore';
-
-import profileCirclePlaceholder from '@/assets/profile-circle.png';
 
 const ICON_MUTED = '#1F2024';
 const ROW_HEIGHT = 52;
@@ -15,13 +14,18 @@ export type HomeScreenHeaderProps = {
   /** Large title (Figma: 32px semibold). */
   title?: string;
   avatarUrl?: string | null;
+  userName?: string;
 };
 
 /**
  * Top bar: bold title + notification + profile (Figma CampusCare mobile pattern).
  * Fixed row height so badge / title length does not shift layout between screens.
  */
-export function HomeScreenHeader({ title = 'Home', avatarUrl }: HomeScreenHeaderProps) {
+export function HomeScreenHeader({
+  title = 'Home',
+  avatarUrl,
+  userName = '',
+}: HomeScreenHeaderProps) {
   const router = useRouter();
   const unreadCount = useNotificationStore((s) => s.items.filter((n) => !n.read).length);
 
@@ -86,20 +90,9 @@ export function HomeScreenHeader({ title = 'Home', avatarUrl }: HomeScreenHeader
         accessibilityRole="button"
         hitSlop={10}
         onPress={() => router.push('/(tabs)/profiles')}
-        style={{
-          width: AVATAR_SIZE,
-          height: AVATAR_SIZE,
-          borderRadius: AVATAR_SIZE / 2,
-          overflow: 'hidden',
-          flexShrink: 0,
-        }}
+        style={{ flexShrink: 0 }}
         className="active:opacity-80">
-        <Image
-          source={avatarUrl ? { uri: avatarUrl } : profileCirclePlaceholder}
-          style={{ width: AVATAR_SIZE, height: AVATAR_SIZE }}
-          resizeMode="cover"
-          accessibilityIgnoresInvertColors
-        />
+        <GreyAvatar size={AVATAR_SIZE} name={userName} avatarUrl={avatarUrl} />
       </Pressable>
     </View>
   );

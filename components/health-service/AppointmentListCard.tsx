@@ -8,11 +8,15 @@ import { IconsaxClockIcon } from '../icons/IconsaxClockIcon';
 const STATUS_DOT: Record<string, string> = {
   pending: '#F79009',
   confirmed: '#2970FF',
+  completed: '#12B76A',
+  cancelled: '#A4A7AE',
 };
 
 const STATUS_LABEL: Record<string, string> = {
   pending: 'Pending',
   confirmed: 'Confirmed',
+  completed: 'Completed',
+  cancelled: 'Cancelled',
 };
 
 function formatDateLabel(dateKey: string): string {
@@ -27,6 +31,8 @@ export type AppointmentListCardProps = {
   staffPhoto?: string | null;
   staffRating?: number;
   staffSpecialty?: string;
+  /** Override status badge text (e.g. "Visited" on Records). */
+  statusLabelOverride?: string;
   onPress: () => void;
 };
 
@@ -36,10 +42,12 @@ export function AppointmentListCard({
   staffPhoto,
   staffRating,
   staffSpecialty,
+  statusLabelOverride,
   onPress,
 }: AppointmentListCardProps) {
   const dotColor = STATUS_DOT[appointment.status] ?? '#2970FF';
-  const statusLabel = STATUS_LABEL[appointment.status] ?? appointment.status;
+  const statusLabel =
+    statusLabelOverride ?? STATUS_LABEL[appointment.status] ?? appointment.status;
   const dateLabel = formatDateLabel(appointment.dateKey);
 
   return (

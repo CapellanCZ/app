@@ -1,8 +1,11 @@
 /**
  * API-shaped surface for Health Service data with Supabase backend integration.
+ * CampusCare live tables: `patients`, `appointments`, `doctor_availability`, `users`.
  */
 import { supabase } from '../supabase';
-import type { Appointment, SlotPeriod, Staff, StaffRole, QueueTicket } from './types';
+import type { Appointment, AppointmentStatus, SlotPeriod, Staff, StaffRole, QueueTicket } from './types';
+
+const CLINIC_TZ = 'Asia/Manila';
 
 function dateKey(d: Date): string {
   const x = new Date(d);
@@ -10,28 +13,97 @@ function dateKey(d: Date): string {
   return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
 }
 
+/** Calendar date in clinic timezone (YYYY-MM-DD). */
+function dateKeyInClinicTz(isoOrDate: string | Date): string {
+  const d = typeof isoOrDate === 'string' ? new Date(isoOrDate) : isoOrDate;
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: CLINIC_TZ,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(d);
+}
+
 function timeFromLabel(label: string): string {
   // Convert "10:40 AM" to "10:40:00"
   const [time, period] = label.split(' ');
   const [hours, minutes] = time.split(':');
-  let hour24 = parseInt(hours);
-  
+  let hour24 = parseInt(hours, 10);
+
   if (period === 'PM' && hour24 !== 12) {
     hour24 += 12;
   } else if (period === 'AM' && hour24 === 12) {
     hour24 = 0;
   }
-  
+
   return `${hour24.toString().padStart(2, '0')}:${minutes}:00`;
 }
 
 function labelFromTime(time: string): string {
   // Convert "10:40:00" to "10:40 AM"
   const [hours, minutes] = time.split(':');
-  const hour24 = parseInt(hours);
+  const hour24 = parseInt(hours, 10);
   const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24;
   const period = hour24 >= 12 ? 'PM' : 'AM';
   return `${hour12}:${minutes} ${period}`;
+}
+
+function labelFromIso(iso: string): string {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: CLINIC_TZ,
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  }).formatToParts(new Date(iso));
+  const hour = parts.find((p) => p.type === 'hour')?.value ?? '12';
+  const minute = parts.find((p) => p.type === 'minute')?.value ?? '00';
+  const period = parts.find((p) => p.type === 'dayPeriod')?.value ?? 'AM';
+  return `${hour}:${minute} ${period.toUpperCase()}`;
+}
+
+/** Build timestamptz for a clinic-local date + "10:40 AM" label. */
+function startsAtFromDayAndLabel(day: Date, startLabel: string): Date {
+  const key = dateKey(day);
+  const time = timeFromLabel(startLabel); // HH:mm:ss
+  // Interpret as Asia/Manila wall time via offset approximation using Intl
+  const provisional = new Date(`${key}T${time}+08:00`);
+  return provisional;
+}
+
+function mapDbStatus(status: string): AppointmentStatus {
+  if (status === 'cancelled' || status === 'no_show') return 'cancelled';
+  if (status === 'pending') return 'pending';
+  if (status === 'completed') return 'completed';
+  // confirmed | rescheduled | in_progress
+  return 'confirmed';
+}
+
+async function requireLinkedPatient(): Promise<{
+  userId: string;
+  patientId: string;
+  clinicId: string;
+}> {
+  if (!supabase) throw new Error('Supabase not configured');
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  const { data: patient, error } = await supabase
+    .from('patients')
+    .select('id, clinic_id')
+    .eq('auth_user_id', user.id)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!patient) throw new Error('Patient not found');
+
+  return {
+    userId: user.id,
+    patientId: patient.id as string,
+    clinicId: patient.clinic_id as string,
+  };
 }
 
 export type HealthServiceApi = {
@@ -112,37 +184,44 @@ function createSupabaseHealthServiceApi(): HealthServiceApi {
 
     async getOpenSlotLabels(staffId, day, period) {
       if (!supabase) throw new Error('Supabase not configured');
-      
-      // Get staff availability for the day
+
       const dayOfWeek = day.getDay();
       const { data: availability, error: availError } = await supabase
-        .from('health_staff_availability')
+        .from('doctor_availability')
         .select('start_time, end_time')
-        .eq('staff_id', staffId)
+        .eq('doctor_id', staffId)
         .eq('day_of_week', dayOfWeek)
         .eq('is_active', true)
-        .single();
-      
+        .maybeSingle();
+
       if (availError || !availability) return [];
-      
-      // Get existing appointments for the day
+
+      const dayStart = startsAtFromDayAndLabel(day, '12:00 AM');
+      const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+
       const { data: appointments, error: apptError } = await supabase
-        .from('health_appointments')
-        .select('start_time')
-        .eq('staff_id', staffId)
-        .eq('appointment_date', dateKey(day))
-        .in('status', ['pending', 'confirmed']);
-      
+        .from('appointments')
+        .select('starts_at')
+        .eq('doctor_id', staffId)
+        .gte('starts_at', dayStart.toISOString())
+        .lt('starts_at', dayEnd.toISOString())
+        .in('status', ['pending', 'confirmed', 'rescheduled', 'in_progress']);
+
       if (apptError) throw apptError;
-      
-      const bookedTimes = new Set(appointments?.map(a => a.start_time) || []);
-      
-      // Generate available slots based on period
+
+      const bookedTimes = new Set(
+        (appointments ?? []).map((a) => {
+          const label = labelFromIso(a.starts_at as string);
+          return timeFromLabel(label);
+        }),
+      );
+
       const slots: string[] = [];
-      const startHour = parseInt(availability.start_time.split(':')[0]);
-      const endHour = parseInt(availability.end_time.split(':')[0]);
-      
-      let periodStart: number, periodEnd: number;
+      const startHour = parseInt(String(availability.start_time).split(':')[0], 10);
+      const endHour = parseInt(String(availability.end_time).split(':')[0], 10);
+
+      let periodStart: number;
+      let periodEnd: number;
       switch (period) {
         case 'morning':
           periodStart = Math.max(startHour, 8);
@@ -161,8 +240,7 @@ function createSupabaseHealthServiceApi(): HealthServiceApi {
           periodEnd = Math.min(endHour, 24);
           break;
       }
-      
-      // Generate 20-minute slots
+
       for (let hour = periodStart; hour < periodEnd; hour++) {
         for (let minute = 0; minute < 60; minute += 20) {
           const timeStr = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}:00`;
@@ -171,164 +249,113 @@ function createSupabaseHealthServiceApi(): HealthServiceApi {
           }
         }
       }
-      
+
       return slots;
     },
 
     async isWorking(staffId, day) {
       if (!supabase) throw new Error('Supabase not configured');
-      
+
       const dayOfWeek = day.getDay();
       const { data, error } = await supabase
-        .from('health_staff_availability')
+        .from('doctor_availability')
         .select('id')
-        .eq('staff_id', staffId)
+        .eq('doctor_id', staffId)
         .eq('day_of_week', dayOfWeek)
         .eq('is_active', true)
-        .single();
-      
+        .maybeSingle();
+
       return !error && !!data;
     },
 
     async listMyAppointments() {
       if (!supabase) throw new Error('Supabase not configured');
-      
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
-      
-      // Get student_id from students table
-      const { data: student, error: studentError } = await supabase
-        .from('students')
-        .select('student_id')
-        .eq('id', user.id)
-        .single();
-      
-      if (studentError || !student) throw new Error('Student not found');
-      
-      // Get appointments
+
+      const { patientId } = await requireLinkedPatient();
+
       const { data: appointments, error } = await supabase
-        .from('health_appointments')
-        .select(`
-          id,
-          staff_id,
-          appointment_date,
-          start_time,
-          status,
-          check_in_code,
-          created_at,
-          health_queue_tickets (
-            ticket_code,
-            queue_position,
-            estimated_wait_minutes,
-            status
-          )
-        `)
-        .eq('student_id', student.student_id)
-        .in('status', ['pending', 'confirmed'])
-        .order('appointment_date', { ascending: true })
-        .order('start_time', { ascending: true });
-      
+        .from('appointments')
+        .select('id, doctor_id, starts_at, ends_at, status, created_at, reason')
+        .eq('patient_id', patientId)
+        .in('status', [
+          'pending',
+          'confirmed',
+          'rescheduled',
+          'in_progress',
+          'completed',
+          'cancelled',
+          'no_show',
+        ])
+        .order('starts_at', { ascending: true });
+
       if (error) throw error;
-      
-      return appointments.map(appt => ({
-        id: appt.id,
-        staffId: appt.staff_id,
-        dateKey: appt.appointment_date,
-        startLabel: labelFromTime(appt.start_time),
-        status: appt.status,
-        checkInCode: appt.check_in_code,
-        createdAt: appt.created_at,
-        arrivalTicket: appt.health_queue_tickets?.[0] ? {
-          code: appt.health_queue_tickets[0].ticket_code,
-          position: appt.health_queue_tickets[0].queue_position,
-          estimatedMinutes: appt.health_queue_tickets[0].estimated_wait_minutes,
-          status: appt.health_queue_tickets[0].status,
-        } : undefined,
+
+      return (appointments ?? []).map((appt) => ({
+        id: appt.id as string,
+        staffId: appt.doctor_id as string,
+        dateKey: dateKeyInClinicTz(appt.starts_at as string),
+        startLabel: labelFromIso(appt.starts_at as string),
+        endLabel: appt.ends_at ? labelFromIso(appt.ends_at as string) : undefined,
+        reason: (appt.reason as string | null) ?? null,
+        status: mapDbStatus(String(appt.status)),
+        createdAt: appt.created_at as string,
       }));
     },
 
     async bookAppointment(input) {
       if (!supabase) throw new Error('Supabase not configured');
-      
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
-      
-      // Get student_id from students table
-      const { data: student, error: studentError } = await supabase
-        .from('students')
-        .select('student_id')
-        .eq('id', user.id)
-        .single();
-      
-      if (studentError || !student) throw new Error('Student not found');
-      
-      // Generate incremental check-in code
-      // Get the last check-in code from the database
-      const { data: lastAppointment } = await supabase
-        .from('health_appointments')
-        .select('check_in_code')
-        .not('check_in_code', 'is', null)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
-      
-      let nextNumber = 1;
-      if (lastAppointment?.check_in_code) {
-        const match = lastAppointment.check_in_code.match(/^CH-(\d+)$/);
-        if (match) {
-          nextNumber = parseInt(match[1]) + 1;
-        }
-      }
-      const checkInCode = `CH-${String(nextNumber).padStart(4, '0')}`;
-      
-      const startTime = timeFromLabel(input.startLabel);
-      const endTime = timeFromLabel(input.startLabel).replace(/(\d{2}):(\d{2}):00/, (_, h, m) => {
-        const endMinutes = parseInt(m) + 20; // 20-minute appointments
-        const endHour = endMinutes >= 60 ? parseInt(h) + 1 : parseInt(h);
-        const finalMinutes = endMinutes >= 60 ? endMinutes - 60 : endMinutes;
-        return `${endHour.toString().padStart(2, '0')}:${finalMinutes.toString().padStart(2, '0')}:00`;
-      });
-      
+
+      const { patientId, clinicId } = await requireLinkedPatient();
+
+      const startsAt = startsAtFromDayAndLabel(input.day, input.startLabel);
+      const endsAt = new Date(startsAt.getTime() + 20 * 60 * 1000);
+
       const { data: inserted, error } = await supabase
-        .from('health_appointments')
+        .from('appointments')
         .insert({
-          student_id: student.student_id,
-          staff_id: input.staffId,
-          appointment_date: dateKey(input.day),
-          start_time: startTime,
-          end_time: endTime,
-          symptoms: input.symptoms,
+          clinic_id: clinicId,
+          patient_id: patientId,
+          doctor_id: input.staffId,
+          starts_at: startsAt.toISOString(),
+          ends_at: endsAt.toISOString(),
+          reason: input.symptoms?.trim() || null,
           status: 'pending',
-          check_in_code: checkInCode,
         })
-        .select('id, check_in_code, created_at')
+        .select('id, created_at')
         .single();
-      
+
       if (error) throw error;
-      return { id: inserted.id, checkInCode: inserted.check_in_code, createdAt: inserted.created_at as string };
+
+      return {
+        id: inserted.id as string,
+        checkInCode: '—',
+        createdAt: inserted.created_at as string,
+      };
     },
 
     async cancelAppointment(id) {
       if (!supabase) throw new Error('Supabase not configured');
-      
+
+      const { patientId } = await requireLinkedPatient();
+
       const { error } = await supabase
-        .from('health_appointments')
+        .from('appointments')
         .update({ status: 'cancelled' })
-        .eq('id', id);
-      
+        .eq('id', id)
+        .eq('patient_id', patientId);
+
       if (error) throw error;
     },
 
     async confirmAppointmentByProvider(id) {
       if (!supabase) throw new Error('Supabase not configured');
-      
+
       const { error } = await supabase
-        .from('health_appointments')
+        .from('appointments')
         .update({ status: 'confirmed' })
         .eq('id', id);
-      
+
       if (error) throw error;
-      // Ticket is created automatically by the database trigger with 1-hour expiration
     },
 
     async getActiveTickets() {

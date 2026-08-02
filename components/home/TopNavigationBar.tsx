@@ -1,13 +1,11 @@
 import { useRouter } from 'expo-router';
-import { Image, Pressable } from 'react-native';
+import { Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Avatar, Text, XStack, YStack } from 'tamagui';
+import { Text, XStack, YStack } from 'tamagui';
 
 import { IconsaxMenuIcon } from '@/components/icons/IconsaxMenuIcon';
+import { GreyAvatar } from '@/components/profile/GreyAvatar';
 
-import profileCirclePlaceholder from '@/assets/profile-circle.png';
-
-const AVATAR_BG = '#EAF2FF';
 const SUBTITLE_COLOR = '#414651';
 const TITLE_COLOR = '#1F2024';
 
@@ -32,20 +30,7 @@ export function TopNavigationBar({
       gap={12}
       pt={Math.max(insets.top, 12)}
       style={{ alignItems: 'center' }}>
-      <Avatar circular size={48} backgroundColor={AVATAR_BG}>
-        {avatarUrl ? <Avatar.Image src={avatarUrl} /> : null}
-        <Avatar.Fallback
-          alignItems="center"
-          backgroundColor={AVATAR_BG}
-          justifyContent="center">
-          <Image
-            accessibilityLabel="Profile picture"
-            source={profileCirclePlaceholder}
-            style={{ width: 48, height: 48, borderRadius: 24 }}
-            resizeMode="cover"
-          />
-        </Avatar.Fallback>
-      </Avatar>
+      <GreyAvatar size={48} name={userName} avatarUrl={avatarUrl} />
 
       <YStack flex={1} gap={2} justifyContent="center" minWidth={0}>
         <Text

@@ -54,10 +54,13 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
       typeof options?.userMetadata?.avatar_url === 'string'
         ? options.userMetadata.avatar_url
         : null;
+    // Prefer DB avatar, then in-memory, then auth metadata fallback.
     set({
       profile: {
         ...base,
-        avatar_url: resolveAvatarDisplayUrl(existingAvatar ?? metaAvatar ?? base.avatar_url),
+        avatar_url: resolveAvatarDisplayUrl(
+          base.avatar_url ?? existingAvatar ?? metaAvatar,
+        ),
       },
       isLoading: false,
     });

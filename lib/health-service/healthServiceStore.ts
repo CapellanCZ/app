@@ -21,7 +21,7 @@ type HealthServiceState = {
   cancelAppointment: (id: string) => Promise<void>;
   confirmAppointment: (id: string) => Promise<void>;
   refreshData: () => Promise<void>;
-  /** Subscribe to real-time health_appointments changes. Returns unsubscribe fn. */
+  /** Subscribe to real-time appointments changes. Returns unsubscribe fn. */
   subscribeAppointments: () => (() => void);
   /** Clear all data on logout. */
   reset: () => void;
@@ -85,7 +85,7 @@ export const useHealthServiceStore = create<HealthServiceState>((set, get) => ({
       set(state => ({
         appointments: state.appointments.map(apt =>
           apt.id === id ? { ...apt, status: 'cancelled' as const } : apt
-        ).filter(apt => apt.status !== 'cancelled') as Appointment[],
+        ),
         loading: false
       }));
     } catch (error) {
