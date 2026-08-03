@@ -31,7 +31,7 @@ function VitalCard({ label, value, status, backgroundColor, icon }: VitalCardPro
           style={{
             flex: 1,
             fontFamily: Inter.regular,
-            fontSize: 12,
+            fontSize: 14,
             color: '#373636',
             letterSpacing: -0.48,
           }}>
@@ -45,16 +45,16 @@ function VitalCard({ label, value, status, backgroundColor, icon }: VitalCardPro
         <Text
           style={{
             fontFamily: Inter.regular,
-            fontSize: 24,
+            fontSize: 26,
             color: '#111111',
-            lineHeight: 30,
+            lineHeight: 32,
           }}>
           {value}
         </Text>
         <Text
           style={{
             fontFamily: Inter.regular,
-            fontSize: 10,
+            fontSize: 12,
             color: '#373636',
             letterSpacing: -0.4,
           }}>

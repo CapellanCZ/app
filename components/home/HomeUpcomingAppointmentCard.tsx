@@ -50,7 +50,7 @@ export function HomeUpcomingAppointmentCard({
         <Text
           style={{
             fontFamily: Inter.regular,
-            fontSize: 10,
+            fontSize: 12,
             color: '#666666',
             letterSpacing: -0.8,
             textTransform: 'uppercase',
@@ -106,7 +106,7 @@ export function HomeUpcomingAppointmentCard({
                   numberOfLines={1}
                   style={{
                     fontFamily: Inter.regular,
-                    fontSize: 16,
+                    fontSize: 18,
                     color: '#000000',
                     letterSpacing: -0.64,
                   }}>
@@ -116,7 +116,7 @@ export function HomeUpcomingAppointmentCard({
                   numberOfLines={1}
                   style={{
                     fontFamily: Inter.regular,
-                    fontSize: 14,
+                    fontSize: 16,
                     color: MUTED,
                     letterSpacing: -1.12,
                   }}>
@@ -157,7 +157,7 @@ export function HomeUpcomingAppointmentCard({
               <Text
                 style={{
                   fontFamily: Inter.regular,
-                  fontSize: 14,
+                  fontSize: 16,
                   color: MUTED,
                   letterSpacing: -1.12,
                 }}>
@@ -169,7 +169,7 @@ export function HomeUpcomingAppointmentCard({
               <Text
                 style={{
                   fontFamily: Inter.regular,
-                  fontSize: 14,
+                  fontSize: 16,
                   color: MUTED,
                   letterSpacing: -1.12,
                 }}>
@@ -203,7 +203,7 @@ export function HomeUpcomingEmptyCard() {
         <Text
           style={{
             fontFamily: Inter.regular,
-            fontSize: 10,
+            fontSize: 12,
             color: '#666666',
             letterSpacing: -0.8,
             textTransform: 'uppercase',
@@ -225,7 +225,7 @@ export function HomeUpcomingEmptyCard() {
         <Text
           style={{
             fontFamily: Inter.regular,
-            fontSize: 16,
+            fontSize: 18,
             color: '#717680',
             letterSpacing: -0.32,
             textAlign: 'center',
@@ -235,7 +235,7 @@ export function HomeUpcomingEmptyCard() {
         <Text
           style={{
             fontFamily: Inter.regular,
-            fontSize: 12,
+            fontSize: 14,
             color: '#A4A7AE',
             letterSpacing: -0.24,
             textAlign: 'center',

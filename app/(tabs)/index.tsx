@@ -43,10 +43,10 @@ function SectionTitle({ children }: { children: string }) {
     <Text
       style={{
         fontFamily: Inter.medium,
-        fontSize: 20,
+        fontSize: 22,
         color: '#111111',
         letterSpacing: -1.6,
-        lineHeight: 24,
+        lineHeight: 26,
       }}>
       {children}
     </Text>
@@ -158,10 +158,10 @@ export default function HealthServiceScreen() {
             <Text
               style={{
                 fontFamily: Inter.medium,
-                fontSize: 28,
+                fontSize: 30,
                 color: '#222222',
                 letterSpacing: -2.24,
-                lineHeight: 38,
+                lineHeight: 40,
               }}>
               How are you feeling today?
             </Text>
