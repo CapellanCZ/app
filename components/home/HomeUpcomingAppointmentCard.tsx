@@ -14,7 +14,10 @@ export type HomeUpcomingAppointmentCardProps = {
   specialtyLabel: string;
   photoUrl?: string | null;
   dateLabel: string;
+  /** Appointment start, e.g. "10:00 AM" */
   timeLabel: string;
+  /** Estimated finish time, e.g. "10:20 AM" — shown as EST */
+  estDoneLabel?: string | null;
   onPress?: () => void;
   onCallPress?: () => void;
 };
@@ -28,9 +31,13 @@ export function HomeUpcomingAppointmentCard({
   photoUrl,
   dateLabel,
   timeLabel,
+  estDoneLabel,
   onPress,
   onCallPress,
 }: HomeUpcomingAppointmentCardProps) {
+  const timeAccessibility = estDoneLabel
+    ? `${timeLabel}, estimated done ${estDoneLabel}`
+    : timeLabel;
   return (
     <View style={{ width: '100%', paddingTop: 7 }}>
       <View
@@ -61,7 +68,7 @@ export function HomeUpcomingAppointmentCard({
 
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`Upcoming appointment with ${doctorName}, ${dateLabel}, ${timeLabel}`}
+        accessibilityLabel={`Upcoming appointment with ${doctorName}, ${dateLabel}, ${timeAccessibility}`}
         onPress={onPress}
         style={{
           backgroundColor: CARD_BG,
@@ -164,7 +171,7 @@ export function HomeUpcomingAppointmentCard({
                 {dateLabel}
               </Text>
             </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 }}>
               <IconsaxTimerIcon size={18} color={MUTED} />
               <Text
                 style={{
@@ -172,8 +179,9 @@ export function HomeUpcomingAppointmentCard({
                   fontSize: 16,
                   color: MUTED,
                   letterSpacing: -1.12,
-                }}>
-                {timeLabel}
+                }}
+                numberOfLines={1}>
+                {estDoneLabel ? `${timeLabel} · EST ${estDoneLabel}` : timeLabel}
               </Text>
             </View>
           </View>
@@ -225,7 +233,7 @@ export function HomeUpcomingEmptyCard() {
         <Text
           style={{
             fontFamily: Inter.regular,
-            fontSize: 18,
+            fontSize: 16,
             color: '#717680',
             letterSpacing: -0.32,
             textAlign: 'center',
@@ -235,7 +243,7 @@ export function HomeUpcomingEmptyCard() {
         <Text
           style={{
             fontFamily: Inter.regular,
-            fontSize: 14,
+            fontSize: 12,
             color: '#A4A7AE',
             letterSpacing: -0.24,
             textAlign: 'center',

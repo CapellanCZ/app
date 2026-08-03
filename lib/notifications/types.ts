@@ -42,23 +42,54 @@ export const DEFAULT_SOURCE_BY_CATEGORY: Record<WelfareNotificationCategory, str
   campus: 'Campus',
 };
 
-/** Raw row shape returned by Supabase. */
+/** Raw row shape returned by Supabase `public.notifications`. */
 export type NotificationRow = {
   id: string;
   user_id: string;
-  category: WelfareNotificationCategory;
+  /** Live CampusCare column — not `category`. */
+  type?: string | null;
+  /** Legacy / optional — some local inserts used this. */
+  category?: WelfareNotificationCategory | null;
   title: string;
   body: string;
   href: string;
   read_at: string | null;
   created_at: string;
-  /** Populated by notifySelf — e.g. 'Discipline Office' */
+  metadata?: {
+    category?: WelfareNotificationCategory;
+    notification_type?: string;
+    appointment_id?: string;
+    [key: string]: unknown;
+  } | null;
   source?: string | null;
-  /** Populated by notifySelf — 'success' | 'info' | 'error' */
   notification_type?: string | null;
 };
 
 const DAY_MS = 86_400_000;
+
+function mapDbTypeToCategory(type: string | null | undefined): WelfareNotificationCategory {
+  switch ((type ?? '').toLowerCase()) {
+    case 'appointment':
+    case 'consultation_request':
+    case 'queue':
+      return 'health';
+    case 'announcement':
+      return 'campus';
+    default:
+      return 'health';
+  }
+}
+
+export function mapCategoryToDbType(category: WelfareNotificationCategory): string {
+  switch (category) {
+    case 'health':
+      return 'appointment';
+    case 'campus':
+      return 'announcement';
+    default:
+      return 'appointment';
+  }
+}
 
 export function isWithinDays(createdAt: string, days: number): boolean {
   const diff = Date.now() - new Date(createdAt).getTime();
@@ -90,27 +121,32 @@ export function toTimeLabel(createdAt: string): string {
 
 /** Convert a raw Supabase row into the UI-shaped item used by the screen. */
 export function toNotificationItem(row: NotificationRow): NotificationItem {
-  const rawType = (row.notification_type ?? '').toLowerCase();
+  const metaType = (row.metadata?.notification_type ?? row.notification_type ?? '').toLowerCase();
   let notificationType: NotificationStatusType | undefined =
-    rawType === 'success' || rawType === 'error' || rawType === 'info' || rawType === 'warning'
-      ? (rawType as NotificationStatusType)
+    metaType === 'success' || metaType === 'error' || metaType === 'info' || metaType === 'warning'
+      ? (metaType as NotificationStatusType)
       : undefined;
 
-  // Fallback for "pushing data" actions in case the DB column isn't migrated
   if (!notificationType && row.title.toLowerCase().includes('submitted')) {
     notificationType = 'success';
   }
+  if (!notificationType && row.title.toLowerCase().includes('confirmed')) {
+    notificationType = 'success';
+  }
+
+  const category =
+    row.metadata?.category ?? row.category ?? mapDbTypeToCategory(row.type);
 
   return {
     id: row.id,
-    category: row.category,
+    category,
     title: row.title,
     body: row.body,
     href: row.href,
     read: row.read_at !== null,
     section: toSection(row.created_at),
     timeLabel: toTimeLabel(row.created_at),
-    source: row.source ?? DEFAULT_SOURCE_BY_CATEGORY[row.category],
+    source: row.source ?? DEFAULT_SOURCE_BY_CATEGORY[category],
     notificationType,
   };
 }

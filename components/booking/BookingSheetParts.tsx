@@ -10,32 +10,44 @@ type DayChipProps = {
   weekday: string;
   dayNumber: string;
   selected: boolean;
+  /** No clinic schedule for this weekday (or otherwise not bookable). */
+  disabled?: boolean;
   onPress: () => void;
 };
 
-export function BookingDayChip({ weekday, dayNumber, selected, onPress }: DayChipProps) {
+export function BookingDayChip({
+  weekday,
+  dayNumber,
+  selected,
+  disabled = false,
+  onPress,
+}: DayChipProps) {
+  const isSelected = selected && !disabled;
+
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityState={{ selected }}
+      accessibilityState={{ selected: isSelected, disabled }}
+      disabled={disabled}
       onPress={onPress}
       style={{
         flex: 1,
         flexBasis: 0,
         height: 78,
         borderRadius: 16,
-        backgroundColor: selected ? SELECTED_BG : CHIP_BG,
+        backgroundColor: disabled ? '#F3F3F3' : isSelected ? SELECTED_BG : CHIP_BG,
         alignItems: 'center',
         justifyContent: 'center',
         gap: 12,
         paddingHorizontal: 4,
         paddingVertical: 12,
+        opacity: disabled ? 0.45 : 1,
       }}>
       <Text
         style={{
           fontFamily: Inter.regular,
           fontSize: 12,
-          color: selected ? '#A7A7A7' : '#6C6C6C',
+          color: disabled ? '#B0B0B0' : isSelected ? '#A7A7A7' : '#6C6C6C',
           letterSpacing: -0.48,
         }}>
         {weekday}
@@ -44,8 +56,9 @@ export function BookingDayChip({ weekday, dayNumber, selected, onPress }: DayChi
         style={{
           fontFamily: Inter.medium,
           fontSize: 16,
-          color: selected ? '#FFFFFF' : '#111111',
+          color: disabled ? '#B0B0B0' : isSelected ? '#FFFFFF' : '#111111',
           letterSpacing: -0.64,
+          textDecorationLine: disabled ? 'line-through' : 'none',
         }}>
         {dayNumber}
       </Text>

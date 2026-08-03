@@ -106,13 +106,44 @@ async function requireLinkedPatient(): Promise<{
   };
 }
 
+export type DaySlot = {
+  label: string;
+  booked: boolean;
+};
+
+export type DayAvailabilitySlots = {
+  working: boolean;
+  /** e.g. "9:00 AM – 6:00 PM" from doctor_availability */
+  hoursLabel: string | null;
+  slots: DaySlot[];
+};
+
+/** School Doctors row status (Supabase schedule + breaks + cutoff). */
+export type StaffPresenceStatus = 'available' | 'on_break' | 'cutoff' | 'unavailable';
+
 export type HealthServiceApi = {
   listStaff(): Promise<Staff[]>;
   getOpenSlotLabels(staffId: string, day: Date, period: SlotPeriod): Promise<string[]>;
+  /** All 20-min slots for a day from `doctor_availability` (+ booked flags). */
+  getDaySlots(staffId: string, day: Date): Promise<DayAvailabilitySlots>;
+  /** Active schedule days (0=Sun … 6=Sat) from `doctor_availability`. */
+  getWorkingDaysOfWeek(staffId: string): Promise<number[]>;
   isWorking(staffId: string, day: Date): Promise<boolean>;
+  /** Rich presence for School Doctors list. */
+  getStaffPresence(staffId: string, day: Date): Promise<StaffPresenceStatus>;
   /** Pending + confirmed; excludes cancelled. */
   listMyAppointments(): Promise<Appointment[]>;
-  bookAppointment(input: { staffId: string; day: Date; startLabel: string; symptoms?: string }): Promise<{ id: string; checkInCode: string; createdAt: string }>;
+  bookAppointment(input: {
+    staffId: string;
+    day: Date;
+    startLabel: string;
+    symptoms?: string;
+  }): Promise<{ id: string; checkInCode: string; createdAt: string; status: AppointmentStatus }>;
+  /** Schedule a push/in-app reminder N minutes before a confirmed appointment. */
+  scheduleAppointmentReminder(
+    appointmentId: string,
+    minutesBefore?: number,
+  ): Promise<{ remindAt: string; minutesBefore: number }>;
   cancelAppointment(id: string): Promise<void>;
   /** Provider approves a pending booking; ticket is NOT created automatically. */
   confirmAppointmentByProvider(id: string): Promise<void>;
@@ -152,6 +183,57 @@ const STAFF_ROLE_LABEL: Record<StaffRole, string> = {
   dentist: 'Dentist',
 };
 
+const SLOT_INTERVAL_MIN = 20;
+
+/** Parse "09:00:00" / "9:00:00" → minutes from midnight. */
+function timeStringToMinutes(time: string): number {
+  const [h, m] = String(time).split(':').map((x) => parseInt(x, 10));
+  return (h || 0) * 60 + (m || 0);
+}
+
+function minutesToTimeStr(totalMin: number): string {
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:00`;
+}
+
+function periodWindowMinutes(period: SlotPeriod): { start: number; end: number } {
+  switch (period) {
+    case 'morning':
+      return { start: 8 * 60, end: 12 * 60 };
+    case 'afternoon':
+      return { start: 12 * 60, end: 17 * 60 };
+    case 'evening':
+      return { start: 17 * 60, end: 20 * 60 };
+    case 'night':
+      return { start: 20 * 60, end: 24 * 60 };
+  }
+}
+
+/** Live break is active only while flagged and not past resumes_at. */
+function isBreakActive(isOnBreak: boolean | null | undefined, resumesAt: string | null | undefined, now: Date): boolean {
+  if (!isOnBreak) return false;
+  if (resumesAt && new Date(resumesAt).getTime() <= now.getTime()) return false;
+  return true;
+}
+
+function isSameCalendarDay(a: Date, b: Date): boolean {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+
+type TimeWindow = { startMin: number; endMin: number };
+
+function intersectWindows(a: TimeWindow, b: TimeWindow): TimeWindow | null {
+  const startMin = Math.max(a.startMin, b.startMin);
+  const endMin = Math.min(a.endMin, b.endMin);
+  if (endMin <= startMin) return null;
+  return { startMin, endMin };
+}
+
 function createSupabaseHealthServiceApi(): HealthServiceApi {
   return {
     async listStaff() {
@@ -182,19 +264,109 @@ function createSupabaseHealthServiceApi(): HealthServiceApi {
         .filter((s): s is Staff => s !== null);
     },
 
-    async getOpenSlotLabels(staffId, day, period) {
+    async getDaySlots(staffId, day) {
       if (!supabase) throw new Error('Supabase not configured');
 
       const dayOfWeek = day.getDay();
-      const { data: availability, error: availError } = await supabase
+      const now = new Date();
+      const bookingToday = isSameCalendarDay(day, now);
+
+      // Doctor may have multiple windows per day (e.g. 9–12 and 1–6 with lunch off).
+      const { data: availRows, error: availError } = await supabase
         .from('doctor_availability')
-        .select('start_time, end_time')
+        .select('start_time, end_time, clinic_id')
         .eq('doctor_id', staffId)
         .eq('day_of_week', dayOfWeek)
         .eq('is_active', true)
-        .maybeSingle();
+        .order('start_time');
 
-      if (availError || !availability) return [];
+      if (availError || !availRows?.length) {
+        return { working: false, hoursLabel: null, slots: [] };
+      }
+
+      const clinicId = availRows[0].clinic_id as string;
+
+      const [{ data: office }, { data: clinicBreak }, { data: staffBreak }] = await Promise.all([
+        supabase
+          .from('clinic_office_hours')
+          .select('start_time, end_time, is_closed')
+          .eq('clinic_id', clinicId)
+          .eq('day_of_week', dayOfWeek)
+          .maybeSingle(),
+        supabase
+          .from('clinic_break_status')
+          .select('is_on_break, resumes_at')
+          .eq('clinic_id', clinicId)
+          .maybeSingle(),
+        supabase
+          .from('staff_break_status')
+          .select('is_on_break, resumes_at')
+          .eq('user_id', staffId)
+          .maybeSingle(),
+      ]);
+
+      if (office?.is_closed) {
+        return { working: false, hoursLabel: null, slots: [] };
+      }
+
+      // Clinic-wide pause with no resume → closed for the day (today only).
+      // Staff on-break still keeps morning/afternoon slots bookable; we only
+      // skip times before resumes_at when that timestamp exists.
+      if (
+        bookingToday &&
+        isBreakActive(clinicBreak?.is_on_break, clinicBreak?.resumes_at, now) &&
+        !clinicBreak?.resumes_at
+      ) {
+        return { working: false, hoursLabel: null, slots: [] };
+      }
+
+      const officeWindow: TimeWindow | null =
+        office?.start_time && office?.end_time
+          ? {
+              startMin: timeStringToMinutes(String(office.start_time)),
+              endMin: timeStringToMinutes(String(office.end_time)),
+            }
+          : null;
+
+      let windows: TimeWindow[] = availRows
+        .map((row) => ({
+          startMin: timeStringToMinutes(String(row.start_time)),
+          endMin: timeStringToMinutes(String(row.end_time)),
+        }))
+        .filter((w) => w.endMin > w.startMin);
+
+      if (officeWindow) {
+        windows = windows
+          .map((w) => intersectWindows(w, officeWindow))
+          .filter((w): w is TimeWindow => w !== null);
+      }
+
+      // Skip times before now / before break resume (today only).
+      // Does not wipe the rest of the day — afternoon (etc.) stays bookable.
+      let earliestMin = 0;
+      if (bookingToday) {
+        earliestMin = Math.max(earliestMin, now.getHours() * 60 + now.getMinutes());
+
+        if (isBreakActive(clinicBreak?.is_on_break, clinicBreak?.resumes_at, now) && clinicBreak?.resumes_at) {
+          const resume = new Date(clinicBreak.resumes_at);
+          earliestMin = Math.max(earliestMin, resume.getHours() * 60 + resume.getMinutes());
+        }
+        if (isBreakActive(staffBreak?.is_on_break, staffBreak?.resumes_at, now) && staffBreak?.resumes_at) {
+          const resume = new Date(staffBreak.resumes_at);
+          earliestMin = Math.max(earliestMin, resume.getHours() * 60 + resume.getMinutes());
+        }
+      }
+
+      if (!windows.length) {
+        return { working: false, hoursLabel: null, slots: [] };
+      }
+
+      const hoursLabel = windows
+        .map(
+          (w) =>
+            `${labelFromTime(minutesToTimeStr(w.startMin))} – ${labelFromTime(minutesToTimeStr(w.endMin))}`,
+        )
+        .join(', ');
 
       const dayStart = startsAtFromDayAndLabel(day, '12:00 AM');
       const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
@@ -216,56 +388,133 @@ function createSupabaseHealthServiceApi(): HealthServiceApi {
         }),
       );
 
-      const slots: string[] = [];
-      const startHour = parseInt(String(availability.start_time).split(':')[0], 10);
-      const endHour = parseInt(String(availability.end_time).split(':')[0], 10);
-
-      let periodStart: number;
-      let periodEnd: number;
-      switch (period) {
-        case 'morning':
-          periodStart = Math.max(startHour, 8);
-          periodEnd = Math.min(endHour, 12);
-          break;
-        case 'afternoon':
-          periodStart = Math.max(startHour, 12);
-          periodEnd = Math.min(endHour, 17);
-          break;
-        case 'evening':
-          periodStart = Math.max(startHour, 17);
-          periodEnd = Math.min(endHour, 20);
-          break;
-        case 'night':
-          periodStart = Math.max(startHour, 20);
-          periodEnd = Math.min(endHour, 24);
-          break;
-      }
-
-      for (let hour = periodStart; hour < periodEnd; hour++) {
-        for (let minute = 0; minute < 60; minute += 20) {
-          const timeStr = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}:00`;
-          if (!bookedTimes.has(timeStr)) {
-            slots.push(labelFromTime(timeStr));
-          }
+      const slots: DaySlot[] = [];
+      for (const w of windows) {
+        for (let t = w.startMin; t + SLOT_INTERVAL_MIN <= w.endMin; t += SLOT_INTERVAL_MIN) {
+          if (bookingToday && t <= earliestMin) continue;
+          const timeStr = minutesToTimeStr(t);
+          slots.push({
+            label: labelFromTime(timeStr),
+            booked: bookedTimes.has(timeStr),
+          });
         }
       }
 
-      return slots;
+      return { working: true, hoursLabel, slots };
     },
 
-    async isWorking(staffId, day) {
+    async getOpenSlotLabels(staffId, day, period) {
+      const { slots } = await this.getDaySlots(staffId, day);
+      const window = periodWindowMinutes(period);
+      return slots
+        .filter((s) => {
+          if (s.booked) return false;
+          const mins = timeStringToMinutes(timeFromLabel(s.label));
+          return mins >= window.start && mins < window.end;
+        })
+        .map((s) => s.label);
+    },
+
+    async getStaffPresence(staffId, day) {
       if (!supabase) throw new Error('Supabase not configured');
 
       const dayOfWeek = day.getDay();
-      const { data, error } = await supabase
+      const now = new Date();
+      const forToday = isSameCalendarDay(day, now);
+
+      const { data: availRows, error } = await supabase
         .from('doctor_availability')
-        .select('id')
+        .select('start_time, end_time, clinic_id')
         .eq('doctor_id', staffId)
         .eq('day_of_week', dayOfWeek)
         .eq('is_active', true)
-        .maybeSingle();
+        .order('start_time');
 
-      return !error && !!data;
+      if (error || !availRows?.length) return 'unavailable';
+
+      const clinicId = availRows[0].clinic_id as string;
+
+      const [{ data: office }, { data: clinicBreak }, { data: staffBreak }] = await Promise.all([
+        supabase
+          .from('clinic_office_hours')
+          .select('start_time, end_time, is_closed')
+          .eq('clinic_id', clinicId)
+          .eq('day_of_week', dayOfWeek)
+          .maybeSingle(),
+        supabase
+          .from('clinic_break_status')
+          .select('is_on_break, resumes_at')
+          .eq('clinic_id', clinicId)
+          .maybeSingle(),
+        supabase
+          .from('staff_break_status')
+          .select('is_on_break, resumes_at')
+          .eq('user_id', staffId)
+          .maybeSingle(),
+      ]);
+
+      if (office?.is_closed) return 'unavailable';
+
+      if (forToday) {
+        if (isBreakActive(clinicBreak?.is_on_break, clinicBreak?.resumes_at, now)) return 'on_break';
+        if (isBreakActive(staffBreak?.is_on_break, staffBreak?.resumes_at, now)) return 'on_break';
+      }
+
+      const officeWindow: TimeWindow | null =
+        office?.start_time && office?.end_time
+          ? {
+              startMin: timeStringToMinutes(String(office.start_time)),
+              endMin: timeStringToMinutes(String(office.end_time)),
+            }
+          : null;
+
+      let windows: TimeWindow[] = availRows
+        .map((row) => ({
+          startMin: timeStringToMinutes(String(row.start_time)),
+          endMin: timeStringToMinutes(String(row.end_time)),
+        }))
+        .filter((w) => w.endMin > w.startMin);
+
+      if (officeWindow) {
+        windows = windows
+          .map((w) => intersectWindows(w, officeWindow))
+          .filter((w): w is TimeWindow => w !== null);
+      }
+
+      if (!windows.length) return 'unavailable';
+
+      // Cutoff: scheduled today, but past the last bookable window (or nothing left to book).
+      if (forToday) {
+        const lastEnd = Math.max(...windows.map((w) => w.endMin));
+        const nowMin = now.getHours() * 60 + now.getMinutes();
+        if (nowMin >= lastEnd - SLOT_INTERVAL_MIN) return 'cutoff';
+      }
+
+      return 'available';
+    },
+
+    async getWorkingDaysOfWeek(staffId) {
+      if (!supabase) throw new Error('Supabase not configured');
+
+      const { data, error } = await supabase
+        .from('doctor_availability')
+        .select('day_of_week')
+        .eq('doctor_id', staffId)
+        .eq('is_active', true);
+
+      if (error) throw error;
+
+      const days = new Set<number>();
+      for (const row of data ?? []) {
+        const dow = Number(row.day_of_week);
+        if (!Number.isNaN(dow)) days.add(dow);
+      }
+      return Array.from(days).sort((a, b) => a - b);
+    },
+
+    async isWorking(staffId, day) {
+      const status = await this.getStaffPresence(staffId, day);
+      return status === 'available';
     },
 
     async listMyAppointments() {
@@ -321,15 +570,52 @@ function createSupabaseHealthServiceApi(): HealthServiceApi {
           reason: input.symptoms?.trim() || null,
           status: 'pending',
         })
-        .select('id, created_at')
+        .select('id, created_at, status')
         .single();
 
       if (error) throw error;
+
+      // Resolve final status: web auto-confirm may update the row right after insert.
+      let status = mapDbStatus(String(inserted.status ?? 'pending'));
+      if (status !== 'confirmed') {
+        for (let attempt = 0; attempt < 3; attempt++) {
+          await new Promise((r) => setTimeout(r, 300));
+          const { data: fresh } = await supabase
+            .from('appointments')
+            .select('status')
+            .eq('id', inserted.id)
+            .maybeSingle();
+          status = mapDbStatus(String(fresh?.status ?? 'pending'));
+          if (status === 'confirmed') break;
+        }
+      }
 
       return {
         id: inserted.id as string,
         checkInCode: '—',
         createdAt: inserted.created_at as string,
+        status,
+      };
+    },
+
+    async scheduleAppointmentReminder(appointmentId, minutesBefore = 30) {
+      if (!supabase) throw new Error('Supabase not configured');
+
+      const { data, error } = await supabase.rpc('schedule_appointment_reminder', {
+        p_appointment_id: appointmentId,
+        p_minutes_before: minutesBefore,
+      });
+
+      if (error) throw error;
+
+      const row = Array.isArray(data) ? data[0] : data;
+      if (!row?.remind_at) {
+        throw new Error('Failed to schedule reminder');
+      }
+
+      return {
+        remindAt: String(row.remind_at),
+        minutesBefore: Number(row.minutes_before ?? minutesBefore),
       };
     },
 

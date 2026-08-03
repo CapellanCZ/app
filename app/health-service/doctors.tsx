@@ -1,211 +1,188 @@
-import { useCallback, useMemo, useState } from 'react';
-import { Pressable, ScrollView, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
-import Animated from 'react-native-reanimated';
 
-import { fadeSlideUpEntering } from '@/lib/animations/fadeSlideUp';
+import { DoctorListCard } from '@/components/health-service/DoctorListCard';
+import { HealthServiceScreenShell } from '@/components/health-service/HealthServiceScreenShell';
+import { CircleBackButton } from '@/components/ui/CircleBackButton';
+import { healthServiceApi, type StaffPresenceStatus } from '@/lib/health-service/healthServiceApi';
+import { useHealthServiceStore } from '@/lib/health-service/healthServiceStore';
+import type { StaffRole } from '@/lib/health-service/types';
+import { Inter } from '@/lib/typography/inter';
 
-import { HealthServiceScreenShell } from '../../components/health-service/HealthServiceScreenShell';
-import { ProviderCard } from '../../components/health-service/ProviderCard';
-import { IconsaxArrowLeftIcon } from '@/components/icons/IconsaxArrowLeftIcon';
-import { IconsaxSearchIcon } from '../../components/icons/IconsaxSearchIcon';
-import { useHealthServiceStore } from '../../lib/health-service/healthServiceStore';
-import type { StaffRole } from '../../lib/health-service/types';
+type FilterId = 'all' | 'doctor' | 'dentist';
 
-const BRAND = '#2970FF';
-
-const ROLE_CHIPS: { label: string; value: StaffRole | 'all' }[] = [
-  { label: 'Physician', value: 'doctor' },
-  { label: 'Dentist', value: 'dentist' },
-  { label: 'Cardiology', value: 'all' },
-  { label: 'Psychiatrist', value: 'all' },
+const FILTERS: { id: FilterId; label: string }[] = [
+  { id: 'all', label: 'All' },
+  { id: 'doctor', label: 'Physician' },
+  { id: 'dentist', label: 'Dentist' },
 ];
 
+/**
+ * School Doctors — Figma node 2243:333.
+ */
 export default function AllDoctorsScreen() {
   const insets = useSafeAreaInsets();
-  const { width: windowWidth } = useWindowDimensions();
-
-  const [search, setSearch] = useState('');
-  const [roleFilter, setRoleFilter] = useState<StaffRole | 'all'>('all');
+  const [filter, setFilter] = useState<FilterId>('all');
+  const [presence, setPresence] = useState<Record<string, StaffPresenceStatus>>({});
+  const [loadingAvailability, setLoadingAvailability] = useState(false);
 
   const { staff, loadStaff } = useHealthServiceStore();
 
   useFocusEffect(
     useCallback(() => {
-      if (!staff.length) loadStaff();
+      if (!staff.length) void loadStaff();
     }, [loadStaff, staff.length]),
   );
 
-  const filteredStaff = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return staff.filter((s) => {
-      if (roleFilter !== 'all' && s.role !== roleFilter) return false;
-      if (q && !s.name.toLowerCase().includes(q) && !s.specialtyLabel.toLowerCase().includes(q)) return false;
-      return true;
-    });
-  }, [staff, roleFilter, search]);
+  const doctors = useMemo(
+    () => staff.filter((s) => s.role === 'doctor' || s.role === 'dentist'),
+    [staff],
+  );
 
-  const cardWidth = (windowWidth - 20 * 2 - 29) / 2;
+  const filtered = useMemo(() => {
+    if (filter === 'all') return doctors;
+    return doctors.filter((s) => s.role === (filter as StaffRole));
+  }, [doctors, filter]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadAvailability() {
+      if (!doctors.length) {
+        setPresence({});
+        return;
+      }
+      setLoadingAvailability(true);
+      const today = new Date();
+      try {
+        const entries = await Promise.all(
+          doctors.map(async (s) => {
+            try {
+              const status = await healthServiceApi.getStaffPresence(s.id, today);
+              return [s.id, status] as const;
+            } catch {
+              return [s.id, 'unavailable' as StaffPresenceStatus] as const;
+            }
+          }),
+        );
+        if (!cancelled) {
+          setPresence(Object.fromEntries(entries));
+        }
+      } finally {
+        if (!cancelled) setLoadingAvailability(false);
+      }
+    }
+
+    void loadAvailability();
+    return () => {
+      cancelled = true;
+    };
+  }, [doctors]);
 
   return (
     <HealthServiceScreenShell>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        keyboardDismissMode="on-drag"
-        contentContainerStyle={{ paddingBottom: 40 }}>
+        contentContainerStyle={{
+          paddingTop: insets.top + 12,
+          paddingHorizontal: 20,
+          paddingBottom: 40,
+          gap: 20,
+          backgroundColor: '#F9F9F9',
+        }}>
+        {/* Header */}
+        <View style={{ gap: 16 }}>
+          <CircleBackButton onPress={() => router.back()} />
 
-        {/* ══ Header ══ */}
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 16,
-            paddingHorizontal: 20,
-            paddingTop: insets.top + 16,
-          }}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
-            onPress={() => router.back()}
-            style={{
-              width: 44,
-              height: 44,
-              borderRadius: 999,
-              backgroundColor: '#F5F5F5',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-            }}
-            className="active:opacity-70">
-            <IconsaxArrowLeftIcon size={20} color="#252B37" />
-          </Pressable>
-
-          <View style={{ flex: 1, gap: 4 }}>
+          <View>
             <Text
               style={{
-                fontSize: 24,
-                fontWeight: '600',
-                color: '#000000',
-                letterSpacing: -0.48,
+                fontFamily: Inter.medium,
+                fontSize: 28,
+                color: '#222222',
+                letterSpacing: -2.24,
+                lineHeight: 38,
               }}>
-              Our Doctors
+              School Doctors
             </Text>
             <Text
               style={{
-                fontSize: 14,
-                fontWeight: '300',
-                color: '#535862',
-                letterSpacing: -0.28,
+                fontFamily: Inter.regular,
+                fontSize: 16,
+                color: '#727272',
+                letterSpacing: -0.64,
+                lineHeight: 20,
               }}>
               Choose a doctor that you want to be accomadated
             </Text>
           </View>
+
+          {/* All · Physician · Dentist */}
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            {FILTERS.map((chip) => {
+              const selected = filter === chip.id;
+              return (
+                <Pressable
+                  key={chip.id}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected }}
+                  onPress={() => setFilter(chip.id)}
+                  style={{
+                    flex: 1,
+                    height: 36,
+                    borderRadius: 99,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: selected ? '#000000' : 'rgba(255,255,255,0.32)',
+                    borderWidth: selected ? 0 : 1,
+                    borderColor: '#E3E3E3',
+                  }}
+                  className="active:opacity-80">
+                  <Text
+                    style={{
+                      fontFamily: Inter.regular,
+                      fontSize: 15,
+                      color: selected ? '#FFFFFF' : '#666666',
+                      letterSpacing: -1.2,
+                      textAlign: 'center',
+                    }}>
+                    {chip.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
         </View>
 
-        {/* ══ Content ══ */}
-        <View style={{ paddingHorizontal: 20, marginTop: 24, gap: 24 }}>
-
-          {/* Search bar */}
-          <View
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              height: 45,
-              backgroundColor: '#FFFFFF',
-              borderRadius: 9999,
-              paddingHorizontal: 16,
-              gap: 12,
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.06,
-              shadowRadius: 4,
-              elevation: 3,
-            }}>
-            <IconsaxSearchIcon size={16} color="#717680" />
-            <TextInput
-              value={search}
-              onChangeText={setSearch}
-              placeholder="Find the right doctor for you..."
-              placeholderTextColor="#71717A"
-              returnKeyType="search"
+        {/* Doctor list */}
+        <View style={{ gap: 12 }}>
+          {!staff.length || loadingAvailability ? (
+            <View style={{ paddingVertical: 40, alignItems: 'center' }}>
+              <ActivityIndicator color="#111" />
+            </View>
+          ) : filtered.length === 0 ? (
+            <Text
               style={{
-                flex: 1,
-                fontSize: 16,
-                fontWeight: '300',
-                color: '#252B37',
-                padding: 0,
-              }}
-            />
-          </View>
-
-          {/* Chips + grid */}
-          <View style={{ gap: 20 }}>
-
-            {/* Role filter chips */}
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ gap: 8 }}>
-              {ROLE_CHIPS.map((chip) => {
-                const isActive = roleFilter === chip.value && chip.value !== 'all';
-                return (
-                  <Pressable
-                    key={chip.label}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: isActive }}
-                    onPress={() => setRoleFilter(isActive ? 'all' : chip.value)}
-                    style={{
-                      paddingHorizontal: 12,
-                      paddingVertical: 8,
-                      borderRadius: 99999,
-                      backgroundColor: isActive ? '#EFF4FF' : '#F5F5F5',
-                    }}
-                    className="active:opacity-75">
-                    <Text
-                      style={{
-                        fontSize: 12,
-                        fontWeight: '500',
-                        lineHeight: 16,
-                        color: isActive ? BRAND : '#717680',
-                        letterSpacing: -0.24,
-                      }}>
-                      {chip.label}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-
-            {/* 2-column doctor grid */}
-            {filteredStaff.length === 0 ? (
-              <Text
-                style={{
-                  width: '100%',
-                  paddingVertical: 32,
-                  textAlign: 'center',
-                  fontSize: 14,
-                  color: '#9095A1',
-                }}>
-                No providers match your search.
-              </Text>
-            ) : (
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 29 }}>
-                {filteredStaff.map((s, index) => (
-                  <Animated.View
-                    key={s.id}
-                    entering={fadeSlideUpEntering(index)}
-                    style={{ width: cardWidth }}>
-                    <ProviderCard
-                      staff={s}
-                      availableToday={true}
-                      onPress={() => router.push(`/health-service/book/${s.id}`)}
-                    />
-                  </Animated.View>
-                ))}
-              </View>
-            )}
-          </View>
+                fontFamily: Inter.regular,
+                fontSize: 14,
+                color: '#9095A1',
+                textAlign: 'center',
+                paddingVertical: 32,
+              }}>
+              No doctors in this category yet.
+            </Text>
+          ) : (
+            filtered.map((s) => (
+              <DoctorListCard
+                key={s.id}
+                staff={s}
+                status={presence[s.id] ?? 'unavailable'}
+                onPress={() => router.push(`/health-service/book/${s.id}`)}
+              />
+            ))
+          )}
         </View>
       </ScrollView>
     </HealthServiceScreenShell>

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
+  ScrollView,
   Text,
   useWindowDimensions,
   View,
@@ -13,20 +14,20 @@ import { useToast } from 'heroui-native';
 
 import { BookingHero } from '@/components/booking/BookingHero';
 import {
-  BookingChooseTimeRow,
   BookingDayChip,
   BookingPrimaryButton,
   BookingSheetHeader,
   BookingSlotChip,
 } from '@/components/booking/BookingSheetParts';
 import { useAuth } from '@/lib/auth/AuthProvider';
+import {
+  formatAppointmentBookedDate,
+} from '@/lib/health-service/appointmentDisplay';
 import { healthServiceApi } from '@/lib/health-service/healthServiceApi';
 import { useHealthServiceStore } from '@/lib/health-service/healthServiceStore';
-import type { SlotPeriod, StaffRole } from '@/lib/health-service/types';
+import type { StaffRole } from '@/lib/health-service/types';
 import { useNotificationStore } from '@/lib/notifications/notificationStore';
 import { Inter } from '@/lib/typography/inter';
-
-const PERIODS: SlotPeriod[] = ['morning', 'afternoon', 'evening'];
 
 const DAY_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTH_LONG = [
@@ -63,10 +64,34 @@ type SlotItem = {
   booked: boolean;
 };
 
+const NOON_MINUTES = 12 * 60;
+
+/** Parse "10:40 AM" → minutes from midnight. */
+function slotLabelToMinutes(label: string): number {
+  const [time, period] = label.split(' ');
+  const [hours, minutes] = time.split(':');
+  let hour24 = parseInt(hours, 10);
+  if (period === 'PM' && hour24 !== 12) hour24 += 12;
+  else if (period === 'AM' && hour24 === 12) hour24 = 0;
+  return hour24 * 60 + (parseInt(minutes, 10) || 0);
+}
+
+function chunkSlots(items: SlotItem[], size = 3): SlotItem[][] {
+  const rows: SlotItem[][] = [];
+  for (let i = 0; i < items.length; i += size) {
+    rows.push(items.slice(i, i + size));
+  }
+  return rows;
+}
+
 function startOfDay(d: Date): Date {
   const x = new Date(d);
   x.setHours(0, 0, 0, 0);
   return x;
+}
+
+function isPastDay(day: Date): boolean {
+  return startOfDay(day).getTime() < startOfDay(new Date()).getTime();
 }
 
 function isSameDay(a: Date, b: Date): boolean {
@@ -84,6 +109,13 @@ function getWeekDays(anchor: Date): Date[] {
     d.setDate(mon.getDate() + i);
     return d;
   });
+}
+
+/** True when every day in the Mon–Sat week of `anchor` is already past. */
+function isWeekFullyPast(anchor: Date): boolean {
+  const days = getWeekDays(anchor);
+  const last = days[days.length - 1];
+  return last ? isPastDay(last) : true;
 }
 
 function resolveSpecialty(role: StaffRole, _specialty: string): string {
@@ -120,24 +152,9 @@ function formatAppointmentDate(date: Date): string {
   return `${dayName}, ${date.getDate()} ${MONTH_SHORT[date.getMonth()]} ${date.getFullYear()}`;
 }
 
-function sortSlotLabels(labels: string[]): string[] {
-  return [...labels].sort((a, b) => {
-    const toMin = (label: string) => {
-      const m = /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i.exec(label.trim());
-      if (!m) return 0;
-      let h = Number(m[1]);
-      const min = Number(m[2]);
-      const p = m[3].toUpperCase();
-      if (p === 'PM' && h < 12) h += 12;
-      if (p === 'AM' && h === 12) h = 0;
-      return h * 60 + min;
-    };
-    return toMin(a) - toMin(b);
-  });
-}
-
 /**
  * Book appointment — Figma node 2235:1557.
+ * Slots come from Supabase `doctor_availability` for the selected day.
  */
 export default function HealthServiceBookScreen() {
   const { staffId } = useLocalSearchParams<{ staffId: string }>();
@@ -159,8 +176,11 @@ export default function HealthServiceBookScreen() {
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const [isBooking, setIsBooking] = useState(false);
   const [working, setWorking] = useState(false);
+  const [hoursLabel, setHoursLabel] = useState<string | null>(null);
   const [slots, setSlots] = useState<SlotItem[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
+  /** Days of week (0–6) this doctor has an active schedule. */
+  const [workingDows, setWorkingDows] = useState<Set<number>>(() => new Set());
 
   useEffect(() => {
     if (!allStaff.length) void loadStaff();
@@ -169,31 +189,50 @@ export default function HealthServiceBookScreen() {
   useEffect(() => {
     let cancelled = false;
 
+    async function loadWorkingDays() {
+      if (!staff) {
+        setWorkingDows(new Set());
+        return;
+      }
+      try {
+        const days = await healthServiceApi.getWorkingDaysOfWeek(staff.id);
+        if (!cancelled) setWorkingDows(new Set(days));
+      } catch (error) {
+        console.error('Failed to load working weekdays:', error);
+        if (!cancelled) setWorkingDows(new Set());
+      }
+    }
+
+    void loadWorkingDays();
+    return () => {
+      cancelled = true;
+    };
+  }, [staff]);
+
+  useEffect(() => {
+    let cancelled = false;
+
     async function loadAvailability() {
       if (!staff) {
         setWorking(false);
+        setHoursLabel(null);
         setSlots([]);
         return;
       }
 
       setLoadingSlots(true);
       try {
-        const [isWorkingToday, ...periodLabels] = await Promise.all([
-          healthServiceApi.isWorking(staff.id, selectedDay),
-          ...PERIODS.map((period) =>
-            healthServiceApi.getOpenSlotLabels(staff.id, selectedDay, period),
-          ),
-        ]);
-
+        const daySlots = await healthServiceApi.getDaySlots(staff.id, selectedDay);
         if (cancelled) return;
 
-        setWorking(isWorkingToday);
-        const open = sortSlotLabels([...new Set(periodLabels.flat())]);
-        setSlots(open.map((label) => ({ label, booked: false })));
+        setWorking(daySlots.working);
+        setHoursLabel(daySlots.hoursLabel);
+        setSlots(daySlots.slots);
       } catch (error) {
         console.error('Failed to load staff availability:', error);
         if (!cancelled) {
           setWorking(false);
+          setHoursLabel(null);
           setSlots([]);
         }
       } finally {
@@ -215,11 +254,49 @@ export default function HealthServiceBookScreen() {
 
   const weekDays = useMemo(() => getWeekDays(selectedDay), [selectedDay]);
 
+  const isDayBookable = useCallback(
+    (day: Date) => {
+      // Past calendar days are never selectable.
+      if (isPastDay(day)) return false;
+      if (workingDows.size === 0) return false;
+      return workingDows.has(day.getDay());
+    },
+    [workingDows],
+  );
+
+  // If selected day is past or off-schedule, jump to the next bookable day.
+  useEffect(() => {
+    if (!staff || workingDows.size === 0) return;
+    if (isDayBookable(selectedDay)) return;
+
+    const inWeek = weekDays.find((d) => isDayBookable(d));
+    if (inWeek) {
+      setSelectedDay(startOfDay(inWeek));
+      return;
+    }
+
+    // Current week has nothing left — jump to today (or next week’s first bookable).
+    const fromToday = startOfDay(new Date());
+    if (isDayBookable(fromToday)) {
+      setSelectedDay(fromToday);
+      return;
+    }
+    const upcoming = getWeekDays(fromToday).find((d) => isDayBookable(d));
+    if (upcoming) setSelectedDay(startOfDay(upcoming));
+  }, [staff, workingDows, selectedDay, weekDays, isDayBookable]);
+
   const shiftWeek = (delta: number) => {
     setSelectedDay((prev) => {
       const next = new Date(prev);
       next.setDate(prev.getDate() + delta * 7);
-      return startOfDay(next);
+      const nextDay = startOfDay(next);
+
+      // Don't navigate into a week that is entirely in the past.
+      if (delta < 0 && isWeekFullyPast(nextDay)) {
+        return prev;
+      }
+
+      return nextDay;
     });
   };
 
@@ -227,12 +304,12 @@ export default function HealthServiceBookScreen() {
     if (!staff || !selectedSlot || isBooking) return;
 
     const doctorLabel = formatDoctorDisplayName(staff.name, staff.role);
+    const dayKey = `${selectedDay.getFullYear()}-${String(selectedDay.getMonth() + 1).padStart(2, '0')}-${String(selectedDay.getDate()).padStart(2, '0')}`;
     setIsBooking(true);
     try {
       const {
         id: appointmentId,
-        checkInCode,
-        createdAt: bookedAt,
+        status: bookedStatus,
       } = await healthServiceApi.bookAppointment({
         staffId: staff.id,
         day: selectedDay,
@@ -241,36 +318,65 @@ export default function HealthServiceBookScreen() {
       });
 
       useHealthServiceStore.getState().loadAppointments();
-      toast.show({
-        variant: 'success',
-        placement: 'top',
-        duration: 5000,
-        label: 'Appointment Booked!',
-        description: `Your appointment with ${doctorLabel} on ${formatAppointmentDate(selectedDay)} at ${selectedSlot} is confirmed.`,
-        icon: (
-          <View style={{ paddingTop: 2 }}>
-            <Ionicons name="checkmark-circle" size={26} color="#079455" />
-          </View>
-        ),
-      });
+
+      const isAutoConfirmed = bookedStatus === 'confirmed';
+
+      if (isAutoConfirmed) {
+        toast.show({
+          variant: 'success',
+          placement: 'top',
+          duration: 5000,
+          label: 'You’re all set!',
+          description: `Your appointment with ${doctorLabel} on ${formatAppointmentDate(selectedDay)} at ${selectedSlot} is confirmed.`,
+          icon: (
+            <View style={{ paddingTop: 2 }}>
+              <Ionicons name="checkmark-circle" size={26} color="#079455" />
+            </View>
+          ),
+        });
+        useNotificationStore.getState().notifySelf(session?.user?.id, {
+          category: 'health',
+          title: 'Appointment Confirmed!',
+          body: `Your appointment with ${doctorLabel} on ${formatAppointmentDate(selectedDay)} at ${selectedSlot} has been confirmed.`,
+          href: `/health-service/appointment/${appointmentId}`,
+          source: 'Health Service',
+          notificationType: 'success',
+        });
+      } else {
+        toast.show({
+          variant: 'success',
+          placement: 'top',
+          duration: 5000,
+          label: 'Request submitted',
+          description: `Please wait for confirmation of your appointment with ${doctorLabel}.`,
+          icon: (
+            <View style={{ paddingTop: 2 }}>
+              <Ionicons name="checkmark-circle" size={26} color="#079455" />
+            </View>
+          ),
+        });
+        useNotificationStore.getState().notifySelf(session?.user?.id, {
+          category: 'health',
+          title: 'Appointment pending',
+          body: `Your request with ${doctorLabel} on ${formatAppointmentDate(selectedDay)} at ${selectedSlot} was submitted. Please wait for confirmation.`,
+          href: '/(tabs)/appointments',
+          source: 'Health Service',
+          notificationType: 'info',
+        });
+      }
+
       router.replace({
         pathname: '/health-service/appointment-booked',
         params: {
           id: appointmentId,
           doctorName: doctorLabel,
-          appointmentDate: formatAppointmentDate(selectedDay),
+          specialtyLabel: resolveSpecialty(staff.role, staff.specialtyLabel),
+          photoUrl: staff.photoUrl ?? '',
+          appointmentDate: formatAppointmentBookedDate(dayKey),
           appointmentTime: selectedSlot,
-          checkInCode,
-          expiresAt: new Date(new Date(bookedAt).getTime() + 60 * 60 * 1000).toISOString(),
+          dateKey: dayKey,
+          status: isAutoConfirmed ? 'confirmed' : 'pending',
         },
-      });
-      useNotificationStore.getState().notifySelf(session?.user?.id, {
-        category: 'health',
-        title: 'Appointment Booked',
-        body: `Your appointment with ${doctorLabel} on ${formatAppointmentDate(selectedDay)} at ${selectedSlot} has been successfully booked.`,
-        href: '/(tabs)/appointments',
-        source: 'Health Service',
-        notificationType: 'success',
       });
     } catch (error) {
       console.error('Failed to book appointment:', error);
@@ -308,13 +414,12 @@ export default function HealthServiceBookScreen() {
   const specLabel = resolveSpecialty(staff.role, staff.specialtyLabel);
   const displayName = formatDoctorDisplayName(staff.name, staff.role);
   const monthLabel = `Month of ${MONTH_LONG[selectedDay.getMonth()]}`;
-  const visibleSlots = slots.slice(0, 6);
   const canBook = Boolean(selectedSlot) && working && !isBooking;
+  const openSlots = slots.filter((s) => !s.booked);
+  const openCount = openSlots.length;
 
-  const slotRows: SlotItem[][] = [];
-  for (let i = 0; i < visibleSlots.length; i += 3) {
-    slotRows.push(visibleSlots.slice(i, i + 3));
-  }
+  const morningSlots = openSlots.filter((s) => slotLabelToMinutes(s.label) < NOON_MINUTES);
+  const afternoonSlots = openSlots.filter((s) => slotLabelToMinutes(s.label) >= NOON_MINUTES);
 
   return (
     <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
@@ -344,7 +449,7 @@ export default function HealthServiceBookScreen() {
           elevation: 12,
           zIndex: 3,
         }}>
-          <View style={{ gap: 16, flexShrink: 1 }}>
+          <View style={{ gap: 16, flexShrink: 1, flex: 1 }}>
             <View style={{ gap: 12 }}>
               <BookingSheetHeader
                 monthLabel={monthLabel}
@@ -353,29 +458,70 @@ export default function HealthServiceBookScreen() {
               />
 
               <View style={{ flexDirection: 'row', gap: 10 }}>
-                {weekDays.map((day) => (
-                  <BookingDayChip
-                    key={day.toISOString()}
-                    weekday={DAY_SHORT[day.getDay()]}
-                    dayNumber={String(day.getDate()).padStart(2, '0')}
-                    selected={isSameDay(day, selectedDay)}
-                    onPress={() => setSelectedDay(startOfDay(day))}
-                  />
-                ))}
+                {weekDays.map((day) => {
+                  const past = isPastDay(day);
+                  const bookable = isDayBookable(day);
+                  return (
+                    <BookingDayChip
+                      key={`${day.getFullYear()}-${day.getMonth()}-${day.getDate()}`}
+                      weekday={DAY_SHORT[day.getDay()]}
+                      dayNumber={String(day.getDate()).padStart(2, '0')}
+                      selected={isSameDay(day, selectedDay)}
+                      disabled={past || !bookable}
+                      onPress={() => {
+                        if (past || !bookable) return;
+                        setSelectedDay(startOfDay(day));
+                      }}
+                    />
+                  );
+                })}
               </View>
             </View>
 
-            <View style={{ gap: 12 }}>
-              <Text
+            <View style={{ gap: 10, flex: 1, minHeight: 0 }}>
+              <View
                 style={{
-                  fontFamily: Inter.medium,
-                  fontSize: 20,
-                  color: '#111111',
-                  letterSpacing: -1.6,
-                  lineHeight: 28,
+                  flexDirection: 'row',
+                  alignItems: 'baseline',
+                  justifyContent: 'space-between',
+                  gap: 12,
                 }}>
-                Available Slots
-              </Text>
+                <Text
+                  style={{
+                    fontFamily: Inter.medium,
+                    fontSize: 20,
+                    color: '#111111',
+                    letterSpacing: -1.6,
+                    lineHeight: 28,
+                    flexShrink: 1,
+                  }}>
+                  Available Slots
+                </Text>
+                {working && hoursLabel ? (
+                  <Text
+                    style={{
+                      fontFamily: Inter.regular,
+                      fontSize: 12,
+                      color: '#6C6C6C',
+                      letterSpacing: -0.24,
+                      flexShrink: 1,
+                      textAlign: 'right',
+                    }}
+                    numberOfLines={2}>
+                    {hoursLabel}
+                  </Text>
+                ) : !working && !loadingSlots ? (
+                  <Text
+                    style={{
+                      fontFamily: Inter.regular,
+                      fontSize: 12,
+                      color: '#A7A7A7',
+                      letterSpacing: -0.24,
+                    }}>
+                    Not available
+                  </Text>
+                ) : null}
+              </View>
 
               {!working ? (
                 <Text
@@ -389,7 +535,7 @@ export default function HealthServiceBookScreen() {
                 </Text>
               ) : loadingSlots ? (
                 <ActivityIndicator color="#111" style={{ marginVertical: 8 }} />
-              ) : visibleSlots.length === 0 ? (
+              ) : openCount === 0 ? (
                 <Text
                   style={{
                     fontFamily: Inter.regular,
@@ -400,27 +546,54 @@ export default function HealthServiceBookScreen() {
                   No open slots left for this day.
                 </Text>
               ) : (
-                slotRows.map((row, rowIndex) => (
-                  <View key={`row-${rowIndex}`} style={{ flexDirection: 'row', gap: 10 }}>
-                    {row.map((slot) => (
-                      <BookingSlotChip
-                        key={slot.label}
-                        label={slot.label}
-                        selected={selectedSlot === slot.label}
-                        booked={slot.booked}
-                        onPress={() => setSelectedSlot(slot.label)}
-                      />
-                    ))}
-                    {row.length < 3
-                      ? Array.from({ length: 3 - row.length }).map((_, i) => (
-                          <View key={`pad-${i}`} style={{ flex: 1, flexBasis: 0 }} />
-                        ))
-                      : null}
-                  </View>
-                ))
+                <ScrollView
+                  style={{ flex: 1 }}
+                  contentContainerStyle={{ gap: 14, paddingBottom: 8 }}
+                  showsVerticalScrollIndicator={false}
+                  nestedScrollEnabled>
+                  {(
+                    [
+                      { title: 'Morning', items: morningSlots },
+                      { title: 'Afternoon', items: afternoonSlots },
+                    ] as const
+                  ).map((section) => {
+                    if (section.items.length === 0) return null;
+                    return (
+                      <View key={section.title} style={{ gap: 8 }}>
+                        <Text
+                          style={{
+                            fontFamily: Inter.medium,
+                            fontSize: 14,
+                            color: '#6C6C6C',
+                            letterSpacing: -0.28,
+                          }}>
+                          {section.title}
+                        </Text>
+                        {chunkSlots(section.items).map((row, rowIndex) => (
+                          <View
+                            key={`${section.title}-${rowIndex}`}
+                            style={{ flexDirection: 'row', gap: 10 }}>
+                            {row.map((slot) => (
+                              <BookingSlotChip
+                                key={slot.label}
+                                label={slot.label}
+                                selected={selectedSlot === slot.label}
+                                booked={slot.booked}
+                                onPress={() => setSelectedSlot(slot.label)}
+                              />
+                            ))}
+                            {row.length < 3
+                              ? Array.from({ length: 3 - row.length }).map((_, i) => (
+                                  <View key={`pad-${i}`} style={{ flex: 1, flexBasis: 0 }} />
+                                ))
+                              : null}
+                          </View>
+                        ))}
+                      </View>
+                    );
+                  })}
+                </ScrollView>
               )}
-
-              <BookingChooseTimeRow />
             </View>
           </View>
 

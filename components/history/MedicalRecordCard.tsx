@@ -84,7 +84,7 @@ export function MedicalRecordCard({
                 <Text
                   style={{
                     fontFamily: Inter.medium,
-                    fontSize: 18,
+                    fontSize: 20,
                     color: '#6B7280',
                   }}>
                   {initial}
@@ -96,7 +96,7 @@ export function MedicalRecordCard({
               <Text
                 style={{
                   fontFamily: Inter.regular,
-                  fontSize: 14,
+                  fontSize: 16,
                   color: '#3F3F3F',
                   letterSpacing: -1.12,
                   lineHeight: 18,
@@ -107,7 +107,7 @@ export function MedicalRecordCard({
                 numberOfLines={1}
                 style={{
                   fontFamily: Inter.regular,
-                  fontSize: 16,
+                  fontSize: 18,
                   color: '#000000',
                   letterSpacing: -0.64,
                   lineHeight: 20,
@@ -118,7 +118,7 @@ export function MedicalRecordCard({
                 numberOfLines={1}
                 style={{
                   fontFamily: Inter.regular,
-                  fontSize: 14,
+                  fontSize: 16,
                   color: '#3F3F3F',
                   letterSpacing: -1.12,
                   lineHeight: 18,
@@ -155,7 +155,7 @@ export function MedicalRecordCard({
             <Text
               style={{
                 fontFamily: Inter.regular,
-                fontSize: 14,
+                fontSize: 16,
                 color: '#3F3F3F',
                 letterSpacing: -1.12,
               }}>
@@ -169,7 +169,7 @@ export function MedicalRecordCard({
               numberOfLines={1}
               style={{
                 fontFamily: Inter.regular,
-                fontSize: 14,
+                fontSize: 16,
                 color: '#3F3F3F',
                 letterSpacing: -1.12,
                 flex: 1,

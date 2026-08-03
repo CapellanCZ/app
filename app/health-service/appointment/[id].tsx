@@ -10,6 +10,7 @@ import { IconsaxClockIcon } from '../../../components/icons/IconsaxClockIcon';
 import { IconsaxHospitalFilledIcon } from '../../../components/icons/IconsaxHospitalFilledIcon';
 import { IconsaxVerifyIcon } from '../../../components/icons/IconsaxVerifyIcon';
 import {
+  formatAppointmentBookedDate,
   formatAppointmentDateLong,
   formatAppointmentWhen,
   getPatientTicketLabel,
@@ -47,23 +48,30 @@ export default function AppointmentConfirmedScreen() {
   const dateLong = ap ? formatAppointmentDateLong(ap) : '';
   const patientLabel = ap ? getPatientTicketLabel(ap.id) : '';
 
-  // Redirect to the new screen as soon as we have data
+  // Redirect to booked/confirmed success — never for cancelled appointments.
   useEffect(() => {
-    if (ap) {
-      router.replace({
-        pathname: '/health-service/appointment-booked',
-        params: {
-          id: ap.id,
-          doctorName: staffNameForAppointment(ap.staffId),
-          appointmentDate: formatAppointmentDateLong(ap),
-          appointmentTime: ap.startLabel,
-          checkInCode: ap.checkInCode ?? 'CH-0000',
-        },
-      });
-    } else {
-      router.replace('/health-service/appointments');
+    if (!ap) {
+      router.replace('/(tabs)/appointments');
+      return;
     }
-  }, [ap]);
+    if (ap.status === 'cancelled') {
+      router.replace('/(tabs)/appointments');
+      return;
+    }
+    router.replace({
+      pathname: '/health-service/appointment-booked',
+      params: {
+        id: ap.id,
+        doctorName: staffNameForAppointment(ap.staffId),
+        specialtyLabel: staff?.specialtyLabel ?? 'Physician',
+        photoUrl: staff?.photoUrl ?? '',
+        appointmentDate: formatAppointmentBookedDate(ap.dateKey),
+        appointmentTime: ap.startLabel,
+        dateKey: ap.dateKey,
+        status: ap.status,
+      },
+    });
+  }, [ap, staff?.photoUrl, staff?.specialtyLabel]);
 
   if (!ap) {
     return (

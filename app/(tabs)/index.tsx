@@ -102,7 +102,7 @@ export default function HealthServiceScreen() {
 
     return (
       appointments
-        .filter((a) => a.status === 'confirmed' || a.status === 'pending')
+        .filter((a) => a.status === 'confirmed')
         .filter((a) => a.dateKey >= today)
         .sort((a, b) => {
           if (a.dateKey !== b.dateKey) return a.dateKey.localeCompare(b.dateKey);
@@ -114,26 +114,29 @@ export default function HealthServiceScreen() {
   const upcomingStaffName = upcomingItem ? staffNameForAppointment(upcomingItem.staffId) : '';
   const upcomingStaff = upcomingItem ? staff.find((s) => s.id === upcomingItem.staffId) : null;
 
-  const timeRangeLabel = useMemo(() => {
-    if (!upcomingItem) return '';
-    // Figma shows a short window; assume 15-minute slots for display.
+  const timeLabel = upcomingItem?.startLabel ?? '';
+
+  const estDoneLabel = useMemo(() => {
+    if (!upcomingItem) return null;
+    if (upcomingItem.endLabel) return upcomingItem.endLabel;
+
+    // Fallback: 20-min slot (matches booking interval) when ends_at is missing.
     const start = upcomingItem.startLabel;
     const match = /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i.exec(start.trim());
-    if (!match) return start;
+    if (!match) return null;
     let hour = Number(match[1]);
     let minute = Number(match[2]);
     const period = match[3].toUpperCase();
     if (period === 'PM' && hour !== 12) hour += 12;
     if (period === 'AM' && hour === 12) hour = 0;
-    minute += 15;
+    minute += 20;
     if (minute >= 60) {
       minute -= 60;
       hour = (hour + 1) % 24;
     }
     const endPeriod = hour >= 12 ? 'PM' : 'AM';
     const endHour12 = hour % 12 === 0 ? 12 : hour % 12;
-    const end = `${endHour12}:${String(minute).padStart(2, '0')} ${endPeriod}`;
-    return `${start} - ${end}`;
+    return `${endHour12}:${String(minute).padStart(2, '0')} ${endPeriod}`;
   }, [upcomingItem]);
 
   return (
@@ -176,7 +179,8 @@ export default function HealthServiceScreen() {
               specialtyLabel={upcomingStaff?.specialtyLabel || 'Campus Clinic'}
               photoUrl={upcomingStaff?.photoUrl}
               dateLabel={formatShortDate(upcomingItem.dateKey)}
-              timeLabel={timeRangeLabel}
+              timeLabel={timeLabel}
+              estDoneLabel={estDoneLabel}
               onPress={() =>
                 router.push({
                   pathname: '/health-service/appointment/[id]',

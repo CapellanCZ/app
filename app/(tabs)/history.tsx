@@ -10,8 +10,8 @@ import {
 import { IconsaxDocumentTextIcon } from '@/components/icons/IconsaxDocumentTextIcon';
 import { TAB_BAR_HEIGHT } from '@/components/layout/BottomTabBar';
 import {
+  formatAppointmentBookedDate,
   formatAppointmentCardDate,
-  formatAppointmentDateLong,
 } from '@/lib/health-service/appointmentDisplay';
 import { useHealthServiceStore } from '@/lib/health-service/healthServiceStore';
 import type { StaffRole } from '@/lib/health-service/types';
@@ -92,7 +92,7 @@ export default function HistoryTab() {
             <Text
               style={{
                 fontFamily: Inter.medium,
-                fontSize: 28,
+                fontSize: 30,
                 color: '#222222',
                 letterSpacing: -2.24,
                 lineHeight: 38,
@@ -102,7 +102,7 @@ export default function HistoryTab() {
             <Text
               style={{
                 fontFamily: Inter.regular,
-                fontSize: 16,
+                fontSize: 18,
                 color: '#727272',
                 letterSpacing: -0.64,
                 lineHeight: 20,
@@ -135,7 +135,7 @@ export default function HistoryTab() {
                   <Text
                     style={{
                       fontFamily: Inter.regular,
-                      fontSize: 15,
+                      fontSize: 17,
                       color: selected ? '#FFFFFF' : '#666666',
                       letterSpacing: -1.2,
                       textAlign: 'center',
@@ -163,7 +163,7 @@ export default function HistoryTab() {
               <Text
                 style={{
                   fontFamily: Inter.regular,
-                  fontSize: 16,
+                  fontSize: 18,
                   color: '#717680',
                   letterSpacing: -0.32,
                   textAlign: 'center',
@@ -173,7 +173,7 @@ export default function HistoryTab() {
               <Text
                 style={{
                   fontFamily: Inter.regular,
-                  fontSize: 12,
+                  fontSize: 14,
                   color: '#A4A7AE',
                   letterSpacing: -0.24,
                   textAlign: 'center',
@@ -197,7 +197,7 @@ export default function HistoryTab() {
               <Text
                 style={{
                   fontFamily: Inter.semiBold,
-                  fontSize: 14,
+                  fontSize: 16,
                   color: '#FFFFFF',
                 }}>
                 Book a visit
@@ -228,9 +228,12 @@ export default function HistoryTab() {
                       params: {
                         id: item.id,
                         doctorName,
-                        appointmentDate: formatAppointmentDateLong(item),
+                        specialtyLabel: staffMember?.specialtyLabel ?? 'Physician',
+                        photoUrl: staffMember?.photoUrl ?? '',
+                        appointmentDate: formatAppointmentBookedDate(item.dateKey),
                         appointmentTime: item.startLabel,
-                        checkInCode: item.checkInCode ?? '—',
+                        dateKey: item.dateKey,
+                        status: item.status,
                       },
                     })
                   }

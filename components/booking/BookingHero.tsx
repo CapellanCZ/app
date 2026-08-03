@@ -1,9 +1,9 @@
-import { Image, Pressable, Text, useWindowDimensions, View } from 'react-native';
+import { Image, Text, useWindowDimensions, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 
-import { BookingChevronIcon } from '@/components/booking/BookingIcons';
+import { CircleBackButton } from '@/components/ui/CircleBackButton';
 import { Inter } from '@/lib/typography/inter';
 
 /** Figma doctor portrait model (node 2235:1558) — full-body, not avatar crop. */
@@ -69,25 +69,14 @@ export function BookingHero({ doctorName, specialty, onBack }: Props) {
         pointerEvents="none"
       />
 
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Go back"
+      <CircleBackButton
         onPress={onBack}
         style={{
           marginTop: insets.top + 8,
           marginLeft: 25,
-          width: 42,
-          height: 42,
-          borderRadius: 999,
-          backgroundColor: '#FFFFFF',
-          alignItems: 'center',
-          justifyContent: 'center',
           zIndex: 2,
-        }}>
-        <View style={{ transform: [{ scaleX: -1 }] }}>
-          <BookingChevronIcon size={24} color="#6C6C6C" />
-        </View>
-      </Pressable>
+        }}
+      />
 
       <View style={{ marginTop: 28, marginLeft: 25, maxWidth: '48%', gap: 12, zIndex: 2 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>

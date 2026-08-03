@@ -11,9 +11,10 @@ import { HealthServiceScreenShell } from '@/components/health-service/HealthServ
 import { IconsaxCalendarSearchIcon } from '@/components/icons/IconsaxCalendarSearchIcon';
 import { TAB_BAR_HEIGHT } from '@/components/layout/BottomTabBar';
 import {
+  estimateEndLabel,
+  formatAppointmentBookedDate,
   formatAppointmentCardDate,
   formatAppointmentCardTime,
-  formatAppointmentDateLong,
 } from '@/lib/health-service/appointmentDisplay';
 import { useHealthServiceStore } from '@/lib/health-service/healthServiceStore';
 import { Inter } from '@/lib/typography/inter';
@@ -126,7 +127,7 @@ export default function AppointmentsScreen() {
             <Text
               style={{
                 fontFamily: Inter.medium,
-                fontSize: 28,
+                fontSize: 30,
                 color: '#222222',
                 letterSpacing: -2.24,
                 lineHeight: 38,
@@ -136,7 +137,7 @@ export default function AppointmentsScreen() {
             <Text
               style={{
                 fontFamily: Inter.regular,
-                fontSize: 16,
+                fontSize: 18,
                 color: '#727272',
                 letterSpacing: -0.64,
                 lineHeight: 20,
@@ -175,7 +176,7 @@ export default function AppointmentsScreen() {
                   <Text
                     style={{
                       fontFamily: Inter.regular,
-                      fontSize: 15,
+                      fontSize: 17,
                       color: selected ? '#FFFFFF' : '#666666',
                       letterSpacing: -1.2,
                       textAlign: 'center',
@@ -204,7 +205,7 @@ export default function AppointmentsScreen() {
                 <Text
                   style={{
                     fontFamily: Inter.regular,
-                    fontSize: 16,
+                    fontSize: 18,
                     color: '#717680',
                     letterSpacing: -0.32,
                     textAlign: 'center',
@@ -214,7 +215,7 @@ export default function AppointmentsScreen() {
                 <Text
                   style={{
                     fontFamily: Inter.regular,
-                    fontSize: 12,
+                    fontSize: 14,
                     color: '#A4A7AE',
                     letterSpacing: -0.24,
                     textAlign: 'center',
@@ -228,6 +229,18 @@ export default function AppointmentsScreen() {
               const staffMember = staff.find((s) => s.id === item.staffId);
               const doctorName = staffMember?.name ?? 'Unknown Doctor';
               const canCancel = item.status === 'pending' || item.status === 'confirmed';
+              const isConfirmed = item.status === 'confirmed';
+              const timeLabel = isConfirmed
+                ? (() => {
+                    const est =
+                      item.endLabel?.trim() ||
+                      estimateEndLabel(item.startLabel) ||
+                      null;
+                    return est
+                      ? `${item.startLabel} · EST ${est}`
+                      : formatAppointmentCardTime(item.startLabel);
+                  })()
+                : formatAppointmentCardTime(item.startLabel);
 
               return (
                 <AppointmentCard
@@ -236,27 +249,28 @@ export default function AppointmentsScreen() {
                   staffSpecialty={staffMember?.specialtyLabel ?? 'Physician'}
                   staffPhoto={staffMember?.photoUrl}
                   dateLabel={formatAppointmentCardDate(item.dateKey)}
-                  timeLabel={formatAppointmentCardTime(item.startLabel, item.endLabel)}
+                  timeLabel={timeLabel}
                   backgroundColor={APPOINTMENT_CARD_COLORS[index % APPOINTMENT_CARD_COLORS.length]}
                   showCancel={canCancel}
                   cancelDisabled={cancellingId === item.id}
                   onCancel={() => requestCancel(item.id, doctorName)}
-                  onPress={() =>
-                    router.push({
-                      pathname: '/health-service/appointment-booked',
-                      params: {
-                        id: item.id,
-                        doctorName,
-                        appointmentDate: formatAppointmentDateLong(item),
-                        appointmentTime: item.startLabel,
-                        checkInCode: item.checkInCode ?? 'CH-0000',
-                        expiresAt: item.createdAt
-                          ? new Date(
-                              new Date(item.createdAt).getTime() + 60 * 60 * 1000,
-                            ).toISOString()
-                          : undefined,
-                      },
-                    })
+                  onPress={
+                    item.status === 'cancelled'
+                      ? undefined
+                      : () =>
+                          router.push({
+                            pathname: '/health-service/appointment-booked',
+                            params: {
+                              id: item.id,
+                              doctorName,
+                              specialtyLabel: staffMember?.specialtyLabel ?? 'Physician',
+                              photoUrl: staffMember?.photoUrl ?? '',
+                              appointmentDate: formatAppointmentBookedDate(item.dateKey),
+                              appointmentTime: item.startLabel,
+                              dateKey: item.dateKey,
+                              status: item.status,
+                            },
+                          })
                   }
                 />
               );

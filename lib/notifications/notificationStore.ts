@@ -6,6 +6,7 @@ import { MOCK_NOTIFICATIONS } from './mockNotifications';
 import {
   toNotificationItem,
   isWithinDays,
+  mapCategoryToDbType,
   type NotificationItem,
   type NotificationRow,
   type NotificationSection,
@@ -160,14 +161,24 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
 
   notifySelf: async (userId, payload) => {
     if (isSupabaseConfigured && supabase && userId) {
-      await supabase.from('notifications').insert({
+      const { error } = await supabase.from('notifications').insert({
         user_id: userId,
-        category: payload.category,
+        type: mapCategoryToDbType(payload.category),
         title: payload.title,
         body: payload.body,
         href: payload.href ?? null,
         read_at: null,
+        metadata: {
+          category: payload.category,
+          notification_type: payload.notificationType ?? 'info',
+          source: payload.source ?? null,
+        },
       });
+      if (error) {
+        console.warn('[notifications] notifySelf insert failed:', error.message);
+        get().pushLocal(payload);
+        return;
+      }
       get().fetchAll(userId);
     } else {
       get().pushLocal(payload);

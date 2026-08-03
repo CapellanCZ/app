@@ -25,7 +25,8 @@ type Props = {
   showCancel?: boolean;
   cancelDisabled?: boolean;
   onCancel?: () => void;
-  onPress: () => void;
+  /** Omit for cancelled rows — card is not tappable. */
+  onPress?: () => void;
 };
 
 /**
@@ -56,6 +57,7 @@ export function AppointmentCard({
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`Appointment with ${staffName}, ${dateLabel}, ${timeLabel}`}
+      disabled={!onPress}
       onPress={onPress}
       style={{
         backgroundColor,
@@ -101,7 +103,7 @@ export function AppointmentCard({
                 <Text
                   style={{
                     fontFamily: Inter.medium,
-                    fontSize: 18,
+                    fontSize: 20,
                     color: '#6B7280',
                   }}>
                   {initial}
@@ -114,7 +116,7 @@ export function AppointmentCard({
                 numberOfLines={1}
                 style={{
                   fontFamily: Inter.regular,
-                  fontSize: 16,
+                  fontSize: 18,
                   color: '#000000',
                   letterSpacing: -0.64,
                   lineHeight: 20,
@@ -125,7 +127,7 @@ export function AppointmentCard({
                 numberOfLines={1}
                 style={{
                   fontFamily: Inter.regular,
-                  fontSize: 14,
+                  fontSize: 16,
                   color: '#3F3F3F',
                   letterSpacing: -1.12,
                   lineHeight: 18,
@@ -169,7 +171,7 @@ export function AppointmentCard({
               numberOfLines={1}
               style={{
                 fontFamily: Inter.regular,
-                fontSize: 14,
+                fontSize: 16,
                 color: '#3F3F3F',
                 letterSpacing: -1.12,
               }}>
@@ -182,7 +184,7 @@ export function AppointmentCard({
             <Text
               style={{
                 fontFamily: Inter.regular,
-                fontSize: 14,
+                fontSize: 16,
                 color: '#3F3F3F',
                 letterSpacing: -1.12,
               }}>
@@ -213,7 +215,7 @@ export function AppointmentCard({
           <Text
             style={{
               fontFamily: Inter.regular,
-              fontSize: 15,
+              fontSize: 17,
               color: '#1B1B1B',
               letterSpacing: -1.2,
               textAlign: 'center',

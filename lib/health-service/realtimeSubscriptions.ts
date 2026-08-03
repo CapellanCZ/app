@@ -55,7 +55,7 @@ export function acquireAppointmentsSubscription(get: HealthStoreGet): () => void
         async (payload: {
           eventType: string;
           old?: { status?: string };
-          new?: { status?: string; doctor_id?: string };
+          new?: { id?: string; status?: string; doctor_id?: string };
         }) => {
           void get().loadAppointments();
           if (
@@ -67,13 +67,16 @@ export function acquireAppointmentsSubscription(get: HealthStoreGet): () => void
               data: { user },
             } = await client.auth.getUser();
             if (user?.id) {
+              const appointmentId = payload.new?.id;
               const staffName =
                 get().staff.find((s) => s.id === payload.new?.doctor_id)?.name ?? 'the provider';
               useNotificationStore.getState().notifySelf(user.id, {
                 category: 'health',
                 title: 'Appointment Confirmed!',
-                body: `Your appointment with ${staffName} has been confirmed. Please arrive 10 minutes early.`,
-                href: '/(tabs)/appointments',
+                body: `Your appointment with ${staffName} has been confirmed. You’re all set!`,
+                href: appointmentId
+                  ? `/health-service/appointment/${appointmentId}`
+                  : '/(tabs)/appointments',
                 notificationType: 'success',
               });
             }
