@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   Image,
   type NativeScrollEvent,
@@ -12,11 +11,9 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
-import {
-  fetchPublishedAnnouncements,
-  formatDateLabel,
-  limitSentences,
-} from '@/lib/announcements/announcementsApi';
+import { AnnouncementCardSkeleton } from '@/components/health-service/AnnouncementCardSkeleton';
+import { useAnnouncementStore } from '@/lib/announcements/announcementStore';
+import { formatDateLabel, limitSentences } from '@/lib/announcements/announcementsApi';
 import type { Announcement } from '@/lib/announcements/types';
 import { Inter } from '@/lib/typography/inter';
 
@@ -191,28 +188,19 @@ function AnnouncementSlide({ item, width, index, total, onReadMore }: SlideProps
 
 /**
  * Home announcement carousel — Figma node 2240:286.
- * Loads published `announcements` (audience All) from Supabase.
+ * Shows skeleton while the shared store fetch is in flight (prefetch starts on Home).
  */
 export function HealthServiceAnnouncementCard() {
   const scrollRef = useRef<ScrollView>(null);
   const [width, setWidth] = useState(0);
   const [index, setIndex] = useState(0);
   const indexRef = useRef(0);
-  const [items, setItems] = useState<Announcement[]>([]);
-  const [loading, setLoading] = useState(true);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const next = await fetchPublishedAnnouncements();
-      setItems(next);
-      indexRef.current = 0;
-      setIndex(0);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const items = useAnnouncementStore((s) => s.items);
+  const hasLoaded = useAnnouncementStore((s) => s.hasLoaded);
+  const load = useAnnouncementStore((s) => s.load);
 
+  // Kick off / continue fetch immediately on mount (overlaps with skeleton paint).
   useEffect(() => {
     void load();
   }, [load]);
@@ -220,6 +208,11 @@ export function HealthServiceAnnouncementCard() {
   useEffect(() => {
     indexRef.current = index;
   }, [index]);
+
+  useEffect(() => {
+    indexRef.current = 0;
+    setIndex(0);
+  }, [items]);
 
   useEffect(() => {
     if (width <= 0 || items.length <= 1) return;
@@ -251,24 +244,8 @@ export function HealthServiceAnnouncementCard() {
     ]);
   }, []);
 
-  if (loading) {
-    return (
-      <View
-        style={{
-          minHeight: 280,
-          borderRadius: 16,
-          backgroundColor: '#FFFFFF',
-          alignItems: 'center',
-          justifyContent: 'center',
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.06,
-          shadowRadius: 12,
-          elevation: 3,
-        }}>
-        <ActivityIndicator color="#111" />
-      </View>
-    );
+  if (!hasLoaded) {
+    return <AnnouncementCardSkeleton />;
   }
 
   if (items.length === 0) {

@@ -6,7 +6,7 @@ import { useNotificationStore } from '@/lib/notifications/notificationStore';
  * Use this as the badge prop in NativeTabs.Trigger.
  */
 export function NotificationBadge() {
-  const unreadCount = useNotificationStore((s) => s.unreadCount());
+  const unreadCount = useNotificationStore((s) => s.unreadCount);
 
   if (unreadCount === 0) return null;
 

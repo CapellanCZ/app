@@ -98,19 +98,20 @@ export function DoctorListCard({ staff, status, onPress, enterIndex }: Props) {
         entering={
           enterIndex != null && !reduceMotion ? fadeSlideUpEntering(enterIndex) : undefined
         }
-        exiting={reduceMotion ? undefined : fadeSlideUpExiting()}
-        style={[
-          {
-            backgroundColor: '#FFFFFF',
-            borderRadius: 16,
-            borderWidth: 1,
-            borderColor: '#FFFFFF',
-            paddingTop: 18,
-            paddingBottom: 12,
-            paddingHorizontal: 16,
-          },
-          pressStyle,
-        ]}>
+        exiting={reduceMotion ? undefined : fadeSlideUpExiting()}>
+        <Animated.View
+          style={[
+            {
+              backgroundColor: '#FFFFFF',
+              borderRadius: 16,
+              borderWidth: 1,
+              borderColor: '#FFFFFF',
+              paddingTop: 18,
+              paddingBottom: 12,
+              paddingHorizontal: 16,
+            },
+            pressStyle,
+          ]}>
         <View style={{ gap: 8 }}>
           {/* Top: avatar · name · chevron */}
           <View
@@ -227,6 +228,7 @@ export function DoctorListCard({ staff, status, onPress, enterIndex }: Props) {
             </Text>
           </View>
         </View>
+      </Animated.View>
       </Animated.View>
     </Pressable>
   );

@@ -31,12 +31,6 @@ export default function HealthServiceAdminScreen() {
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     await loadActiveTickets();
-    // Expire old tickets
-    try {
-      await healthServiceApi.expireOldTickets();
-    } catch (error) {
-      console.error('Failed to expire old tickets:', error);
-    }
     setRefreshing(false);
   }, [loadActiveTickets]);
 

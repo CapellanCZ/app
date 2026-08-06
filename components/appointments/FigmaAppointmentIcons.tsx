@@ -117,3 +117,25 @@ export function FigmaAppointmentClockIcon({ size = 20, color = '#3F3F3F' }: Prop
     </Svg>
   );
 }
+
+/** Consultation / person icon used on Past + Cancelled meta rows. */
+export function FigmaAppointmentPersonIcon({ size = 20, color = '#3F3F3F' }: Props) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 20 20" fill="none">
+      <Path
+        d="M10 10C12.0711 10 13.75 8.32107 13.75 6.25C13.75 4.17893 12.0711 2.5 10 2.5C7.92893 2.5 6.25 4.17893 6.25 6.25C6.25 8.32107 7.92893 10 10 10Z"
+        stroke={color}
+        strokeWidth={1.3}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M3.54175 17.5C3.54175 14.5833 6.43341 12.2917 10.0001 12.2917C13.5667 12.2917 16.4584 14.5833 16.4584 17.5"
+        stroke={color}
+        strokeWidth={1.3}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}

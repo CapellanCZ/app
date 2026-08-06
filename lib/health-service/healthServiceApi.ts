@@ -170,8 +170,6 @@ export type HealthServiceApi = {
     oxygenSaturation?: number;
     notes?: string;
   }): Promise<void>;
-  /** Expire old tickets (cleanup function) */
-  expireOldTickets(): Promise<number>;
 };
 
 function mapWebRoleToStaffRole(role: string): StaffRole | null {
@@ -793,15 +791,6 @@ function createSupabaseHealthServiceApi(): HealthServiceApi {
         });
       
       if (error) throw error;
-    },
-
-    async expireOldTickets() {
-      if (!supabase) throw new Error('Supabase not configured');
-      
-      const { data, error } = await supabase.rpc('expire_old_tickets');
-      
-      if (error) throw error;
-      return data || 0;
     },
   };
 }

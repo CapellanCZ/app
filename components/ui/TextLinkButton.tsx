@@ -5,7 +5,7 @@ import { Pressable, Text } from 'react-native';
 export type TextLinkButtonProps = {
   /** Visible label. */
   label: string;
-  /** Expo Router destination (e.g. `"/(tabs)/appointments"`). */
+  /** Expo Router destination (e.g. `"/appointments"`). */
   href: Href;
   /** Screen reader label; defaults to `label`. */
   accessibilityLabel?: string;

@@ -1,6 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   Text,
@@ -356,7 +358,7 @@ export default function HealthServiceBookScreen() {
           category: 'health',
           title: 'Appointment Pending',
           body: `Your request with ${doctorLabel} on ${formatAppointmentDate(selectedDay)} at ${selectedSlot} was submitted. Please wait for confirmation.`,
-          href: '/(tabs)/appointments',
+          href: '/appointments',
           source: 'Health Service',
           notificationType: 'info',
         });
@@ -420,9 +422,22 @@ export default function HealthServiceBookScreen() {
 
   const morningSlots = openSlots.filter((s) => slotLabelToMinutes(s.label) < NOON_MINUTES);
   const afternoonSlots = openSlots.filter((s) => slotLabelToMinutes(s.label) >= NOON_MINUTES);
+  const sheetScrollRef = useRef<ScrollView>(null);
+
+  const scrollCommentsIntoView = useCallback(() => {
+    // Let the keyboard animation start, then bring the field above it.
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        sheetScrollRef.current?.scrollToEnd({ animated: true });
+      }, Platform.OS === 'ios' ? 80 : 120);
+    });
+  }, []);
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
+    <KeyboardAvoidingView
+      style={{ flex: 1, backgroundColor: '#FFFFFF' }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top : 0}>
       {/* Hero fills remaining space above sheet — model stuck at top (get-started pattern) */}
       <BookingHero
         doctorName={displayName}
@@ -524,11 +539,13 @@ export default function HealthServiceBookScreen() {
               </View>
 
               <ScrollView
+                ref={sheetScrollRef}
                 style={{ flex: 1 }}
-                contentContainerStyle={{ gap: 16, paddingBottom: 8 }}
+                contentContainerStyle={{ gap: 16, paddingBottom: 24 }}
                 showsVerticalScrollIndicator={false}
                 nestedScrollEnabled
-                keyboardShouldPersistTaps="handled">
+                keyboardShouldPersistTaps="handled"
+                keyboardDismissMode="interactive">
                 {!working ? (
                   <Text
                     style={{
@@ -603,7 +620,11 @@ export default function HealthServiceBookScreen() {
                     setShowRequestError(false);
                   }}
                 />
-                <BookingCommentsField value={comments} onChange={setComments} />
+                <BookingCommentsField
+                  value={comments}
+                  onChange={setComments}
+                  onFocus={scrollCommentsIntoView}
+                />
               </ScrollView>
             </View>
           </View>
@@ -614,6 +635,6 @@ export default function HealthServiceBookScreen() {
             onPress={() => void handleBookAppointment()}
           />
         </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }

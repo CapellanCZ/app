@@ -74,20 +74,21 @@ export function MedicalRecordCard({
         entering={
           enterIndex != null && !reduceMotion ? fadeSlideUpEntering(enterIndex) : undefined
         }
-        exiting={reduceMotion ? undefined : fadeSlideUpExiting()}
-        style={[
-          {
-            backgroundColor,
-            borderWidth: 1,
-            borderColor: '#FFFFFF',
-            borderRadius: 16,
-            paddingTop: 18,
-            paddingBottom: 12,
-            paddingHorizontal: 16,
-            width: '100%',
-          },
-          pressStyle,
-        ]}>
+        exiting={reduceMotion ? undefined : fadeSlideUpExiting()}>
+        <Animated.View
+          style={[
+            {
+              backgroundColor,
+              borderWidth: 1,
+              borderColor: '#FFFFFF',
+              borderRadius: 16,
+              paddingTop: 18,
+              paddingBottom: 12,
+              paddingHorizontal: 16,
+              width: '100%',
+            },
+            pressStyle,
+          ]}>
         <View style={{ gap: 8 }}>
           <View
             style={{
@@ -215,6 +216,7 @@ export function MedicalRecordCard({
             </View>
           </View>
         </View>
+      </Animated.View>
       </Animated.View>
     </Pressable>
   );

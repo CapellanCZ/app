@@ -25,7 +25,7 @@ export function notifyAppointmentCancelled(
     category: 'health',
     title: 'Appointment Cancelled',
     body: `Your scheduled clinic visit with ${name} was cancelled. Book a new slot with a campus doctor anytime.`,
-    href: '/(tabs)/appointments',
+    href: '/appointments',
     source: 'Health Service',
     notificationType: 'error',
   });
@@ -56,7 +56,7 @@ export function notifyAppointmentConfirmed(
     body: `Your appointment with ${name} has been confirmed. Arrive a few minutes early and bring your school ID.`,
     href: appointmentId
       ? `/health-service/appointment/${appointmentId}`
-      : '/(tabs)/appointments',
+      : '/appointments',
     source: 'Health Service',
     notificationType: 'success',
   });

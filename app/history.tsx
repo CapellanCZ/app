@@ -24,7 +24,7 @@ import {
 } from '@/components/history/MedicalRecordCard';
 import { MedicalRecordListSkeleton } from '@/components/history/MedicalRecordCardSkeleton';
 import { IconsaxDocumentTextIcon } from '@/components/icons/IconsaxDocumentTextIcon';
-import { TAB_BAR_HEIGHT } from '@/components/layout/BottomTabBar';
+import { CircleBackButton } from '@/components/ui/CircleBackButton';
 import {
   formatAppointmentBookedDate,
   formatAppointmentCardDate,
@@ -218,10 +218,11 @@ export default function HistoryTab() {
               flexGrow: 1,
               paddingTop: 12,
               paddingHorizontal: 20,
-              paddingBottom: Math.max(insets.bottom, 16) + TAB_BAR_HEIGHT + 8,
+              paddingBottom: Math.max(insets.bottom, 16) + 8,
               gap: 20,
             }}>
             <View style={{ gap: 16 }}>
+              <CircleBackButton onPress={() => router.back()} />
               <View>
                 <Text
                   style={{

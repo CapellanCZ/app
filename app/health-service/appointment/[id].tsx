@@ -51,11 +51,11 @@ export default function AppointmentConfirmedScreen() {
   // Redirect to booked/confirmed success — never for cancelled appointments.
   useEffect(() => {
     if (!ap) {
-      router.replace('/(tabs)/appointments');
+      router.replace('/appointments');
       return;
     }
     if (ap.status === 'cancelled') {
-      router.replace('/(tabs)/appointments');
+      router.replace('/appointments');
       return;
     }
     router.replace({

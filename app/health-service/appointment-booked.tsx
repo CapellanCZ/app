@@ -60,7 +60,7 @@ export default function AppointmentBookedScreen() {
 
   useEffect(() => {
     if (isCancelled) {
-      router.replace('/(tabs)/appointments');
+      router.replace('/appointments');
     }
   }, [isCancelled]);
 
@@ -436,7 +436,7 @@ export default function AppointmentBookedScreen() {
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="View my appointments"
-                onPress={() => router.replace('/(tabs)/appointments')}
+                onPress={() => router.replace('/appointments')}
                 style={{
                   height: 48,
                   borderRadius: 48,

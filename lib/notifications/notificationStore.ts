@@ -14,18 +14,25 @@ import {
 } from './types';
 import { showAppToast } from '@/lib/ui/toastBridge';
 
+function countUnread(items: NotificationItem[]): number {
+  let n = 0;
+  for (const item of items) {
+    if (!item.read) n += 1;
+  }
+  return n;
+}
+
 interface NotificationState {
   items: NotificationItem[];
   loading: boolean;
   /** True after the first fetch/mock load finishes. */
   hasLoaded: boolean;
+  /** Cached unread count — prefer selecting this over filtering `items`. */
+  unreadCount: number;
   error: string | null;
 
-  /** Number of unread notifications. */
-  unreadCount: () => number;
-
   /** Initial fetch (call on screen mount or app launch). */
-  fetchAll: (userId: string) => Promise<void>;
+  fetchAll: (userId: string, opts?: { silent?: boolean }) => Promise<void>;
 
   /** Mark every notification in a section as read. */
   markAllReadInSection: (section: NotificationSection) => Promise<void>;
@@ -38,6 +45,9 @@ interface NotificationState {
 
   /** Remove a notification by ID. */
   archive: (id: string) => Promise<void>;
+
+  /** Remove every notification. */
+  archiveAll: () => Promise<void>;
 
   /** Subscribe to realtime changes for this user. Returns unsubscribe fn. */
   subscribe: (userId: string) => () => void;
@@ -58,7 +68,7 @@ interface NotificationState {
    */
   notifySelf: (
     userId: string | undefined,
-    payload: Omit<NotificationItem, 'id' | 'read' | 'timeLabel' | 'section'>
+    payload: Omit<NotificationItem, 'id' | 'read' | 'timeLabel' | 'section'>,
   ) => Promise<void>;
 }
 
@@ -66,16 +76,17 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
   items: [],
   loading: false,
   hasLoaded: false,
+  unreadCount: 0,
   error: null,
 
-  unreadCount: () => get().items.filter((n) => !n.read).length,
-
-  fetchAll: async (userId) => {
+  fetchAll: async (userId, opts) => {
     if (!isSupabaseConfigured || !supabase) {
       get().loadMock();
       return;
     }
-    set({ loading: true, error: null });
+    const silent = opts?.silent ?? get().hasLoaded;
+    if (!silent) set({ loading: true, error: null });
+
     const { data, error } = await supabase
       .from('notifications')
       .select('*')
@@ -88,11 +99,13 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
       return;
     }
     const rows = (data ?? []) as NotificationRow[];
-    const within30 = rows.filter((r) => isWithinDays(r.created_at, 30));
+    const items = rows.filter((r) => isWithinDays(r.created_at, 30)).map(toNotificationItem);
     set({
-      items: within30.map(toNotificationItem),
+      items,
+      unreadCount: countUnread(items),
       loading: false,
       hasLoaded: true,
+      error: null,
     });
   },
 
@@ -102,10 +115,11 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
       .map((n) => n.id);
     if (!ids.length) return;
 
-    // Optimistic
-    set((s) => ({
-      items: s.items.map((n) => (ids.includes(n.id) ? { ...n, read: true } : n)),
-    }));
+    const idSet = new Set(ids);
+    set((s) => {
+      const items = s.items.map((n) => (idSet.has(n.id) ? { ...n, read: true } : n));
+      return { items, unreadCount: countUnread(items) };
+    });
 
     if (!isSupabaseConfigured || !supabase) return;
     await supabase
@@ -120,9 +134,16 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
       .map((n) => n.id);
     if (!ids.length) return;
 
-    set((s) => ({
-      items: s.items.map((n) => ({ ...n, read: true })),
-    }));
+    set((s) => {
+      let changed = false;
+      const items = s.items.map((n) => {
+        if (n.read) return n;
+        changed = true;
+        return { ...n, read: true };
+      });
+      if (!changed) return s;
+      return { items, unreadCount: 0 };
+    });
 
     if (!isSupabaseConfigured || !supabase) return;
     await supabase
@@ -132,26 +153,47 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
   },
 
   markRead: async (id) => {
-    // Optimistic
-    set((s) => ({ items: s.items.map((n) => (n.id === id ? { ...n, read: true } : n)) }));
+    set((s) => {
+      const items = s.items.map((n) => (n.id === id && !n.read ? { ...n, read: true } : n));
+      return { items, unreadCount: countUnread(items) };
+    });
     if (!isSupabaseConfigured || !supabase) return;
     await supabase.from('notifications').update({ read_at: new Date().toISOString() }).eq('id', id);
   },
 
   archive: async (id) => {
-    // Optimistic
-    set((s) => ({ items: s.items.filter((n) => n.id !== id) }));
+    set((s) => {
+      const items = s.items.filter((n) => n.id !== id);
+      return { items, unreadCount: countUnread(items) };
+    });
     if (!isSupabaseConfigured || !supabase) return;
     await supabase.from('notifications').delete().eq('id', id);
   },
 
+  archiveAll: async () => {
+    const ids = get().items.map((n) => n.id);
+    if (!ids.length) return;
+
+    set({ items: [], unreadCount: 0 });
+
+    if (!isSupabaseConfigured || !supabase) return;
+    await supabase.from('notifications').delete().in('id', ids);
+  },
+
   subscribe: (userId) =>
     acquireNotificationsSubscription(userId, () => {
-      void get().fetchAll(userId);
+      void get().fetchAll(userId, { silent: true });
     }),
 
   loadMock: () => {
-    set({ items: [...MOCK_NOTIFICATIONS], loading: false, error: null, hasLoaded: true });
+    const items = [...MOCK_NOTIFICATIONS];
+    set({
+      items,
+      unreadCount: countUnread(items),
+      loading: false,
+      error: null,
+      hasLoaded: true,
+    });
   },
 
   pushLocal: (payload) => {
@@ -163,7 +205,10 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
       timeLabel: 'Just now',
       section: 'today',
     };
-    set((s) => ({ items: [item, ...s.items] }));
+    set((s) => {
+      const items = [item, ...s.items];
+      return { items, unreadCount: countUnread(items) };
+    });
   },
 
   notifySelf: async (userId, payload) => {
@@ -204,7 +249,7 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
         get().pushLocal({ ...payload, title });
         return;
       }
-      get().fetchAll(userId);
+      // Realtime subscription (debounced) refreshes the list — no eager fetchAll.
     } else {
       get().pushLocal({ ...payload, title });
     }

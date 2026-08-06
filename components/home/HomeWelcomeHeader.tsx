@@ -2,9 +2,8 @@ import { Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Pressable } from 'react-native-gesture-handler';
 
-import { IconsaxNotificationIcon } from '@/components/icons/IconsaxNotificationIcon';
+import { NotificationBellButton } from '@/components/notifications/NotificationBellButton';
 import { GreyAvatar } from '@/components/profile/GreyAvatar';
-import { useNotificationStore } from '@/lib/notifications/notificationStore';
 import { ROUTES } from '@/lib/routes';
 import { Inter } from '@/lib/typography/inter';
 
@@ -18,7 +17,6 @@ type Props = {
  */
 export function HomeWelcomeHeader({ userName, avatarUrl }: Props) {
   const router = useRouter();
-  const unreadCount = useNotificationStore((s) => s.items.filter((n) => !n.read).length);
 
   return (
     <View
@@ -62,36 +60,7 @@ export function HomeWelcomeHeader({ userName, avatarUrl }: Props) {
         </View>
       </View>
 
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Notifications"
-        hitSlop={12}
-        onPress={() => router.push(ROUTES.notifications)}
-        style={{
-          width: 48,
-          height: 48,
-          borderRadius: 999,
-          backgroundColor: '#FFFFFF',
-          alignItems: 'center',
-          justifyContent: 'center',
-          flexShrink: 0,
-        }}>
-        <IconsaxNotificationIcon size={24} color="#090808" />
-        {unreadCount > 0 ? (
-          <View
-            pointerEvents="none"
-            style={{
-              position: 'absolute',
-              top: 12,
-              right: 12,
-              width: 8,
-              height: 8,
-              borderRadius: 4,
-              backgroundColor: '#EF4444',
-            }}
-          />
-        ) : null}
-      </Pressable>
+      <NotificationBellButton />
     </View>
   );
 }

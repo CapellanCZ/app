@@ -42,6 +42,11 @@ export function formatAppointmentCardDate(dateKey: string): string {
   return `${dd} ${mon}, ${weekday}`;
 }
 
+/** Upcoming card meta: "6 Aug, Thu, 9:20 PM" */
+export function formatAppointmentCardDateTime(dateKey: string, startLabel: string): string {
+  return `${formatAppointmentCardDate(dateKey)}, ${startLabel.trim()}`;
+}
+
 /** Booking success date: "3 Aug, Monday" (Figma 2248:186). */
 export function formatAppointmentBookedDate(dateKey: string): string {
   const day = parseAppointmentDateKey(dateKey);
@@ -179,4 +184,18 @@ export function formatAppointmentCardTime(startLabel: string, endLabel?: string 
   const start = toClockLabel(startLabel);
   if (!endLabel) return start;
   return `${start} - ${toClockLabel(endLabel)}`;
+}
+
+/** Cancelled card meta: "24 Feb, 10 AM" */
+export function formatAppointmentCancelledWhen(dateKey: string, startLabel: string): string {
+  const day = parseAppointmentDateKey(dateKey);
+  const dd = day.getDate();
+  const mon = day.toLocaleDateString('en-GB', { month: 'short' });
+  const m = /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i.exec(startLabel.trim());
+  if (!m) return `${dd} ${mon}, ${startLabel}`;
+  const hour = Number(m[1]);
+  const mins = m[2];
+  const period = m[3].toUpperCase();
+  const time = mins === '00' ? `${hour} ${period}` : `${hour}:${mins} ${period}`;
+  return `${dd} ${mon}, ${time}`;
 }

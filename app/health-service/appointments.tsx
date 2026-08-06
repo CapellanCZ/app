@@ -1,6 +1,8 @@
 import { Redirect } from 'expo-router';
 
-/** Appointments list lives under NativeTabs at `/(tabs)/appointments`. */
+import { ROUTES } from '@/lib/routes';
+
+/** Legacy health-service path → stack appointments screen. */
 export default function HealthServiceAppointmentsRedirect() {
-  return <Redirect href="/(tabs)/appointments" />;
+  return <Redirect href={ROUTES.appointments} />;
 }

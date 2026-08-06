@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { TAB_BAR_HEIGHT } from '@/components/layout/BottomTabBar';
 import { useRouter } from 'expo-router';
 
+import { TAB_BAR_HEIGHT } from '@/components/layout/BottomTabBar';
 import { useAuth } from '@/lib/auth/AuthProvider';
 import { pickAndUploadAvatar } from '@/lib/profile/profileApi';
 import { useProfileStore } from '@/lib/profile/profileStore';
@@ -71,8 +71,6 @@ export default function ProfileTab() {
           paddingHorizontal: 20,
           paddingBottom: Math.max(insets.bottom, 16) + TAB_BAR_HEIGHT + 8,
         }}>
-
-        {/* Page title */}
         <Text
           style={{
             fontSize: 32,

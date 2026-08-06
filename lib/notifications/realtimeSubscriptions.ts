@@ -32,6 +32,18 @@ function releaseSlot(slot: RefCountedSubscription) {
   }
 }
 
+/** Collapse bursty realtime events (e.g. mark-all-read UPDATEs) into one fetch. */
+function debounce(fn: () => void, ms: number) {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  return () => {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => {
+      timer = null;
+      fn();
+    }, ms);
+  };
+}
+
 export function acquireNotificationsSubscription(
   userId: string,
   onChange: () => void,
@@ -58,6 +70,8 @@ export function acquireNotificationsSubscription(
     const channelName = `notifications:${userId}`;
     removeStaleChannel(client, channelName);
 
+    const debouncedChange = debounce(onChange, 350);
+
     const channel = client
       .channel(channelName, {
         config: {
@@ -72,14 +86,11 @@ export function acquireNotificationsSubscription(
           table: 'notifications',
           filter: `user_id=eq.${userId}`,
         },
-        () => onChange(),
+        () => debouncedChange(),
       )
       .subscribe();
 
-    const pollInterval = setInterval(() => onChange(), 30_000);
-
     notificationsSubscription.cleanup = () => {
-      clearInterval(pollInterval);
       void client.removeChannel(channel);
     };
   }

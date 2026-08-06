@@ -8,9 +8,12 @@ export const ROUTES = {
   // --- Tabs ---
   tabs: '/(tabs)',
   home: '/(tabs)',
-  appointments: '/(tabs)/appointments',
   notifications: '/notifications',
   profile: '/(tabs)/profiles',
+
+  // --- Stack screens (reachable from Home quick actions) ---
+  appointments: '/appointments',
+  history: '/history',
 
   // --- Auth ---
   login: '/login',
@@ -19,7 +22,8 @@ export const ROUTES = {
 
   // --- Features ---
   healthService: '/health-service',
-  healthServiceAppointments: '/(tabs)/appointments',
+  healthServiceAppointments: '/appointments',
+  healthServiceDoctors: '/health-service/doctors',
 
   // --- Settings ---
   personalInfo: '/personal-info',

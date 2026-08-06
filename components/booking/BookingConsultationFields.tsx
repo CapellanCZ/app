@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   Modal,
   Pressable,
@@ -7,6 +7,13 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import Animated, {
+  Easing,
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { IconsaxArrowDownIcon } from '@/components/icons/IconsaxArrowDownIcon';
@@ -14,6 +21,7 @@ import { Inter } from '@/lib/typography/inter';
 
 const CHIP_BG = '#F9F9F9';
 const SELECTED_BG = '#0F0E0E';
+const SHEET_OFFSCREEN = 480;
 
 /** Clinic consultation request options for the booking sheet. */
 export const CONSULTATION_REQUEST_OPTIONS = [
@@ -48,7 +56,38 @@ type SelectProps = {
 /** Booking-styled consultation request dropdown (bottom sheet). */
 export function BookingConsultationSelect({ value, onChange, error }: SelectProps) {
   const insets = useSafeAreaInsets();
-  const [open, setOpen] = useState(false);
+  const [visible, setVisible] = useState(false);
+  const sheetTranslateY = useSharedValue(SHEET_OFFSCREEN);
+
+  const openSheet = useCallback(() => {
+    setVisible(true);
+  }, []);
+
+  const closeSheet = useCallback(() => {
+    sheetTranslateY.value = withTiming(
+      SHEET_OFFSCREEN,
+      { duration: 260, easing: Easing.in(Easing.cubic) },
+      (finished) => {
+        if (finished) runOnJS(setVisible)(false);
+      },
+    );
+  }, [sheetTranslateY]);
+
+  useEffect(() => {
+    if (!visible) {
+      sheetTranslateY.value = SHEET_OFFSCREEN;
+      return;
+    }
+    sheetTranslateY.value = SHEET_OFFSCREEN;
+    sheetTranslateY.value = withTiming(0, {
+      duration: 300,
+      easing: Easing.out(Easing.cubic),
+    });
+  }, [visible, sheetTranslateY]);
+
+  const sheetStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: sheetTranslateY.value }],
+  }));
 
   return (
     <>
@@ -65,8 +104,8 @@ export function BookingConsultationSelect({ value, onChange, error }: SelectProp
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Select consultation request"
-          accessibilityState={{ expanded: open }}
-          onPress={() => setOpen(true)}
+          accessibilityState={{ expanded: visible }}
+          onPress={openSheet}
           style={{
             backgroundColor: CHIP_BG,
             borderRadius: 16,
@@ -94,28 +133,39 @@ export function BookingConsultationSelect({ value, onChange, error }: SelectProp
       </View>
 
       <Modal
-        visible={open}
+        visible={visible}
         transparent
-        animationType="slide"
-        onRequestClose={() => setOpen(false)}
+        animationType="none"
+        onRequestClose={closeSheet}
         statusBarTranslucent>
         <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+          {/* Dim stays fixed — does not slide with the sheet. */}
           <Pressable
-            style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(0,0,0,0.4)' }}
-            onPress={() => setOpen(false)}
+            style={{
+              position: 'absolute',
+              top: 0,
+              right: 0,
+              bottom: 0,
+              left: 0,
+              backgroundColor: 'rgba(0,0,0,0.45)',
+            }}
+            onPress={closeSheet}
             accessibilityRole="button"
             accessibilityLabel="Close"
           />
-          <View
-            style={{
-              backgroundColor: '#FFFFFF',
-              borderTopLeftRadius: 20,
-              borderTopRightRadius: 20,
-              paddingTop: 12,
-              paddingHorizontal: 20,
-              paddingBottom: Math.max(insets.bottom, 16) + 8,
-              maxHeight: '70%',
-            }}>
+          <Animated.View
+            style={[
+              {
+                backgroundColor: '#FFFFFF',
+                borderTopLeftRadius: 20,
+                borderTopRightRadius: 20,
+                paddingTop: 12,
+                paddingHorizontal: 20,
+                paddingBottom: Math.max(insets.bottom, 16) + 8,
+                maxHeight: '70%',
+              },
+              sheetStyle,
+            ]}>
             <View
               style={{
                 alignSelf: 'center',
@@ -159,7 +209,7 @@ export function BookingConsultationSelect({ value, onChange, error }: SelectProp
                     accessibilityState={{ checked: selected }}
                     onPress={() => {
                       onChange(opt);
-                      setOpen(false);
+                      closeSheet();
                     }}
                     style={{
                       backgroundColor: selected ? SELECTED_BG : CHIP_BG,
@@ -207,7 +257,7 @@ export function BookingConsultationSelect({ value, onChange, error }: SelectProp
                 );
               })}
             </ScrollView>
-          </View>
+          </Animated.View>
         </View>
       </Modal>
     </>
@@ -217,10 +267,11 @@ export function BookingConsultationSelect({ value, onChange, error }: SelectProp
 type CommentsProps = {
   value: string;
   onChange: (value: string) => void;
+  onFocus?: () => void;
 };
 
 /** Booking-styled multiline comments field. */
-export function BookingCommentsField({ value, onChange }: CommentsProps) {
+export function BookingCommentsField({ value, onChange, onFocus }: CommentsProps) {
   return (
     <View style={{ gap: 8 }}>
       <Text
@@ -236,6 +287,7 @@ export function BookingCommentsField({ value, onChange }: CommentsProps) {
       <TextInput
         value={value}
         onChangeText={onChange}
+        onFocus={onFocus}
         placeholder="Share symptoms, concerns, or notes for the clinic…"
         placeholderTextColor="#A7A7A7"
         multiline

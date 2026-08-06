@@ -13,13 +13,14 @@ import { HomeVitalsRow } from '@/components/home/HomeVitalsRow';
 import { HealthServiceAnnouncementCard } from '@/components/health-service/HealthServiceAnnouncementCard';
 import { HealthServiceScreenShell } from '@/components/health-service/HealthServiceScreenShell';
 import { TAB_BAR_HEIGHT } from '@/components/layout/BottomTabBar';
+import { useAnnouncementStore } from '@/lib/announcements/announcementStore';
 import { useAuth } from '@/lib/auth/AuthProvider';
-import { healthServiceApi } from '@/lib/health-service/healthServiceApi';
 import {
   staffNameForAppointment,
   useHealthServiceStore,
 } from '@/lib/health-service/healthServiceStore';
 import { useProfileStore } from '@/lib/profile/profileStore';
+import { ROUTES } from '@/lib/routes';
 import { Inter } from '@/lib/typography/inter';
 
 function formatShortDate(dateKey: string): string {
@@ -66,8 +67,11 @@ export default function HealthServiceScreen() {
 
   const { appointments, staff, loadAppointments, loadStaff, refreshData, subscribeAppointments } =
     useHealthServiceStore();
+  const loadAnnouncements = useAnnouncementStore((s) => s.load);
 
   useEffect(() => {
+    // Prefetch announcements as soon as Home mounts (overlaps skeleton).
+    void loadAnnouncements();
     if (!staff.length) loadStaff();
     if (!appointments.length) loadAppointments();
     return subscribeAppointments();
@@ -76,14 +80,13 @@ export default function HealthServiceScreen() {
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await refreshData();
-      await healthServiceApi.expireOldTickets();
+      await Promise.all([refreshData(), loadAnnouncements({ force: true })]);
     } catch (e) {
       console.error('Refresh failed:', e);
     } finally {
       setRefreshing(false);
     }
-  }, [refreshData]);
+  }, [refreshData, loadAnnouncements]);
 
   const userName = useMemo(() => {
     const full =
@@ -196,10 +199,10 @@ export default function HealthServiceScreen() {
           )}
 
           <HomeQuickActions
-            onBookings={() => router.push('/health-service/doctors')}
-            onRecords={() => router.push('/(tabs)/history')}
-            onVitals={() => router.push('/(tabs)/appointments')}
-            onMore={() => router.push('/(tabs)/profiles')}
+            onBookings={() => router.push(ROUTES.appointments)}
+            onRecords={() => router.push(ROUTES.history)}
+            onVitals={() => router.push(ROUTES.appointments)}
+            onMore={() => router.push(ROUTES.profile)}
           />
         </View>
 
