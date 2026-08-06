@@ -9,7 +9,6 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
 import { useToast } from 'heroui-native';
 
 import { BookingHero } from '@/components/booking/BookingHero';
@@ -322,18 +321,6 @@ export default function HealthServiceBookScreen() {
       const isAutoConfirmed = bookedStatus === 'confirmed';
 
       if (isAutoConfirmed) {
-        toast.show({
-          variant: 'success',
-          placement: 'top',
-          duration: 5000,
-          label: 'You’re all set!',
-          description: `Your appointment with ${doctorLabel} on ${formatAppointmentDate(selectedDay)} at ${selectedSlot} is confirmed.`,
-          icon: (
-            <View style={{ paddingTop: 2 }}>
-              <Ionicons name="checkmark-circle" size={26} color="#079455" />
-            </View>
-          ),
-        });
         useNotificationStore.getState().notifySelf(session?.user?.id, {
           category: 'health',
           title: "You're All Set",
@@ -343,18 +330,6 @@ export default function HealthServiceBookScreen() {
           notificationType: 'success',
         });
       } else {
-        toast.show({
-          variant: 'success',
-          placement: 'top',
-          duration: 5000,
-          label: 'Request submitted',
-          description: `Please wait for confirmation of your appointment with ${doctorLabel}.`,
-          icon: (
-            <View style={{ paddingTop: 2 }}>
-              <Ionicons name="checkmark-circle" size={26} color="#079455" />
-            </View>
-          ),
-        });
         useNotificationStore.getState().notifySelf(session?.user?.id, {
           category: 'health',
           title: 'Appointment Pending',
@@ -384,7 +359,7 @@ export default function HealthServiceBookScreen() {
       const isSameDay =
         message.includes('already have an appointment on this day');
       toast.show({
-        variant: isSameDay ? 'info' : 'danger',
+        variant: isSameDay ? 'accent' : 'danger',
         placement: 'top',
         duration: 4500,
         label: isSameDay ? 'Already booked today' : 'Booking failed',

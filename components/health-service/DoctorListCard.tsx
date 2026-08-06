@@ -7,7 +7,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { IconsaxArrowRightIcon } from '@/components/icons/IconsaxArrowRightIcon';
-import { fadeSlideUpEntering } from '@/lib/animations/fadeSlideUp';
+import { fadeSlideUpEntering, fadeSlideUpExiting } from '@/lib/animations/fadeSlideUp';
 import type { StaffPresenceStatus } from '@/lib/health-service/healthServiceApi';
 import type { Staff, StaffRole } from '@/lib/health-service/types';
 import { Inter } from '@/lib/typography/inter';
@@ -98,6 +98,7 @@ export function DoctorListCard({ staff, status, onPress, enterIndex }: Props) {
         entering={
           enterIndex != null && !reduceMotion ? fadeSlideUpEntering(enterIndex) : undefined
         }
+        exiting={reduceMotion ? undefined : fadeSlideUpExiting()}
         style={[
           {
             backgroundColor: '#FFFFFF',

@@ -11,7 +11,7 @@ import {
   FigmaAppointmentCallIcon,
   FigmaAppointmentClockIcon,
 } from '@/components/appointments/FigmaAppointmentIcons';
-import { fadeSlideUpEntering } from '@/lib/animations/fadeSlideUp';
+import { fadeSlideUpEntering, fadeSlideUpExiting } from '@/lib/animations/fadeSlideUp';
 import { Inter } from '@/lib/typography/inter';
 
 /** Pastel card fills from Figma 2229:518 / 1464 / 1510 — cycle by list index. */
@@ -94,6 +94,7 @@ export function AppointmentCard({
         entering={
           enterIndex != null && !reduceMotion ? fadeSlideUpEntering(enterIndex) : undefined
         }
+        exiting={reduceMotion ? undefined : fadeSlideUpExiting()}
         style={[
           {
             backgroundColor,

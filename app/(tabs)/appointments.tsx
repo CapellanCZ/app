@@ -25,6 +25,7 @@ import {
 import { HealthServiceScreenShell } from '@/components/health-service/HealthServiceScreenShell';
 import { IconsaxCalendarSearchIcon } from '@/components/icons/IconsaxCalendarSearchIcon';
 import { TAB_BAR_HEIGHT } from '@/components/layout/BottomTabBar';
+import { useAuth } from '@/lib/auth/AuthProvider';
 import {
   estimateEndLabel,
   formatAppointmentBookedDate,
@@ -32,6 +33,7 @@ import {
   formatAppointmentCardTime,
 } from '@/lib/health-service/appointmentDisplay';
 import { useHealthServiceStore } from '@/lib/health-service/healthServiceStore';
+import { notifyAppointmentCancelled } from '@/lib/notifications/appointmentNotifications';
 import { Inter } from '@/lib/typography/inter';
 
 type AppointmentTab = 'pending' | 'confirmed' | 'cancelled';
@@ -54,6 +56,7 @@ const DRAG_SPRING = { damping: 26, stiffness: 200, mass: 0.85 } as const;
  */
 export default function AppointmentsScreen() {
   const insets = useSafeAreaInsets();
+  const { session } = useAuth();
   const [activeTab, setActiveTab] = useState<AppointmentTab>('pending');
   const [panelKey, setPanelKey] = useState(0);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
@@ -191,6 +194,14 @@ export default function AppointmentsScreen() {
               setCancellingId(id);
               try {
                 await cancelAppointment(id);
+                notifyAppointmentCancelled(session?.user?.id, {
+                  appointmentId: id,
+                  doctorName,
+                });
+                // Let the card finish FadeOutUp before switching tabs (School Doctors-style enter).
+                const settleMs = reduceMotion ? 40 : 240;
+                await new Promise<void>((resolve) => setTimeout(resolve, settleMs));
+                goToTab('cancelled', 'forward');
               } catch {
                 Alert.alert('Could not cancel', 'Please try again in a moment.');
               } finally {
@@ -375,7 +386,7 @@ export default function AppointmentsScreen() {
 
                   return (
                     <AppointmentCard
-                      key={item.id}
+                      key={`${panelKey}-${item.id}`}
                       enterIndex={index}
                       staffName={doctorName}
                       staffSpecialty={staffMember?.specialtyLabel ?? 'Physician'}

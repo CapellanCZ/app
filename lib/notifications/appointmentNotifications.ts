@@ -1,0 +1,31 @@
+import { useNotificationStore } from '@/lib/notifications/notificationStore';
+
+const recentCancelNotifs = new Map<string, number>();
+const DEDUPE_MS = 8_000;
+
+/**
+ * Notify the patient that an appointment was cancelled.
+ * Dedupes client + realtime paths for the same appointment id.
+ */
+export function notifyAppointmentCancelled(
+  userId: string | null | undefined,
+  opts: { appointmentId?: string; doctorName?: string } = {},
+): void {
+  if (!userId) return;
+
+  const key = opts.appointmentId ?? `cancel-${Date.now()}`;
+  const now = Date.now();
+  const prev = recentCancelNotifs.get(key);
+  if (prev != null && now - prev < DEDUPE_MS) return;
+  recentCancelNotifs.set(key, now);
+
+  const name = opts.doctorName?.trim() || 'a campus doctor';
+  useNotificationStore.getState().notifySelf(userId, {
+    category: 'health',
+    title: 'Appointment Cancelled',
+    body: `Your scheduled clinic visit with ${name} was cancelled. Book a new slot with a campus doctor anytime.`,
+    href: '/(tabs)/appointments',
+    source: 'Health Service',
+    notificationType: 'error',
+  });
+}

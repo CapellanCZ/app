@@ -11,7 +11,7 @@ import {
   FigmaHistoryChevronIcon,
   FigmaHistoryReasonIcon,
 } from '@/components/history/FigmaHistoryIcons';
-import { fadeSlideUpEntering } from '@/lib/animations/fadeSlideUp';
+import { fadeSlideUpEntering, fadeSlideUpExiting } from '@/lib/animations/fadeSlideUp';
 import { Inter } from '@/lib/typography/inter';
 
 /** Same pastel cycle as appointments / Figma medical records. */
@@ -74,6 +74,7 @@ export function MedicalRecordCard({
         entering={
           enterIndex != null && !reduceMotion ? fadeSlideUpEntering(enterIndex) : undefined
         }
+        exiting={reduceMotion ? undefined : fadeSlideUpExiting()}
         style={[
           {
             backgroundColor,

@@ -351,7 +351,7 @@ export default function HistoryTab() {
 
                   return (
                     <MedicalRecordCard
-                      key={item.id}
+                      key={`${panelKey}-${item.id}`}
                       enterIndex={index}
                       staffName={doctorName}
                       staffSpecialty={staffMember?.specialtyLabel ?? 'Physician'}

@@ -12,6 +12,7 @@ import {
   type NotificationRow,
   type NotificationSection,
 } from './types';
+import { showAppToast } from '@/lib/ui/toastBridge';
 
 interface NotificationState {
   items: NotificationItem[];
@@ -163,6 +164,23 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
 
   notifySelf: async (userId, payload) => {
     const title = toTitleCase(payload.title);
+    const toastVariant =
+      payload.notificationType === 'success'
+        ? 'success'
+        : payload.notificationType === 'error'
+          ? 'danger'
+          : payload.notificationType === 'warning'
+            ? 'warning'
+            : 'accent';
+
+    showAppToast({
+      variant: toastVariant,
+      placement: 'top',
+      duration: 5000,
+      label: title,
+      description: payload.body,
+    });
+
     if (isSupabaseConfigured && supabase && userId) {
       const { error } = await supabase.from('notifications').insert({
         user_id: userId,

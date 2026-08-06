@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 import { supabase } from '@/lib/supabase';
+import { notifyAppointmentCancelled } from '@/lib/notifications/appointmentNotifications';
 import { useNotificationStore } from '@/lib/notifications/notificationStore';
 
 type HealthStoreGet = () => {
@@ -78,6 +79,24 @@ export function acquireAppointmentsSubscription(get: HealthStoreGet): () => void
                   ? `/health-service/appointment/${appointmentId}`
                   : '/(tabs)/appointments',
                 notificationType: 'success',
+              });
+            }
+          }
+
+          if (
+            payload.eventType === 'UPDATE' &&
+            payload.old?.status !== 'cancelled' &&
+            payload.new?.status === 'cancelled'
+          ) {
+            const {
+              data: { user },
+            } = await client.auth.getUser();
+            if (user?.id) {
+              const staffName =
+                get().staff.find((s) => s.id === payload.new?.doctor_id)?.name ?? undefined;
+              notifyAppointmentCancelled(user.id, {
+                appointmentId: payload.new?.id,
+                doctorName: staffName,
               });
             }
           }

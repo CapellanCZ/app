@@ -314,7 +314,7 @@ export default function AllDoctorsScreen() {
                 ) : (
                   filtered.map((s, index) => (
                     <DoctorListCard
-                      key={s.id}
+                      key={`${panelKey}-${s.id}`}
                       enterIndex={index}
                       staff={s}
                       status={presence[s.id] ?? 'unavailable'}

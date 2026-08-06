@@ -4,13 +4,16 @@ import Animated, {
   Easing,
   runOnJS,
   useAnimatedStyle,
+  useReducedMotion,
   useSharedValue,
   withDelay,
+  withSpring,
   withTiming,
 } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 
 import { NotificationTypeIcon } from '@/components/notifications/NotificationTypeIcon';
+import { fadeSlideUpEntering, fadeSlideUpExiting } from '@/lib/animations/fadeSlideUp';
 import {
   NOTIFICATION_STATUS_STYLE,
   resolveNotificationStatus,
@@ -18,10 +21,14 @@ import {
 import { toTitleCase, type NotificationItem } from '@/lib/notifications/types';
 import { Inter } from '@/lib/typography/inter';
 
+const PRESS_SPRING = { damping: 18, stiffness: 380, mass: 0.35 } as const;
+
 export type NotificationListRowProps = {
   item: NotificationItem;
   onArchive: (id: string) => void;
   onMarkRead: (id: string) => void;
+  /** List index for staggered enter (School Doctors / Medical Records pattern). */
+  enterIndex?: number;
   /** When set, the card fades out after this delay (ms), then calls onArchive */
   animateOutDelay?: number;
 };
@@ -59,17 +66,22 @@ function NotificationBody({ text }: { text: string }) {
 
 /**
  * Notification card — Figma 2254:1002 / 1020 / 1036 / 2260:1171.
+ * Unread: white card. Read: transparent (no fill).
  */
 export function NotificationListRow({
   item,
   onArchive,
   onMarkRead,
+  enterIndex,
   animateOutDelay,
 }: NotificationListRowProps) {
   const router = useRouter();
   const [menuVisible, setMenuVisible] = useState(false);
+  const reduceMotion = useReducedMotion();
   const opacity = useSharedValue(1);
   const translateY = useSharedValue(0);
+  const scale = useSharedValue(1);
+  const dim = useSharedValue(1);
 
   const status = resolveNotificationStatus(item.notificationType, item.title);
   const tokens = NOTIFICATION_STATUS_STYLE[status];
@@ -89,9 +101,14 @@ export function NotificationListRow({
     );
   }, [animateOutDelay, item.id, onArchive, opacity, translateY]);
 
-  const animatedStyle = useAnimatedStyle(() => ({
+  const archiveStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
     transform: [{ translateY: translateY.value }],
+  }));
+
+  const pressStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+    opacity: dim.value,
   }));
 
   const handlePress = () => {
@@ -107,7 +124,7 @@ export function NotificationListRow({
 
   return (
     <>
-      <Animated.View style={animatedStyle}>
+      <Animated.View style={archiveStyle}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={`${toTitleCase(item.title)}. ${status}`}
@@ -115,75 +132,93 @@ export function NotificationListRow({
           onPress={handlePress}
           onLongPress={() => setMenuVisible(true)}
           delayLongPress={350}
-          style={{
-            backgroundColor: '#FFFFFF',
-            borderRadius: 16,
-            paddingHorizontal: 16,
-            paddingVertical: 18,
-            width: '100%',
+          onPressIn={() => {
+            if (reduceMotion) return;
+            scale.value = withSpring(0.97, PRESS_SPRING);
+            dim.value = withSpring(0.92, PRESS_SPRING);
+          }}
+          onPressOut={() => {
+            scale.value = withSpring(1, PRESS_SPRING);
+            dim.value = withSpring(1, PRESS_SPRING);
           }}>
-          <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 16 }}>
-            <NotificationTypeIcon variant={status} size={44} />
+          <Animated.View
+            entering={
+              enterIndex != null && !reduceMotion ? fadeSlideUpEntering(enterIndex) : undefined
+            }
+            exiting={reduceMotion ? undefined : fadeSlideUpExiting()}
+            style={[
+              {
+                backgroundColor: item.read ? 'transparent' : '#FFFFFF',
+                borderRadius: 16,
+                paddingHorizontal: 16,
+                paddingVertical: 18,
+                width: '100%',
+              },
+              pressStyle,
+            ]}>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 16 }}>
+              <NotificationTypeIcon variant={status} size={44} />
 
-            <View style={{ flex: 1, minWidth: 0, gap: 8 }}>
-              <View
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  minHeight: 18,
-                  width: '100%',
-                }}>
-                <Text
-                  numberOfLines={1}
-                  style={{
-                    flex: 1,
-                    minWidth: 0,
-                    fontFamily: Inter.medium,
-                    fontSize: 16,
-                    letterSpacing: -0.64,
-                    color: '#000000',
-                    lineHeight: 18,
-                  }}>
-                  {toTitleCase(item.title)}
-                </Text>
-
+              <View style={{ flex: 1, minWidth: 0, gap: 8 }}>
                 <View
                   style={{
                     flexDirection: 'row',
                     alignItems: 'center',
-                    justifyContent: 'flex-end',
-                    gap: 8,
-                    marginLeft: 8,
-                    flexShrink: 0,
+                    minHeight: 18,
+                    width: '100%',
                   }}>
                   <Text
                     numberOfLines={1}
                     style={{
-                      fontFamily: Inter.regular,
-                      fontSize: 12,
-                      letterSpacing: -0.48,
-                      color: '#6C6C6C',
+                      flex: 1,
+                      minWidth: 0,
+                      fontFamily: Inter.medium,
+                      fontSize: 16,
+                      letterSpacing: -0.64,
+                      color: '#000000',
                       lineHeight: 18,
-                      textAlign: 'right',
                     }}>
-                    {item.timeLabel}
+                    {toTitleCase(item.title)}
                   </Text>
-                  {!item.read ? (
-                    <View
-                      style={{
-                        width: 6,
-                        height: 6,
-                        borderRadius: 9999,
-                        backgroundColor: tokens.unreadDot,
-                      }}
-                    />
-                  ) : null}
-                </View>
-              </View>
 
-              <NotificationBody text={item.body} />
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'flex-end',
+                      gap: 8,
+                      marginLeft: 8,
+                      flexShrink: 0,
+                    }}>
+                    <Text
+                      numberOfLines={1}
+                      style={{
+                        fontFamily: Inter.regular,
+                        fontSize: 12,
+                        letterSpacing: -0.48,
+                        color: '#6C6C6C',
+                        lineHeight: 18,
+                        textAlign: 'right',
+                      }}>
+                      {item.timeLabel}
+                    </Text>
+                    {!item.read ? (
+                      <View
+                        style={{
+                          width: 6,
+                          height: 6,
+                          borderRadius: 9999,
+                          backgroundColor: tokens.unreadDot,
+                        }}
+                      />
+                    ) : null}
+                  </View>
+                </View>
+
+                <NotificationBody text={item.body} />
+              </View>
             </View>
-          </View>
+          </Animated.View>
         </Pressable>
       </Animated.View>
 
