@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Modal, Pressable, Text, TouchableOpacity, View } from 'react-native';
+import { Modal, Pressable, Text, View } from 'react-native';
 import Animated, {
   Easing,
   runOnJS,
@@ -8,260 +8,235 @@ import Animated, {
   withDelay,
   withTiming,
 } from 'react-native-reanimated';
-import Svg, { Circle } from 'react-native-svg';
+import { useRouter } from 'expo-router';
 
-import { StatusIcon } from '@/components/icons/StatusIcon';
-import { DEFAULT_SOURCE_BY_CATEGORY } from '@/lib/notifications/types';
-import type { NotificationItem, NotificationStatusType } from '@/lib/notifications/types';
+import { NotificationTypeIcon } from '@/components/notifications/NotificationTypeIcon';
+import {
+  NOTIFICATION_STATUS_STYLE,
+  resolveNotificationStatus,
+} from '@/lib/notifications/resolveNotificationStatus';
+import { toTitleCase, type NotificationItem } from '@/lib/notifications/types';
+import { Inter } from '@/lib/typography/inter';
 
 export type NotificationListRowProps = {
   item: NotificationItem;
   onArchive: (id: string) => void;
   onMarkRead: (id: string) => void;
-  isLast: boolean;
-  /** When set, the card slides out to the left after this delay (ms), then calls onArchive */
+  /** When set, the card fades out after this delay (ms), then calls onArchive */
   animateOutDelay?: number;
 };
 
-function resolveVariant(type?: NotificationStatusType): 'success' | 'info' | 'error' | 'warning' {
-  if (type === 'success' || type === 'error' || type === 'warning') return type;
-  return 'info';
-}
-
-/** Three horizontal dots as SVG circles */
-function ThreeDotIcon() {
+/** Body: 14 / #3F3F3F; emphasize doctor name + “confirmed”. */
+function NotificationBody({ text }: { text: string }) {
+  const parts = text.split(/(Dr\.\s[\w .]+?(?=\s+was\b)|confirmed)/g);
   return (
-    <Svg width={18} height={8} viewBox="0 0 18 8">
-      <Circle cx={2} cy={4} r={1.6} fill="#717680" />
-      <Circle cx={9} cy={4} r={1.6} fill="#717680" />
-      <Circle cx={16} cy={4} r={1.6} fill="#717680" />
-    </Svg>
+    <Text
+      style={{
+        fontFamily: Inter.regular,
+        fontSize: 14,
+        letterSpacing: -0.56,
+        color: '#3F3F3F',
+        lineHeight: 21,
+      }}>
+      {parts.map((part, i) => {
+        if (!part) return null;
+        const emphasize = part === 'confirmed' || /^Dr\.\s/i.test(part);
+        return (
+          <Text
+            key={`${i}-${part.slice(0, 16)}`}
+            style={
+              emphasize
+                ? { fontFamily: Inter.medium, fontWeight: '500' }
+                : undefined
+            }>
+            {part}
+          </Text>
+        );
+      })}
+    </Text>
   );
 }
 
+/**
+ * Notification card — Figma 2254:1002 / 1020 / 1036 / 2260:1171.
+ */
 export function NotificationListRow({
   item,
   onArchive,
   onMarkRead,
-  isLast,
   animateOutDelay,
 }: NotificationListRowProps) {
+  const router = useRouter();
   const [menuVisible, setMenuVisible] = useState(false);
-  const translateX = useSharedValue(0);
   const opacity = useSharedValue(1);
-  const scale = useSharedValue(1);
+  const translateY = useSharedValue(0);
+
+  const status = resolveNotificationStatus(item.notificationType, item.title);
+  const tokens = NOTIFICATION_STATUS_STYLE[status];
 
   useEffect(() => {
     if (animateOutDelay === undefined) return;
-    const duration = 260;
-    translateX.value = withDelay(
-      animateOutDelay,
-      withTiming(-20, { duration, easing: Easing.out(Easing.cubic) }, (finished) => {
-        if (finished) runOnJS(onArchive)(item.id);
-      })
-    );
+    const duration = 220;
     opacity.value = withDelay(
       animateOutDelay,
-      withTiming(0, { duration: duration - 40, easing: Easing.out(Easing.quad) })
+      withTiming(0, { duration, easing: Easing.out(Easing.quad) }, (finished) => {
+        if (finished) runOnJS(onArchive)(item.id);
+      }),
     );
-    scale.value = withDelay(
+    translateY.value = withDelay(
       animateOutDelay,
-      withTiming(0.98, { duration, easing: Easing.out(Easing.cubic) })
+      withTiming(-6, { duration, easing: Easing.out(Easing.cubic) }),
     );
-  }, [animateOutDelay, item.id, onArchive, opacity, scale, translateX]);
+  }, [animateOutDelay, item.id, onArchive, opacity, translateY]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
-    transform: [{ translateX: translateX.value }, { scaleY: scale.value }],
+    transform: [{ translateY: translateY.value }],
   }));
 
-  const handleMarkRead = () => {
-    setMenuVisible(false);
-    onMarkRead(item.id);
+  const handlePress = () => {
+    if (!item.read) onMarkRead(item.id);
+    if (item.href) {
+      try {
+        router.push(item.href as never);
+      } catch {
+        // ignore invalid hrefs
+      }
+    }
   };
-
-  const handleArchive = () => {
-    setMenuVisible(false);
-    onArchive(item.id);
-  };
-
-  const variant = resolveVariant(item.notificationType);
 
   return (
     <>
-      {/* ── Card ── */}
-      <Animated.View style={[{ marginBottom: isLast ? 0 : 8 }, animatedStyle]}>
-        <View
+      <Animated.View style={animatedStyle}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`${toTitleCase(item.title)}. ${status}`}
+          accessibilityState={{ selected: !item.read }}
+          onPress={handlePress}
+          onLongPress={() => setMenuVisible(true)}
+          delayLongPress={350}
           style={{
+            backgroundColor: '#FFFFFF',
             borderRadius: 16,
-            borderWidth: 1,
-            borderColor: '#F5F5F5',
-            backgroundColor: item.read ? 'transparent' : '#F5F8FFCC',
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 20,
-            paddingLeft: 18,
-            paddingRight: 12,
-            paddingVertical: 20,
+            paddingHorizontal: 16,
+            paddingVertical: 18,
+            width: '100%',
           }}>
-          {/* ── Left: Status icon (size=40 → 32px icon + 4px padding renders the bg+ring) ── */}
-          <View style={{ flexShrink: 0, alignSelf: 'flex-start', marginTop: 2 }}>
-            <StatusIcon variant={variant} size={40} />
-          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 16 }}>
+            <NotificationTypeIcon variant={status} size={44} />
 
-          {/* ── Right: Content column, gap 4 per Figma ── */}
-          <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
-            {/* Row A: title sub-col + three-dot */}
-            <View style={{ flexDirection: 'row', alignItems: 'flex-start', width: '100%' }}>
-              {/* Title + time·source stacked, flex:1 */}
-              <View style={{ flex: 1, gap: 4, minWidth: 0 }}>
-                {/* Title — Inter Medium 14, auto-capitalized */}
-                <Text
-                  numberOfLines={2}
-                  style={{
-                    fontSize: 14,
-                    fontWeight: '500',
-                    letterSpacing: -0.28,
-                    color: '#181D27',
-                    textTransform: 'capitalize',
-                  }}>
-                  {item.title}
-                </Text>
-
-                {/* time · source — single Text guarantees both always render */}
+            <View style={{ flex: 1, minWidth: 0, gap: 8 }}>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  minHeight: 18,
+                  width: '100%',
+                }}>
                 <Text
                   numberOfLines={1}
-                  style={{ fontSize: 12, fontWeight: '400', color: '#717680' }}>
-                  {`${item.timeLabel}  •  ${item.source ?? DEFAULT_SOURCE_BY_CATEGORY[item.category] ?? 'CampusCare'}`}
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    fontFamily: Inter.medium,
+                    fontSize: 16,
+                    letterSpacing: -0.64,
+                    color: '#000000',
+                    lineHeight: 18,
+                  }}>
+                  {toTitleCase(item.title)}
                 </Text>
+
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'flex-end',
+                    gap: 8,
+                    marginLeft: 8,
+                    flexShrink: 0,
+                  }}>
+                  <Text
+                    numberOfLines={1}
+                    style={{
+                      fontFamily: Inter.regular,
+                      fontSize: 12,
+                      letterSpacing: -0.48,
+                      color: '#6C6C6C',
+                      lineHeight: 18,
+                      textAlign: 'right',
+                    }}>
+                    {item.timeLabel}
+                  </Text>
+                  {!item.read ? (
+                    <View
+                      style={{
+                        width: 6,
+                        height: 6,
+                        borderRadius: 9999,
+                        backgroundColor: tokens.unreadDot,
+                      }}
+                    />
+                  ) : null}
+                </View>
               </View>
 
-              {/* Three-dot button — shrink-0, 24×12 hit area */}
-              <TouchableOpacity
-                onPress={() => setMenuVisible(true)}
-                accessibilityRole="button"
-                accessibilityLabel="More options"
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                style={{ flexShrink: 0, marginLeft: 8, paddingTop: 2 }}>
-                <ThreeDotIcon />
-              </TouchableOpacity>
+              <NotificationBody text={item.body} />
             </View>
-
-            {/* Row B: Body — Inter Light 14 */}
-            <Text
-              numberOfLines={3}
-              style={{
-                fontSize: 14,
-                fontWeight: '300',
-                letterSpacing: -0.56,
-                color: '#000000',
-                lineHeight: 20,
-              }}>
-              {item.body}
-            </Text>
           </View>
-        </View>
+        </Pressable>
       </Animated.View>
 
-      {/* ── Three-dot bottom-sheet modal ── */}
       <Modal
         visible={menuVisible}
         transparent
-        animationType="slide"
+        animationType="fade"
         onRequestClose={() => setMenuVisible(false)}>
         <Pressable
-          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end' }}
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'flex-end' }}
           onPress={() => setMenuVisible(false)}>
           <Pressable
             onPress={(e) => e.stopPropagation()}
             style={{
               backgroundColor: '#FFFFFF',
-              borderTopLeftRadius: 24,
-              borderTopRightRadius: 24,
+              borderTopLeftRadius: 20,
+              borderTopRightRadius: 20,
               paddingTop: 12,
-              paddingBottom: 40,
-              paddingHorizontal: 24,
+              paddingBottom: 36,
+              paddingHorizontal: 20,
             }}>
-            {/* Handle */}
             <View
               style={{
                 alignSelf: 'center',
-                width: 40,
+                width: 36,
                 height: 4,
                 borderRadius: 2,
-                backgroundColor: '#D0D5DD',
-                marginBottom: 24,
+                backgroundColor: '#E3E3E3',
+                marginBottom: 20,
               }}
             />
-            {/* Notification title */}
-            <Text
-              numberOfLines={1}
-              style={{
-                fontSize: 12,
-                fontWeight: '500',
-                letterSpacing: 0.4,
-                textTransform: 'uppercase',
-                color: '#717680',
-                marginBottom: 8,
-              }}>
-              {item.title}
-            </Text>
-
-            {/* Mark as read */}
-            {!item.read && (
-              <TouchableOpacity
-                onPress={handleMarkRead}
-                accessibilityRole="button"
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  paddingVertical: 16,
-                  borderTopWidth: 1,
-                  borderTopColor: '#F5F5F5',
-                  gap: 14,
-                }}>
-                <View
-                  style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: 18,
-                    backgroundColor: '#F0FDF4',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}>
-                  <Text style={{ fontSize: 18, lineHeight: 22 }}>✓</Text>
-                </View>
-                <Text style={{ fontSize: 15, fontWeight: '500', color: '#181D27' }}>
+            {!item.read ? (
+              <Pressable
+                onPress={() => {
+                  setMenuVisible(false);
+                  onMarkRead(item.id);
+                }}
+                style={{ paddingVertical: 14 }}>
+                <Text style={{ fontFamily: Inter.medium, fontSize: 15, color: '#222222' }}>
                   Mark as read
                 </Text>
-              </TouchableOpacity>
-            )}
-
-            {/* Archive */}
-            <TouchableOpacity
-              onPress={handleArchive}
-              accessibilityRole="button"
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                paddingVertical: 16,
-                borderTopWidth: 1,
-                borderTopColor: '#F5F5F5',
-                gap: 14,
-              }}>
-              <View
-                style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: 18,
-                  backgroundColor: '#FFF1F0',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}>
-                <Text style={{ fontSize: 18, lineHeight: 22 }}>🗑</Text>
-              </View>
-              <Text style={{ fontSize: 15, fontWeight: '500', color: '#EF4444' }}>Archive</Text>
-            </TouchableOpacity>
+              </Pressable>
+            ) : null}
+            <Pressable
+              onPress={() => {
+                setMenuVisible(false);
+                onArchive(item.id);
+              }}
+              style={{ paddingVertical: 14 }}>
+              <Text style={{ fontFamily: Inter.medium, fontSize: 15, color: '#EF4444' }}>
+                Archive
+              </Text>
+            </Pressable>
           </Pressable>
         </Pressable>
       </Modal>

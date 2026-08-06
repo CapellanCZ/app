@@ -57,8 +57,8 @@ export default function RootLayout() {
                 <Stack.Screen name="index" />
                 <Stack.Screen name="(auth)" />
                 <Stack.Screen name="(tabs)" options={{ animation: 'fade', animationDuration: 120 }} />
+                <Stack.Screen name="notifications" options={{ animation: 'slide_from_right' }} />
                 <Stack.Screen name="health-service" options={{ animation: 'fade', animationDuration: 120 }} />
-                <Stack.Screen name="referrals" />
                 <Stack.Screen name="logout" />
                 <Stack.Screen name="(settings)" />
                 <Stack.Screen

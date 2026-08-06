@@ -9,7 +9,7 @@ export const ROUTES = {
   tabs: '/(tabs)',
   home: '/(tabs)',
   appointments: '/(tabs)/appointments',
-  notifications: '/(tabs)/notification',
+  notifications: '/notifications',
   profile: '/(tabs)/profiles',
 
   // --- Auth ---
@@ -20,7 +20,6 @@ export const ROUTES = {
   // --- Features ---
   healthService: '/health-service',
   healthServiceAppointments: '/(tabs)/appointments',
-  referrals: '/referrals',
 
   // --- Settings ---
   personalInfo: '/personal-info',

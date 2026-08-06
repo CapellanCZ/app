@@ -1,9 +1,11 @@
-import { Pressable, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Pressable } from 'react-native-gesture-handler';
 
 import { IconsaxNotificationIcon } from '@/components/icons/IconsaxNotificationIcon';
 import { GreyAvatar } from '@/components/profile/GreyAvatar';
 import { useNotificationStore } from '@/lib/notifications/notificationStore';
+import { ROUTES } from '@/lib/routes';
 import { Inter } from '@/lib/typography/inter';
 
 type Props = {
@@ -30,7 +32,7 @@ export function HomeWelcomeHeader({ userName, avatarUrl }: Props) {
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Profile"
-          onPress={() => router.push('/(tabs)/profiles')}
+          onPress={() => router.push(ROUTES.profile)}
           style={{ flexShrink: 0 }}>
           <GreyAvatar size={48} name={userName} avatarUrl={avatarUrl} />
         </Pressable>
@@ -63,7 +65,8 @@ export function HomeWelcomeHeader({ userName, avatarUrl }: Props) {
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Notifications"
-        onPress={() => router.push('/(tabs)/notification')}
+        hitSlop={12}
+        onPress={() => router.push(ROUTES.notifications)}
         style={{
           width: 48,
           height: 48,

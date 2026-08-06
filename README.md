@@ -12,7 +12,6 @@ app/                          # Expo Router file-based routing
   discipline-office/          # Discipline Office feature screens
   health-service/             # Health Service feature screens
   student-development-affairs/# SDA feature screens
-  referrals/                  # Referrals feature screens
 
 components/
   ui/                         # Shared UI primitives (TextLinkButton, GradientText, UnderlineTabs, FileUploadDropzoneCard, etc.)

@@ -31,11 +31,6 @@ export default function TabLayout() {
         <Label>Profile</Label>
         <Icon sf={{ default: 'person', selected: 'person.fill' }} drawable="ic_menu_myplaces" />
       </NativeTabs.Trigger>
-
-      <NativeTabs.Trigger name="notification" hidden>
-        <Label>Notifications</Label>
-        <Icon sf="bell" drawable="ic_menu_info_details" />
-      </NativeTabs.Trigger>
     </NativeTabs>
   );
 }

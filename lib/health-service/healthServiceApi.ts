@@ -7,6 +7,10 @@ import type { Appointment, AppointmentStatus, SlotPeriod, Staff, StaffRole, Queu
 
 const CLINIC_TZ = 'Asia/Manila';
 
+/** Thrown / mapped when patient already has an active visit that clinic day. */
+export const ALREADY_BOOKED_SAME_DAY =
+  'You already have an appointment on this day. Cancel it first to book another.';
+
 function dateKey(d: Date): string {
   const x = new Date(d);
   x.setHours(0, 0, 0, 0);
@@ -558,6 +562,24 @@ function createSupabaseHealthServiceApi(): HealthServiceApi {
 
       const startsAt = startsAtFromDayAndLabel(input.day, input.startLabel);
       const endsAt = new Date(startsAt.getTime() + 20 * 60 * 1000);
+      const dayKey = dateKey(input.day);
+      const dayStart = new Date(`${dayKey}T00:00:00+08:00`);
+      const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+
+      // Friendly pre-check (unique index is the real race-safe guard).
+      const { data: sameDay, error: sameDayError } = await supabase
+        .from('appointments')
+        .select('id')
+        .eq('patient_id', patientId)
+        .in('status', ['pending', 'confirmed', 'rescheduled', 'in_progress'])
+        .gte('starts_at', dayStart.toISOString())
+        .lt('starts_at', dayEnd.toISOString())
+        .limit(1);
+
+      if (sameDayError) throw sameDayError;
+      if (sameDay && sameDay.length > 0) {
+        throw new Error(ALREADY_BOOKED_SAME_DAY);
+      }
 
       const { data: inserted, error } = await supabase
         .from('appointments')
@@ -573,7 +595,13 @@ function createSupabaseHealthServiceApi(): HealthServiceApi {
         .select('id, created_at, status')
         .single();
 
-      if (error) throw error;
+      if (error) {
+        // 23505 = unique_violation (one-per-day index or other unique constraint)
+        if (error.code === '23505') {
+          throw new Error(ALREADY_BOOKED_SAME_DAY);
+        }
+        throw error;
+      }
 
       // Resolve final status: web auto-confirm may update the row right after insert.
       let status = mapDbStatus(String(inserted.status ?? 'pending'));

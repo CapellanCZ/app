@@ -72,8 +72,8 @@ export function acquireAppointmentsSubscription(get: HealthStoreGet): () => void
                 get().staff.find((s) => s.id === payload.new?.doctor_id)?.name ?? 'the provider';
               useNotificationStore.getState().notifySelf(user.id, {
                 category: 'health',
-                title: 'Appointment Confirmed!',
-                body: `Your appointment with ${staffName} has been confirmed. You’re all set!`,
+                title: "You're All Set",
+                body: `Your appointment with ${staffName} has been confirmed. Arrive a few minutes early and bring your school ID.`,
                 href: appointmentId
                   ? `/health-service/appointment/${appointmentId}`
                   : '/(tabs)/appointments',

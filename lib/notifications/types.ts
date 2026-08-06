@@ -1,13 +1,20 @@
-export type WelfareNotificationCategory =
-  | 'health'
-  | 'discipline'
-  | 'scholarships'
-  | 'referrals'
-  | 'campus';
+export type WelfareNotificationCategory = 'health' | 'campus';
 
 export type NotificationSection = 'today' | 'yesterday' | 'last7' | 'last30';
 
 export type NotificationStatusType = 'success' | 'info' | 'error' | 'warning';
+
+/** Title Case for notification titles (UI convention). */
+export function toTitleCase(text: string): string {
+  return text
+    .trim()
+    .split(/\s+/)
+    .map((word) => {
+      if (!word) return word;
+      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+    })
+    .join(' ');
+}
 
 export type NotificationItem = {
   id: string;
@@ -20,7 +27,7 @@ export type NotificationItem = {
   /** Expo Router path for deep-linking when tapped. */
   href: string;
   section?: NotificationSection;
-  /** Display source label shown next to timestamp (e.g. "Discipline Office"). */
+  /** Display source label shown next to timestamp (e.g. "Health Service"). */
   source?: string;
   /** Drives the StatusIcon variant on the card. Defaults to 'info'. */
   notificationType?: NotificationStatusType;
@@ -28,17 +35,11 @@ export type NotificationItem = {
 
 export const NOTIFICATION_CATEGORY_LABEL: Record<WelfareNotificationCategory, string> = {
   health: 'Health',
-  discipline: 'Discipline',
-  scholarships: 'Scholarships',
-  referrals: 'Referrals',
   campus: 'Campus',
 };
 
 export const DEFAULT_SOURCE_BY_CATEGORY: Record<WelfareNotificationCategory, string> = {
   health: 'Health Service',
-  discipline: 'Discipline Office',
-  scholarships: 'SDA Office',
-  referrals: 'Referrals',
   campus: 'Campus',
 };
 
@@ -65,6 +66,8 @@ export type NotificationRow = {
   notification_type?: string | null;
 };
 
+import { resolveNotificationStatus } from './resolveNotificationStatus';
+
 const DAY_MS = 86_400_000;
 
 function mapDbTypeToCategory(type: string | null | undefined): WelfareNotificationCategory {
@@ -82,10 +85,9 @@ function mapDbTypeToCategory(type: string | null | undefined): WelfareNotificati
 
 export function mapCategoryToDbType(category: WelfareNotificationCategory): string {
   switch (category) {
-    case 'health':
-      return 'appointment';
     case 'campus':
       return 'announcement';
+    case 'health':
     default:
       return 'appointment';
   }
@@ -121,26 +123,19 @@ export function toTimeLabel(createdAt: string): string {
 
 /** Convert a raw Supabase row into the UI-shaped item used by the screen. */
 export function toNotificationItem(row: NotificationRow): NotificationItem {
-  const metaType = (row.metadata?.notification_type ?? row.notification_type ?? '').toLowerCase();
-  let notificationType: NotificationStatusType | undefined =
-    metaType === 'success' || metaType === 'error' || metaType === 'info' || metaType === 'warning'
-      ? (metaType as NotificationStatusType)
-      : undefined;
+  const metaType = row.metadata?.notification_type ?? row.notification_type;
+  const title = toTitleCase(row.title);
+  const notificationType = resolveNotificationStatus(metaType, title);
 
-  if (!notificationType && row.title.toLowerCase().includes('submitted')) {
-    notificationType = 'success';
-  }
-  if (!notificationType && row.title.toLowerCase().includes('confirmed')) {
-    notificationType = 'success';
-  }
-
-  const category =
+  const categoryRaw =
     row.metadata?.category ?? row.category ?? mapDbTypeToCategory(row.type);
+  const category: WelfareNotificationCategory =
+    categoryRaw === 'health' || categoryRaw === 'campus' ? categoryRaw : 'campus';
 
   return {
     id: row.id,
     category,
-    title: row.title,
+    title,
     body: row.body,
     href: row.href,
     read: row.read_at !== null,

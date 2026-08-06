@@ -380,7 +380,7 @@ export default function AppointmentBookedScreen() {
                     lineHeight: 40,
                     textAlign: 'center',
                   }}>
-                  Please wait for confirmation
+                  Appointment Created
                 </Text>
                 <Text
                   style={{

@@ -7,6 +7,7 @@ import {
   toNotificationItem,
   isWithinDays,
   mapCategoryToDbType,
+  toTitleCase,
   type NotificationItem,
   type NotificationRow,
   type NotificationSection,
@@ -152,6 +153,7 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
     const item: NotificationItem = {
       id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       ...payload,
+      title: toTitleCase(payload.title),
       read: false,
       timeLabel: 'Just now',
       section: 'today',
@@ -160,11 +162,12 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
   },
 
   notifySelf: async (userId, payload) => {
+    const title = toTitleCase(payload.title);
     if (isSupabaseConfigured && supabase && userId) {
       const { error } = await supabase.from('notifications').insert({
         user_id: userId,
         type: mapCategoryToDbType(payload.category),
-        title: payload.title,
+        title,
         body: payload.body,
         href: payload.href ?? null,
         read_at: null,
@@ -176,12 +179,12 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
       });
       if (error) {
         console.warn('[notifications] notifySelf insert failed:', error.message);
-        get().pushLocal(payload);
+        get().pushLocal({ ...payload, title });
         return;
       }
       get().fetchAll(userId);
     } else {
-      get().pushLocal(payload);
+      get().pushLocal({ ...payload, title });
     }
   },
 }));

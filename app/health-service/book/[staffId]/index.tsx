@@ -336,7 +336,7 @@ export default function HealthServiceBookScreen() {
         });
         useNotificationStore.getState().notifySelf(session?.user?.id, {
           category: 'health',
-          title: 'Appointment Confirmed!',
+          title: "You're All Set",
           body: `Your appointment with ${doctorLabel} on ${formatAppointmentDate(selectedDay)} at ${selectedSlot} has been confirmed.`,
           href: `/health-service/appointment/${appointmentId}`,
           source: 'Health Service',
@@ -357,7 +357,7 @@ export default function HealthServiceBookScreen() {
         });
         useNotificationStore.getState().notifySelf(session?.user?.id, {
           category: 'health',
-          title: 'Appointment pending',
+          title: 'Appointment Pending',
           body: `Your request with ${doctorLabel} on ${formatAppointmentDate(selectedDay)} at ${selectedSlot} was submitted. Please wait for confirmation.`,
           href: '/(tabs)/appointments',
           source: 'Health Service',
@@ -380,12 +380,15 @@ export default function HealthServiceBookScreen() {
       });
     } catch (error) {
       console.error('Failed to book appointment:', error);
+      const message = error instanceof Error ? error.message : 'Please try again.';
+      const isSameDay =
+        message.includes('already have an appointment on this day');
       toast.show({
-        variant: 'danger',
+        variant: isSameDay ? 'info' : 'danger',
         placement: 'top',
-        duration: 4000,
-        label: 'Booking failed',
-        description: error instanceof Error ? error.message : 'Please try again.',
+        duration: 4500,
+        label: isSameDay ? 'Already booked today' : 'Booking failed',
+        description: message,
       });
     } finally {
       setIsBooking(false);

@@ -102,11 +102,12 @@ export default function HealthServiceBookFeelingsScreen() {
                 [{ text: 'OK', onPress: () => router.replace('/health-service') }],
               );
             } catch (error) {
-              Alert.alert(
-                'Booking failed',
-                error instanceof Error ? error.message : 'Failed to book appointment. Please try again.',
-                [{ text: 'OK' }]
-              );
+              const message =
+                error instanceof Error ? error.message : 'Failed to book appointment. Please try again.';
+              const isSameDay = message.includes('already have an appointment on this day');
+              Alert.alert(isSameDay ? 'Already booked today' : 'Booking failed', message, [
+                { text: 'OK' },
+              ]);
             }
           },
         },

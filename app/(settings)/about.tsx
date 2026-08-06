@@ -8,7 +8,6 @@ const BRAND = SCHEDULE_PARTNER.brand;
 
 const FEATURES = [
   { label: 'Health Service Office', detail: 'Book appointments and manage clinic visits' },
-  { label: 'Referrals', detail: 'Office-to-office referral coordination' },
 ];
 
 export default function AboutScreen() {

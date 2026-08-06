@@ -1,9 +1,11 @@
 import { useRouter } from 'expo-router';
-import { Pressable, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
+import { Pressable } from 'react-native-gesture-handler';
 
 import { IconsaxNotificationIcon } from '@/components/icons/IconsaxNotificationIcon';
 import { GreyAvatar } from '@/components/profile/GreyAvatar';
 import { useNotificationStore } from '@/lib/notifications/notificationStore';
+import { ROUTES } from '@/lib/routes';
 
 const ICON_MUTED = '#1F2024';
 const ROW_HEIGHT = 52;
@@ -57,7 +59,7 @@ export function HomeScreenHeader({
         accessibilityLabel="Notifications"
         accessibilityRole="button"
         hitSlop={10}
-        onPress={() => router.push('/(tabs)/notification')}
+        onPress={() => router.push(ROUTES.notifications)}
         style={{
           width: NOTIFICATION_SIZE,
           height: NOTIFICATION_SIZE,
@@ -89,7 +91,7 @@ export function HomeScreenHeader({
         accessibilityLabel="Profile"
         accessibilityRole="button"
         hitSlop={10}
-        onPress={() => router.push('/(tabs)/profiles')}
+        onPress={() => router.push(ROUTES.profile)}
         style={{ flexShrink: 0 }}
         className="active:opacity-80">
         <GreyAvatar size={AVATAR_SIZE} name={userName} avatarUrl={avatarUrl} />
