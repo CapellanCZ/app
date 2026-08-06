@@ -17,6 +17,8 @@ import { showAppToast } from '@/lib/ui/toastBridge';
 interface NotificationState {
   items: NotificationItem[];
   loading: boolean;
+  /** True after the first fetch/mock load finishes. */
+  hasLoaded: boolean;
   error: string | null;
 
   /** Number of unread notifications. */
@@ -63,6 +65,7 @@ interface NotificationState {
 export const useNotificationStore = create<NotificationState>((set, get) => ({
   items: [],
   loading: false,
+  hasLoaded: false,
   error: null,
 
   unreadCount: () => get().items.filter((n) => !n.read).length,
@@ -81,7 +84,7 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
       .limit(100);
 
     if (error) {
-      set({ loading: false, error: error.message });
+      set({ loading: false, error: error.message, hasLoaded: true });
       return;
     }
     const rows = (data ?? []) as NotificationRow[];
@@ -89,6 +92,7 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
     set({
       items: within30.map(toNotificationItem),
       loading: false,
+      hasLoaded: true,
     });
   },
 
@@ -147,7 +151,7 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
     }),
 
   loadMock: () => {
-    set({ items: [...MOCK_NOTIFICATIONS], loading: false, error: null });
+    set({ items: [...MOCK_NOTIFICATIONS], loading: false, error: null, hasLoaded: true });
   },
 
   pushLocal: (payload) => {

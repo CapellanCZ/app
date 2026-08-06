@@ -10,6 +10,7 @@ import { TamaguiProvider } from 'tamagui';
 
 import { UniwindInsetSync } from '@/components/UniwindInsetSync';
 import { AuthProvider } from '@/lib/auth/AuthProvider';
+import { AppointmentSubscription } from '@/components/health-service/AppointmentSubscription';
 import { NotificationHandler } from '@/components/notifications/NotificationHandler';
 import { NotificationSubscription } from '@/components/notifications/NotificationSubscription';
 import { AppToastBinder } from '@/components/ui/AppToastBinder';
@@ -45,6 +46,7 @@ export default function RootLayout() {
             <KeyboardProvider>
               <AuthProvider>
               <AppToastBinder />
+              <AppointmentSubscription />
               <NotificationHandler />
               <NotificationSubscription />
               <UniwindInsetSync />

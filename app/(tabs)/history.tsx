@@ -22,6 +22,7 @@ import {
   MEDICAL_RECORD_CARD_COLORS,
   MedicalRecordCard,
 } from '@/components/history/MedicalRecordCard';
+import { MedicalRecordListSkeleton } from '@/components/history/MedicalRecordCardSkeleton';
 import { IconsaxDocumentTextIcon } from '@/components/icons/IconsaxDocumentTextIcon';
 import { TAB_BAR_HEIGHT } from '@/components/layout/BottomTabBar';
 import {
@@ -70,6 +71,7 @@ export default function HistoryTab() {
   const reduceMotionSV = useSharedValue(false);
 
   const appointments = useHealthServiceStore((s) => s.appointments);
+  const appointmentsLoaded = useHealthServiceStore((s) => s.appointmentsLoaded);
   const staff = useHealthServiceStore((s) => s.staff);
   const loadAppointments = useHealthServiceStore((s) => s.loadAppointments);
   const loadStaff = useHealthServiceStore((s) => s.loadStaff);
@@ -85,9 +87,11 @@ export default function HistoryTab() {
 
   useFocusEffect(
     useCallback(() => {
-      loadAppointments();
-      if (!staff.length) loadStaff();
-    }, [loadAppointments, loadStaff, staff.length]),
+      void loadAppointments();
+      if (!useHealthServiceStore.getState().staffLoaded) {
+        void loadStaff();
+      }
+    }, [loadAppointments, loadStaff]),
   );
 
   const handleRefresh = useCallback(async () => {
@@ -188,6 +192,9 @@ export default function HistoryTab() {
       ? FadeOutLeft.duration(140).easing(EASE_OUT)
       : FadeOutRight.duration(140).easing(EASE_OUT);
 
+  // Skeleton only until the first appointments fetch. Revisiting uses cache.
+  const showSkeleton = !refreshing && !appointmentsLoaded && appointments.length === 0;
+
   return (
     <View style={{ flex: 1, backgroundColor: '#F9F9F9', paddingTop: insets.top }}>
       <GestureDetector gesture={pan}>
@@ -285,7 +292,9 @@ export default function HistoryTab() {
               entering={entering}
               exiting={exiting}
               style={{ gap: 12, width: '100%', flexGrow: 1 }}>
-              {visits.length === 0 ? (
+              {showSkeleton ? (
+                <MedicalRecordListSkeleton count={4} />
+              ) : visits.length === 0 ? (
                 <View
                   style={{
                     borderRadius: 16,

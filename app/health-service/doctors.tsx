@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -19,6 +19,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { DoctorListCard } from '@/components/health-service/DoctorListCard';
+import { DoctorListSkeleton } from '@/components/health-service/DoctorListCardSkeleton';
 import { HealthServiceScreenShell } from '@/components/health-service/HealthServiceScreenShell';
 import { CircleBackButton } from '@/components/ui/CircleBackButton';
 import { healthServiceApi, type StaffPresenceStatus } from '@/lib/health-service/healthServiceApi';
@@ -41,6 +42,9 @@ const TAB_SWIPE_VELOCITY = 650;
 const EASE_OUT = Easing.bezier(0.23, 1, 0.32, 1);
 const DRAG_SPRING = { damping: 26, stiffness: 200, mass: 0.85 } as const;
 
+/** Survive remounts so revisiting doesn't flash "unavailable" while presence refetches. */
+let cachedStaffPresence: Record<string, StaffPresenceStatus> = {};
+
 /**
  * School Doctors — Figma node 2243:333.
  */
@@ -49,8 +53,9 @@ export default function AllDoctorsScreen() {
   const [filter, setFilter] = useState<FilterId>('all');
   const [panelKey, setPanelKey] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
-  const [presence, setPresence] = useState<Record<string, StaffPresenceStatus>>({});
-  const [loadingAvailability, setLoadingAvailability] = useState(false);
+  const [presence, setPresence] = useState<Record<string, StaffPresenceStatus>>(
+    () => cachedStaffPresence,
+  );
   const directionRef = useRef<'forward' | 'back'>('forward');
   const reduceMotion = useReducedMotion();
 
@@ -59,6 +64,7 @@ export default function AllDoctorsScreen() {
   const reduceMotionSV = useSharedValue(false);
 
   const { staff, loadStaff } = useHealthServiceStore();
+  const staffLoaded = useHealthServiceStore((s) => s.staffLoaded);
 
   useEffect(() => {
     tabIndexSV.value = FILTER_ORDER.indexOf(filter);
@@ -67,12 +73,6 @@ export default function AllDoctorsScreen() {
   useEffect(() => {
     reduceMotionSV.value = Boolean(reduceMotion);
   }, [reduceMotion, reduceMotionSV]);
-
-  useFocusEffect(
-    useCallback(() => {
-      if (!staff.length) void loadStaff();
-    }, [loadStaff, staff.length]),
-  );
 
   const doctors = useMemo(
     () => staff.filter((s) => s.role === 'doctor' || s.role === 'dentist'),
@@ -84,40 +84,72 @@ export default function AllDoctorsScreen() {
     return doctors.filter((s) => s.role === (filter as StaffRole));
   }, [doctors, filter]);
 
-  const loadAvailability = useCallback(async (opts?: { silent?: boolean }) => {
+  const loadAvailability = useCallback(async () => {
     if (!doctors.length) {
+      cachedStaffPresence = {};
       setPresence({});
       return;
     }
-    if (!opts?.silent) setLoadingAvailability(true);
     const today = new Date();
-    try {
-      const entries = await Promise.all(
-        doctors.map(async (s) => {
-          try {
-            const status = await healthServiceApi.getStaffPresence(s.id, today);
-            return [s.id, status] as const;
-          } catch {
-            return [s.id, 'unavailable' as StaffPresenceStatus] as const;
-          }
-        }),
-      );
-      setPresence(Object.fromEntries(entries));
-    } finally {
-      if (!opts?.silent) setLoadingAvailability(false);
-    }
+    const entries = await Promise.all(
+      doctors.map(async (s) => {
+        try {
+          const status = await healthServiceApi.getStaffPresence(s.id, today);
+          return [s.id, status] as const;
+        } catch {
+          return [s.id, 'unavailable' as StaffPresenceStatus] as const;
+        }
+      }),
+    );
+    const next = Object.fromEntries(entries);
+    cachedStaffPresence = next;
+    setPresence(next);
   }, [doctors]);
 
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      await loadAvailability();
-      if (cancelled) return;
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [loadAvailability]);
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      void (async () => {
+        try {
+          if (!useHealthServiceStore.getState().staffLoaded) {
+            await loadStaff();
+          }
+          if (cancelled) return;
+
+          const list = useHealthServiceStore
+            .getState()
+            .staff.filter((s) => s.role === 'doctor' || s.role === 'dentist');
+          if (!list.length) {
+            cachedStaffPresence = {};
+            setPresence({});
+            return;
+          }
+
+          const today = new Date();
+          const entries = await Promise.all(
+            list.map(async (s) => {
+              try {
+                const status = await healthServiceApi.getStaffPresence(s.id, today);
+                return [s.id, status] as const;
+              } catch {
+                return [s.id, 'unavailable' as StaffPresenceStatus] as const;
+              }
+            }),
+          );
+          if (!cancelled) {
+            const next = Object.fromEntries(entries);
+            cachedStaffPresence = next;
+            setPresence(next);
+          }
+        } catch (e) {
+          console.error('School doctors load failed:', e);
+        }
+      })();
+      return () => {
+        cancelled = true;
+      };
+    }, [loadStaff]),
+  );
 
   const goToFilter = useCallback((next: FilterId, direction: 'forward' | 'back') => {
     setFilter((prev) => {
@@ -173,7 +205,7 @@ export default function AllDoctorsScreen() {
     setRefreshing(true);
     try {
       await loadStaff();
-      await loadAvailability({ silent: true });
+      await loadAvailability();
     } catch (e) {
       console.error('School doctors refresh failed:', e);
     } finally {
@@ -192,6 +224,9 @@ export default function AllDoctorsScreen() {
     : directionRef.current === 'forward'
       ? FadeOutLeft.duration(140).easing(EASE_OUT)
       : FadeOutRight.duration(140).easing(EASE_OUT);
+
+  // Skeleton only until the first staff fetch finishes. Revisiting uses cache.
+  const showSkeleton = !refreshing && !staffLoaded && doctors.length === 0;
 
   return (
     <HealthServiceScreenShell>
@@ -296,11 +331,7 @@ export default function AllDoctorsScreen() {
                 entering={entering}
                 exiting={exiting}
                 style={{ gap: 12, width: '100%', flexGrow: 1 }}>
-                {!staff.length || loadingAvailability ? (
-                  <View style={{ paddingVertical: 40, alignItems: 'center', flexGrow: 1, minHeight: 220 }}>
-                    <ActivityIndicator color="#111" />
-                  </View>
-                ) : filtered.length === 0 ? (
+                {!showSkeleton && filtered.length === 0 ? (
                   <Text
                     style={{
                       fontFamily: Inter.regular,
@@ -311,6 +342,8 @@ export default function AllDoctorsScreen() {
                     }}>
                     No doctors in this category yet.
                   </Text>
+                ) : showSkeleton ? (
+                  <DoctorListSkeleton count={4} />
                 ) : (
                   filtered.map((s, index) => (
                     <DoctorListCard

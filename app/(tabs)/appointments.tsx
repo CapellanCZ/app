@@ -22,6 +22,7 @@ import {
   APPOINTMENT_CARD_COLORS,
   AppointmentCard,
 } from '@/components/appointments/AppointmentCard';
+import { AppointmentListSkeleton } from '@/components/appointments/AppointmentCardSkeleton';
 import { HealthServiceScreenShell } from '@/components/health-service/HealthServiceScreenShell';
 import { IconsaxCalendarSearchIcon } from '@/components/icons/IconsaxCalendarSearchIcon';
 import { TAB_BAR_HEIGHT } from '@/components/layout/BottomTabBar';
@@ -69,6 +70,7 @@ export default function AppointmentsScreen() {
   const reduceMotionSV = useSharedValue(false);
 
   const appointments = useHealthServiceStore((s) => s.appointments);
+  const appointmentsLoaded = useHealthServiceStore((s) => s.appointmentsLoaded);
   const staff = useHealthServiceStore((s) => s.staff);
   const loadAppointments = useHealthServiceStore((s) => s.loadAppointments);
   const loadStaff = useHealthServiceStore((s) => s.loadStaff);
@@ -85,9 +87,11 @@ export default function AppointmentsScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      loadAppointments();
-      if (!staff.length) loadStaff();
-    }, [loadAppointments, loadStaff, staff.length]),
+      void loadAppointments();
+      if (!useHealthServiceStore.getState().staffLoaded) {
+        void loadStaff();
+      }
+    }, [loadAppointments, loadStaff]),
   );
 
   const handleRefresh = useCallback(async () => {
@@ -179,6 +183,9 @@ export default function AppointmentsScreen() {
             title: 'No Cancelled Appointments',
             body: 'Cancelled appointments will show up here.',
           };
+
+  // Skeleton only until the first fetch. Revisiting uses cache.
+  const showSkeleton = !refreshing && !appointmentsLoaded && appointments.length === 0;
 
   const requestCancel = (id: string, doctorName: string) => {
     Alert.alert(
@@ -330,7 +337,9 @@ export default function AppointmentsScreen() {
               entering={entering}
               exiting={exiting}
               style={{ gap: 12, width: '100%', flexGrow: 1 }}>
-              {filtered.length === 0 ? (
+              {showSkeleton ? (
+                <AppointmentListSkeleton count={3} />
+              ) : filtered.length === 0 ? (
                 <View
                   style={{
                     borderRadius: 16,

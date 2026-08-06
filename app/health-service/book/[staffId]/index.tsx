@@ -13,6 +13,12 @@ import { useToast } from 'heroui-native';
 
 import { BookingHero } from '@/components/booking/BookingHero';
 import {
+  BookingCommentsField,
+  BookingConsultationSelect,
+  buildBookingReason,
+  type ConsultationRequestOption,
+} from '@/components/booking/BookingConsultationFields';
+import {
   BookingDayChip,
   BookingPrimaryButton,
   BookingSheetHeader,
@@ -163,8 +169,8 @@ export default function HealthServiceBookScreen() {
   const { session } = useAuth();
   const { toast } = useToast();
 
-  /** Fixed sheet height so the hero/model area stays consistent. */
-  const sheetHeight = Math.round(screenH * 0.51);
+  /** Room for date, slots, consultation fields, and CTA. */
+  const sheetHeight = Math.round(screenH * 0.62);
 
   const staff = useMemo(
     () => (staffId ? allStaff.find((s) => s.id === staffId) : undefined),
@@ -173,6 +179,10 @@ export default function HealthServiceBookScreen() {
 
   const [selectedDay, setSelectedDay] = useState(() => startOfDay(new Date()));
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
+  const [consultationRequest, setConsultationRequest] =
+    useState<ConsultationRequestOption | null>(null);
+  const [comments, setComments] = useState('');
+  const [showRequestError, setShowRequestError] = useState(false);
   const [isBooking, setIsBooking] = useState(false);
   const [working, setWorking] = useState(false);
   const [hoursLabel, setHoursLabel] = useState<string | null>(null);
@@ -301,9 +311,21 @@ export default function HealthServiceBookScreen() {
 
   const handleBookAppointment = useCallback(async () => {
     if (!staff || !selectedSlot || isBooking) return;
+    if (!consultationRequest) {
+      setShowRequestError(true);
+      toast.show({
+        variant: 'accent',
+        placement: 'top',
+        duration: 3500,
+        label: 'Consultation request needed',
+        description: 'Select why you are visiting before booking.',
+      });
+      return;
+    }
 
     const doctorLabel = formatDoctorDisplayName(staff.name, staff.role);
     const dayKey = `${selectedDay.getFullYear()}-${String(selectedDay.getMonth() + 1).padStart(2, '0')}-${String(selectedDay.getDate()).padStart(2, '0')}`;
+    const reason = buildBookingReason(consultationRequest, comments);
     setIsBooking(true);
     try {
       const {
@@ -313,7 +335,7 @@ export default function HealthServiceBookScreen() {
         staffId: staff.id,
         day: selectedDay,
         startLabel: selectedSlot,
-        symptoms: 'Clinic consultation',
+        symptoms: reason,
       });
 
       useHealthServiceStore.getState().loadAppointments();
@@ -368,7 +390,7 @@ export default function HealthServiceBookScreen() {
     } finally {
       setIsBooking(false);
     }
-  }, [staff, selectedSlot, selectedDay, isBooking, session, toast]);
+  }, [staff, selectedSlot, selectedDay, consultationRequest, comments, isBooking, session, toast]);
 
   if (!staff) {
     return (
@@ -392,7 +414,7 @@ export default function HealthServiceBookScreen() {
   const specLabel = resolveSpecialty(staff.role, staff.specialtyLabel);
   const displayName = formatDoctorDisplayName(staff.name, staff.role);
   const monthLabel = `Month of ${MONTH_LONG[selectedDay.getMonth()]}`;
-  const canBook = Boolean(selectedSlot) && working && !isBooking;
+  const canBook = Boolean(selectedSlot) && Boolean(consultationRequest) && working && !isBooking;
   const openSlots = slots.filter((s) => !s.booked);
   const openCount = openSlots.length;
 
@@ -501,35 +523,36 @@ export default function HealthServiceBookScreen() {
                 ) : null}
               </View>
 
-              {!working ? (
-                <Text
-                  style={{
-                    fontFamily: Inter.regular,
-                    fontSize: 14,
-                    color: '#6C6C6C',
-                    letterSpacing: -0.28,
-                  }}>
-                  No clinic hours on this day. Pick another date.
-                </Text>
-              ) : loadingSlots ? (
-                <ActivityIndicator color="#111" style={{ marginVertical: 8 }} />
-              ) : openCount === 0 ? (
-                <Text
-                  style={{
-                    fontFamily: Inter.regular,
-                    fontSize: 14,
-                    color: '#6C6C6C',
-                    letterSpacing: -0.28,
-                  }}>
-                  No open slots left for this day.
-                </Text>
-              ) : (
-                <ScrollView
-                  style={{ flex: 1 }}
-                  contentContainerStyle={{ gap: 14, paddingBottom: 8 }}
-                  showsVerticalScrollIndicator={false}
-                  nestedScrollEnabled>
-                  {(
+              <ScrollView
+                style={{ flex: 1 }}
+                contentContainerStyle={{ gap: 16, paddingBottom: 8 }}
+                showsVerticalScrollIndicator={false}
+                nestedScrollEnabled
+                keyboardShouldPersistTaps="handled">
+                {!working ? (
+                  <Text
+                    style={{
+                      fontFamily: Inter.regular,
+                      fontSize: 14,
+                      color: '#6C6C6C',
+                      letterSpacing: -0.28,
+                    }}>
+                    No clinic hours on this day. Pick another date.
+                  </Text>
+                ) : loadingSlots ? (
+                  <ActivityIndicator color="#111" style={{ marginVertical: 8 }} />
+                ) : openCount === 0 ? (
+                  <Text
+                    style={{
+                      fontFamily: Inter.regular,
+                      fontSize: 14,
+                      color: '#6C6C6C',
+                      letterSpacing: -0.28,
+                    }}>
+                    No open slots left for this day.
+                  </Text>
+                ) : (
+                  (
                     [
                       { title: 'Morning', items: morningSlots },
                       { title: 'Afternoon', items: afternoonSlots },
@@ -569,9 +592,19 @@ export default function HealthServiceBookScreen() {
                         ))}
                       </View>
                     );
-                  })}
-                </ScrollView>
-              )}
+                  })
+                )}
+
+                <BookingConsultationSelect
+                  value={consultationRequest}
+                  error={showRequestError && !consultationRequest}
+                  onChange={(next) => {
+                    setConsultationRequest(next);
+                    setShowRequestError(false);
+                  }}
+                />
+                <BookingCommentsField value={comments} onChange={setComments} />
+              </ScrollView>
             </View>
           </View>
 

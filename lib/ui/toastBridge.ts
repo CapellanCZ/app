@@ -19,5 +19,9 @@ export function bindAppToast(show: ToastShowFn | null) {
 
 /** Imperative toast for stores / realtime (no-op until binder mounts). */
 export function showAppToast(options: AppToastOptions) {
-  boundShow?.(options);
+  if (!boundShow) {
+    console.warn('[toast] showAppToast called before AppToastBinder mounted', options.label);
+    return;
+  }
+  boundShow(options);
 }

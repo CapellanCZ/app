@@ -1,8 +1,10 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 import { supabase } from '@/lib/supabase';
-import { notifyAppointmentCancelled } from '@/lib/notifications/appointmentNotifications';
-import { useNotificationStore } from '@/lib/notifications/notificationStore';
+import {
+  notifyAppointmentCancelled,
+  notifyAppointmentConfirmed,
+} from '@/lib/notifications/appointmentNotifications';
 
 type HealthStoreGet = () => {
   loadAppointments: () => Promise<void>;
@@ -55,54 +57,69 @@ export function acquireAppointmentsSubscription(get: HealthStoreGet): () => void
         { event: '*', schema: 'public', table: 'appointments' },
         async (payload: {
           eventType: string;
-          old?: { status?: string };
-          new?: { id?: string; status?: string; doctor_id?: string };
+          old?: { status?: string; patient_id?: string };
+          new?: {
+            id?: string;
+            status?: string;
+            doctor_id?: string;
+            patient_id?: string;
+          };
         }) => {
-          void get().loadAppointments();
-          if (
-            payload.eventType === 'UPDATE' &&
-            payload.old?.status === 'pending' &&
-            payload.new?.status === 'confirmed'
-          ) {
-            const {
-              data: { user },
-            } = await client.auth.getUser();
-            if (user?.id) {
-              const appointmentId = payload.new?.id;
-              const staffName =
-                get().staff.find((s) => s.id === payload.new?.doctor_id)?.name ?? 'the provider';
-              useNotificationStore.getState().notifySelf(user.id, {
-                category: 'health',
-                title: "You're All Set",
-                body: `Your appointment with ${staffName} has been confirmed. Arrive a few minutes early and bring your school ID.`,
-                href: appointmentId
-                  ? `/health-service/appointment/${appointmentId}`
-                  : '/(tabs)/appointments',
-                notificationType: 'success',
-              });
-            }
+          if (payload.eventType !== 'UPDATE' || !payload.new?.id) {
+            void get().loadAppointments();
+            return;
           }
 
-          if (
-            payload.eventType === 'UPDATE' &&
-            payload.old?.status !== 'cancelled' &&
-            payload.new?.status === 'cancelled'
-          ) {
-            const {
-              data: { user },
-            } = await client.auth.getUser();
-            if (user?.id) {
-              const staffName =
-                get().staff.find((s) => s.id === payload.new?.doctor_id)?.name ?? undefined;
-              notifyAppointmentCancelled(user.id, {
-                appointmentId: payload.new?.id,
-                doctorName: staffName,
-              });
-            }
+          const nextStatus = (payload.new.status ?? '').toLowerCase();
+          const prevFromPayload = (payload.old?.status ?? '').toLowerCase();
+          // Snapshot local status BEFORE reload — needed if realtime omits old.status.
+          const localPrev = (
+            get().appointments.find((a) => a.id === payload.new?.id)?.status ?? ''
+          ).toLowerCase();
+          const prevStatus = prevFromPayload || localPrev;
+
+          const becameConfirmed =
+            nextStatus === 'confirmed' &&
+            (prevStatus === 'pending' || prevStatus === '');
+          const becameCancelled =
+            nextStatus === 'cancelled' &&
+            prevStatus !== '' &&
+            prevStatus !== 'cancelled';
+
+          void get().loadAppointments();
+
+          if (!becameConfirmed && !becameCancelled) return;
+
+          const {
+            data: { user },
+          } = await client.auth.getUser();
+          if (!user?.id) return;
+
+          const staffName =
+            get().staff.find((s) => s.id === payload.new?.doctor_id)?.name ?? undefined;
+
+          if (becameConfirmed) {
+            notifyAppointmentConfirmed(user.id, {
+              appointmentId: payload.new.id,
+              doctorName: staffName,
+            });
+          }
+
+          if (becameCancelled) {
+            notifyAppointmentCancelled(user.id, {
+              appointmentId: payload.new.id,
+              doctorName: staffName,
+            });
           }
         },
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('[appointments] realtime subscribed');
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.warn('[appointments] realtime status:', status);
+        }
+      });
 
     appointmentsSubscription.cleanup = () => {
       void client.removeChannel(channel);

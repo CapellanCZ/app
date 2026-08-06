@@ -7,6 +7,10 @@ type HealthServiceState = {
   appointments: Appointment[];
   staff: Staff[];
   loading: boolean;
+  /** True after the first appointments fetch finishes (success or error). */
+  appointmentsLoaded: boolean;
+  /** True after the first staff fetch finishes (success or error). */
+  staffLoaded: boolean;
   error: string | null;
   
   // Actions
@@ -31,18 +35,21 @@ export const useHealthServiceStore = create<HealthServiceState>((set, get) => ({
   appointments: [],
   staff: [],
   loading: false,
+  appointmentsLoaded: false,
+  staffLoaded: false,
   error: null,
 
   loadAppointments: async () => {
     set({ loading: true, error: null });
     try {
       const appointments = await healthServiceApi.listMyAppointments();
-      set({ appointments, loading: false });
+      set({ appointments, loading: false, appointmentsLoaded: true });
     } catch (error) {
       console.error('Failed to load appointments:', error);
       set({ 
         error: error instanceof Error ? error.message : 'Failed to load appointments',
-        loading: false 
+        loading: false,
+        appointmentsLoaded: true,
       });
     }
   },
@@ -51,12 +58,13 @@ export const useHealthServiceStore = create<HealthServiceState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const staff = await healthServiceApi.listStaff();
-      set({ staff, loading: false });
+      set({ staff, loading: false, staffLoaded: true });
     } catch (error) {
       console.error('Failed to load staff:', error);
       set({ 
         error: error instanceof Error ? error.message : 'Failed to load staff',
-        loading: false 
+        loading: false,
+        staffLoaded: true,
       });
     }
   },
@@ -122,7 +130,14 @@ export const useHealthServiceStore = create<HealthServiceState>((set, get) => ({
   },
 
   reset: () => {
-    set({ appointments: [], staff: [], loading: false, error: null });
+    set({
+      appointments: [],
+      staff: [],
+      loading: false,
+      appointmentsLoaded: false,
+      staffLoaded: false,
+      error: null,
+    });
   },
 
   subscribeAppointments: () => acquireAppointmentsSubscription(get),

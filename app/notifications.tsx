@@ -20,6 +20,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { EmptyStateNotifIllustration } from '@/components/notifications/EmptyStateNotifIllustration';
 import { NotificationListRow } from '@/components/notifications/NotificationListRow';
+import { NotificationListSkeleton } from '@/components/notifications/NotificationListSkeleton';
 import { IconsaxArrowLeftIcon } from '@/components/icons/IconsaxArrowLeftIcon';
 import { useAuth } from '@/lib/auth/AuthProvider';
 import { useNotificationStore } from '@/lib/notifications/notificationStore';
@@ -50,6 +51,7 @@ export default function NotificationsScreen() {
   const navigation = useNavigation();
   const { session } = useAuth();
   const items = useNotificationStore((s) => s.items);
+  const hasLoaded = useNotificationStore((s) => s.hasLoaded);
   const fetchAll = useNotificationStore((s) => s.fetchAll);
   const markAllRead = useNotificationStore((s) => s.markAllRead);
   const archiveNotification = useNotificationStore((s) => s.archive);
@@ -90,7 +92,12 @@ export default function NotificationsScreen() {
       if (userId) {
         fetchAll(userId).catch(() => undefined);
       }
-    }, [session?.user?.id, fetchAll]),
+
+      // Mark all as read whenever you leave this screen (back, swipe, navigate away).
+      return () => {
+        markAllRead();
+      };
+    }, [session?.user?.id, fetchAll, markAllRead]),
   );
 
   const handleRefresh = useCallback(async () => {
@@ -102,6 +109,8 @@ export default function NotificationsScreen() {
       } else {
         useNotificationStore.getState().loadMock();
       }
+      // Pull-to-refresh also marks everything as read (transparent cards).
+      await markAllRead();
       // Remount list so cards re-run staggered enter (School Doctors / Medical Records feel).
       directionRef.current = 'forward';
       setPanelKey((k) => k + 1);
@@ -110,7 +119,7 @@ export default function NotificationsScreen() {
     } finally {
       setRefreshing(false);
     }
-  }, [fetchAll, session?.user?.id]);
+  }, [fetchAll, markAllRead, session?.user?.id]);
 
   const filtered = useMemo(() => {
     const list = readFilter === 'unread' ? items.filter((n) => !n.read) : items;
@@ -177,6 +186,7 @@ export default function NotificationsScreen() {
   }, [markAllRead, navigation, router]);
 
   const isEmpty = filtered.length === 0;
+  const showSkeleton = !refreshing && !hasLoaded && items.length === 0;
 
   const entering = reduceMotion
     ? FadeIn.duration(120)
@@ -275,7 +285,25 @@ export default function NotificationsScreen() {
             entering={entering}
             exiting={exiting}
             style={{ flex: 1 }}>
-            {isEmpty ? (
+            {showSkeleton ? (
+              <ScrollView
+                keyboardDismissMode="on-drag"
+                showsVerticalScrollIndicator={false}
+                alwaysBounceVertical
+                contentContainerStyle={{ gap: 20, paddingBottom: 8 }}
+                style={{ flex: 1 }}
+                refreshControl={
+                  <RefreshControl
+                    refreshing={refreshing}
+                    onRefresh={handleRefresh}
+                    tintColor="#111111"
+                    colors={['#111111']}
+                    progressBackgroundColor="#FFFFFF"
+                  />
+                }>
+                <NotificationListSkeleton count={4} />
+              </ScrollView>
+            ) : isEmpty ? (
               <ScrollView
                 keyboardDismissMode="on-drag"
                 showsVerticalScrollIndicator={false}
