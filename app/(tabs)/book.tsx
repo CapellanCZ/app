@@ -1,21 +1,6 @@
-import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback } from 'react';
-import { View } from 'react-native';
+import { SchoolDoctorsScreen } from '@/components/health-service/SchoolDoctorsScreen';
 
-import { ROUTES } from '@/lib/routes';
-
-/**
- * Right-side Book (+) tab. Opens booking, then returns focus to Home.
- */
+/** Book (+) tab — School Doctors list (bottom tabs remain visible). */
 export default function BookTab() {
-  const router = useRouter();
-
-  useFocusEffect(
-    useCallback(() => {
-      router.push(ROUTES.healthServiceDoctors);
-      router.navigate(ROUTES.home);
-    }, [router]),
-  );
-
-  return <View style={{ flex: 1 }} />;
+  return <SchoolDoctorsScreen />;
 }

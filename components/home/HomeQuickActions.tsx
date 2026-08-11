@@ -4,7 +4,6 @@ import { Pressable, Text, View } from 'react-native';
 import {
   FigmaBookingsIcon,
   FigmaMoreIcon,
-  FigmaRecordsIcon,
   FigmaVitalsIcon,
 } from '@/components/home/FigmaHomeIcons';
 import { Inter } from '@/lib/typography/inter';
@@ -25,7 +24,6 @@ type Action = {
 
 type Props = {
   onBookings: () => void;
-  onRecords: () => void;
   onVitals: () => void;
   onMore: () => void;
 };
@@ -86,21 +84,15 @@ function ActionTile({ label, icon, onPress }: Omit<Action, 'key'>) {
 }
 
 /**
- * Figma quick-action row (2220:172): Bookings · Medical Records · Vital Signs · More
+ * Quick-action row: My Appointments · Vital Signs · More
  */
-export function HomeQuickActions({ onBookings, onRecords, onVitals, onMore }: Props) {
+export function HomeQuickActions({ onBookings, onVitals, onMore }: Props) {
   const actions: Action[] = [
     {
       key: 'bookings',
-      label: 'Bookings',
+      label: 'My\nAppointments',
       icon: <FigmaBookingsIcon size={ICON_SIZE} color="#323232" />,
       onPress: onBookings,
-    },
-    {
-      key: 'records',
-      label: 'Medical\nRecords',
-      icon: <FigmaRecordsIcon size={ICON_SIZE} color="#323232" />,
-      onPress: onRecords,
     },
     {
       key: 'vitals',

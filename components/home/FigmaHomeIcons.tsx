@@ -49,32 +49,6 @@ export function FigmaBookingsIcon({ size = 24, color = '#323232' }: Props) {
   );
 }
 
-/** Figma home quick-action: medical records document */
-export function FigmaRecordsIcon({ size = 24, color = '#323232' }: Props) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 21.5 21.5" fill="none">
-      <G>
-        <Path
-          d="M20.75 8.75002V13.75C20.75 18.75 18.75 20.75 13.75 20.75H7.75C2.75 20.75 0.75 18.75 0.75 13.75V7.75002C0.75 2.75002 2.75 0.750022 7.75 0.750022H12.75"
-          stroke={color}
-          strokeWidth={1.5}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        <Path
-          d="M20.75 8.75002H16.75C13.75 8.75002 12.75 7.75002 12.75 4.75002V0.750022L20.75 8.75002Z"
-          stroke={color}
-          strokeWidth={1.5}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        <Path d="M5.75 11.75H11.75" stroke={color} strokeWidth={1.5} strokeLinecap="round" />
-        <Path d="M5.75 15.75H9.75" stroke={color} strokeWidth={1.5} strokeLinecap="round" />
-      </G>
-    </Svg>
-  );
-}
-
 /** Figma home quick-action: vital signs chart */
 export function FigmaVitalsIcon({ size = 24, color = '#323232' }: Props) {
   return (

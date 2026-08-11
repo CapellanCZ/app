@@ -13,7 +13,6 @@ export const ROUTES = {
 
   // --- Stack screens (reachable from Home quick actions) ---
   appointments: '/appointments',
-  history: '/history',
 
   // --- Auth ---
   login: '/login',
@@ -23,7 +22,7 @@ export const ROUTES = {
   // --- Features ---
   healthService: '/health-service',
   healthServiceAppointments: '/appointments',
-  healthServiceDoctors: '/health-service/doctors',
+  healthServiceDoctors: '/(tabs)/book',
 
   // --- Settings ---
   personalInfo: '/personal-info',

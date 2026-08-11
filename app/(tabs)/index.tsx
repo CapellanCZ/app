@@ -200,7 +200,6 @@ export default function HealthServiceScreen() {
 
           <HomeQuickActions
             onBookings={() => router.push(ROUTES.appointments)}
-            onRecords={() => router.push(ROUTES.history)}
             onVitals={() => router.push(ROUTES.appointments)}
             onMore={() => router.push(ROUTES.profile)}
           />

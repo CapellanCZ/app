@@ -24,8 +24,8 @@ import {
   type AppointmentCardVariant,
 } from '@/components/appointments/AppointmentCard';
 import { AppointmentListSkeleton } from '@/components/appointments/AppointmentCardSkeleton';
+import { EmptyStateAppointmentsIllustration } from '@/components/appointments/EmptyStateAppointmentsIllustration';
 import { HealthServiceScreenShell } from '@/components/health-service/HealthServiceScreenShell';
-import { IconsaxCalendarSearchIcon } from '@/components/icons/IconsaxCalendarSearchIcon';
 import { TAB_BAR_HEIGHT } from '@/components/layout/BottomTabBar';
 import { CircleBackButton } from '@/components/ui/CircleBackButton';
 import { useAuth } from '@/lib/auth/AuthProvider';
@@ -183,20 +183,21 @@ export default function AppointmentsScreen() {
     });
   }, [appointments, activeTab]);
 
+  /** Figma 2286:427 — same layout/type as notifications empty state. */
   const emptyCopy =
     activeTab === 'upcoming'
       ? {
-          title: 'No Upcoming Appointments',
-          body: "You don't have any upcoming appointments right now.",
+          title: 'No appointments yet',
+          body: "You don't have any upcoming appointments\nright now",
         }
       : activeTab === 'past'
         ? {
-            title: 'No Past Appointments',
-            body: 'Completed visits will appear here.',
+            title: 'No past appointments',
+            body: "You haven't completed any visits yet",
           }
         : {
-            title: 'No Cancelled Appointments',
-            body: 'Cancelled appointments will show up here.',
+            title: 'No cancelled appointments',
+            body: "You haven't cancelled any appointments",
           };
 
   const showSkeleton = !refreshing && !appointmentsLoaded && appointments.length === 0;
@@ -347,23 +348,21 @@ export default function AppointmentsScreen() {
                 ) : filtered.length === 0 ? (
                   <View
                     style={{
-                      borderRadius: 16,
-                      paddingHorizontal: 16,
-                      paddingVertical: 28,
-                      gap: 12,
-                      alignItems: 'center',
-                      justifyContent: 'center',
                       flexGrow: 1,
-                      minHeight: 220,
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      paddingBottom: 48,
+                      minHeight: 320,
                     }}>
-                    <IconsaxCalendarSearchIcon size={48} color="#A4A7AE" />
-                    <View style={{ gap: 4, alignItems: 'center' }}>
+                    <View style={{ alignItems: 'center', gap: 12, maxWidth: 320 }}>
+                      <EmptyStateAppointmentsIllustration size={192} />
                       <Text
                         style={{
-                          fontFamily: Inter.regular,
-                          fontSize: 18,
-                          color: '#717680',
-                          letterSpacing: -0.32,
+                          fontFamily: Inter.medium,
+                          fontSize: 28,
+                          letterSpacing: -2.24,
+                          lineHeight: 38,
+                          color: '#222222',
                           textAlign: 'center',
                         }}>
                         {emptyCopy.title}
@@ -371,9 +370,10 @@ export default function AppointmentsScreen() {
                       <Text
                         style={{
                           fontFamily: Inter.regular,
-                          fontSize: 14,
-                          color: '#A4A7AE',
-                          letterSpacing: -0.24,
+                          fontSize: 16,
+                          letterSpacing: -0.64,
+                          lineHeight: 20,
+                          color: '#727272',
                           textAlign: 'center',
                         }}>
                         {emptyCopy.body}

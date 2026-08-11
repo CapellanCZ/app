@@ -1,20 +1,45 @@
+import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
+import Animated, {
+  interpolate,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated';
 
-import { BookingChevronIcon, BookingClockIcon } from '@/components/booking/BookingIcons';
+import { BookingChevronIcon } from '@/components/booking/BookingIcons';
+import { IconsaxArrowDownIcon } from '@/components/icons/IconsaxArrowDownIcon';
 import { Inter } from '@/lib/typography/inter';
 
-const CHIP_BG = '#F9F9F9';
-const SELECTED_BG = '#0F0E0E';
+const SELECTED_DAY_BG = '#F3F3F3';
+const SELECTED_DAY_BORDER = '#D8D8D8';
+const PRESS_SPRING = { damping: 18, stiffness: 420, mass: 0.35 } as const;
+
+function usePressScale(scaleTo = 0.96) {
+  const pressed = useSharedValue(0);
+  const animStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: interpolate(pressed.get(), [0, 1], [1, scaleTo]) }],
+  }));
+  return {
+    animStyle,
+    onPressIn: () => {
+      pressed.set(withSpring(1, PRESS_SPRING));
+    },
+    onPressOut: () => {
+      pressed.set(withSpring(0, PRESS_SPRING));
+    },
+  };
+}
 
 type DayChipProps = {
   weekday: string;
   dayNumber: string;
   selected: boolean;
-  /** No clinic schedule for this weekday (or otherwise not bookable). */
   disabled?: boolean;
   onPress: () => void;
 };
 
+/** Week day cell — soft selected frame + press scale. */
 export function BookingDayChip({
   weekday,
   dayNumber,
@@ -23,6 +48,7 @@ export function BookingDayChip({
   onPress,
 }: DayChipProps) {
   const isSelected = selected && !disabled;
+  const { animStyle, onPressIn, onPressOut } = usePressScale(0.94);
 
   return (
     <Pressable
@@ -30,38 +56,46 @@ export function BookingDayChip({
       accessibilityState={{ selected: isSelected, disabled }}
       disabled={disabled}
       onPress={onPress}
-      style={{
-        flex: 1,
-        flexBasis: 0,
-        height: 78,
-        borderRadius: 16,
-        backgroundColor: disabled ? '#F3F3F3' : isSelected ? SELECTED_BG : CHIP_BG,
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 12,
-        paddingHorizontal: 4,
-        paddingVertical: 12,
-        opacity: disabled ? 0.45 : 1,
-      }}>
-      <Text
-        style={{
-          fontFamily: Inter.regular,
-          fontSize: 12,
-          color: disabled ? '#B0B0B0' : isSelected ? '#A7A7A7' : '#6C6C6C',
-          letterSpacing: -0.48,
-        }}>
-        {weekday}
-      </Text>
-      <Text
-        style={{
-          fontFamily: Inter.medium,
-          fontSize: 16,
-          color: disabled ? '#B0B0B0' : isSelected ? '#FFFFFF' : '#111111',
-          letterSpacing: -0.64,
-          textDecorationLine: disabled ? 'line-through' : 'none',
-        }}>
-        {dayNumber}
-      </Text>
+      onPressIn={onPressIn}
+      onPressOut={onPressOut}
+      style={{ flex: 1, flexBasis: 0 }}>
+      <Animated.View
+        style={[
+          animStyle,
+          {
+            minHeight: 64,
+            borderRadius: 14,
+            backgroundColor: isSelected ? SELECTED_DAY_BG : 'transparent',
+            borderWidth: 1,
+            borderColor: isSelected ? SELECTED_DAY_BORDER : 'transparent',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 6,
+            paddingHorizontal: 2,
+            paddingVertical: 10,
+            opacity: disabled ? 0.4 : 1,
+          },
+        ]}>
+        <Text
+          style={{
+            fontFamily: Inter.regular,
+            fontSize: 12,
+            color: disabled ? '#B0B0B0' : isSelected ? '#111111' : '#9E9E9E',
+            letterSpacing: -0.48,
+          }}>
+          {weekday}
+        </Text>
+        <Text
+          style={{
+            fontFamily: Inter.medium,
+            fontSize: 16,
+            color: disabled ? '#B0B0B0' : isSelected ? '#111111' : '#9E9E9E',
+            letterSpacing: -0.64,
+            textDecorationLine: disabled ? 'line-through' : 'none',
+          }}>
+          {dayNumber}
+        </Text>
+      </Animated.View>
     </Pressable>
   );
 }
@@ -73,34 +107,114 @@ type SlotChipProps = {
   onPress: () => void;
 };
 
+/** Selected: solid near-black + soft glow. Unselected: fill only (no border). */
 export function BookingSlotChip({ label, selected, booked = false, onPress }: SlotChipProps) {
+  const { animStyle, onPressIn, onPressOut } = usePressScale(0.96);
+
+  return (
+    <Animated.View
+      style={[
+        animStyle,
+        {
+          flex: 1,
+          flexBasis: 0,
+          minWidth: 0,
+          borderRadius: 16,
+          backgroundColor: selected ? 'rgba(255,255,255,0.65)' : 'transparent',
+          shadowColor: selected ? '#FFFFFF' : 'transparent',
+          shadowOffset: { width: 0, height: 0 },
+          shadowOpacity: selected ? 1 : 0,
+          shadowRadius: selected ? 14 : 0,
+          elevation: selected ? 8 : 0,
+        },
+      ]}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ selected, disabled: booked }}
+        disabled={booked}
+        onPress={onPress}
+        onPressIn={onPressIn}
+        onPressOut={onPressOut}
+        style={{
+          borderRadius: 16,
+          backgroundColor: selected ? '#0F0E0E' : '#F4F4F4',
+          paddingVertical: 14,
+          paddingHorizontal: 10,
+          alignItems: 'center',
+          justifyContent: 'center',
+          opacity: booked ? 0.45 : 1,
+          shadowColor: selected ? '#D0D0D0' : 'transparent',
+          shadowOffset: { width: 0, height: 5 },
+          shadowOpacity: selected ? 0.45 : 0,
+          shadowRadius: selected ? 12 : 0,
+        }}>
+        <Text
+          style={{
+            fontFamily: selected ? Inter.medium : Inter.regular,
+            fontSize: 15,
+            color: selected ? '#FFFFFF' : '#6C6C6C',
+            letterSpacing: -0.6,
+            textAlign: 'center',
+            textDecorationLine: booked ? 'line-through' : 'none',
+          }}>
+          {label}
+        </Text>
+      </Pressable>
+    </Animated.View>
+  );
+}
+
+type NavCircleProps = {
+  onPress: () => void;
+  accessibilityLabel: string;
+  backgroundColor: string;
+  chevronColor: string;
+  mirror?: boolean;
+};
+
+function BookingNavCircle({
+  onPress,
+  accessibilityLabel,
+  backgroundColor,
+  chevronColor,
+  mirror = false,
+}: NavCircleProps) {
+  const pressed = useSharedValue(0);
+  const animStyle = useAnimatedStyle(() => {
+    const scale = interpolate(pressed.get(), [0, 1], [1, 0.9]);
+    return {
+      transform: mirror
+        ? [{ scaleX: -1 * scale }, { scaleY: scale }]
+        : [{ scale }],
+    };
+  });
+
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityState={{ selected, disabled: booked }}
-      disabled={booked}
+      accessibilityLabel={accessibilityLabel}
       onPress={onPress}
-      style={{
-        flex: 1,
-        flexBasis: 0,
-        minWidth: 0,
-        borderRadius: 16,
-        backgroundColor: selected ? '#050505' : CHIP_BG,
-        padding: 12,
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}>
-      <Text
-        style={{
-          fontFamily: Inter.regular,
-          fontSize: 16,
-          color: selected ? '#FFFFFF' : '#6C6C6C',
-          letterSpacing: -0.64,
-          textAlign: 'center',
-          textDecorationLine: booked ? 'line-through' : 'none',
-        }}>
-        {label}
-      </Text>
+      onPressIn={() => {
+        pressed.set(withSpring(1, PRESS_SPRING));
+      }}
+      onPressOut={() => {
+        pressed.set(withSpring(0, PRESS_SPRING));
+      }}
+      hitSlop={6}>
+      <Animated.View
+        style={[
+          animStyle,
+          {
+            width: 36,
+            height: 36,
+            borderRadius: 18,
+            backgroundColor,
+            alignItems: 'center',
+            justifyContent: 'center',
+          },
+        ]}>
+        <BookingChevronIcon size={18} color={chevronColor} />
+      </Animated.View>
     </Pressable>
   );
 }
@@ -111,83 +225,138 @@ type SheetHeaderProps = {
   onNextWeek: () => void;
 };
 
+/** Month label + circular week nav (prev light / next black). */
 export function BookingSheetHeader({ monthLabel, onPrevWeek, onNextWeek }: SheetHeaderProps) {
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
-      <View style={{ flex: 1, minWidth: 0 }}>
-        <Text
-          style={{
-            fontFamily: Inter.regular,
-            fontSize: 12,
-            color: '#A7A7A7',
-            letterSpacing: -0.48,
-          }}>
-          {monthLabel}
-        </Text>
-        <Text
-          style={{
-            fontFamily: Inter.medium,
-            fontSize: 20,
-            color: '#111111',
-            letterSpacing: -1.6,
-            lineHeight: 28,
-          }}>
-          Book Appointment
-        </Text>
-      </View>
-      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-        <Pressable
-          accessibilityRole="button"
+    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+      <Text
+        style={{
+          fontFamily: Inter.semiBold,
+          fontSize: 22,
+          color: '#111111',
+          letterSpacing: -1.2,
+          lineHeight: 28,
+        }}>
+        {monthLabel}
+      </Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <BookingNavCircle
           accessibilityLabel="Previous week"
           onPress={onPrevWeek}
-          hitSlop={8}
-          style={{ padding: 4, transform: [{ scaleX: -1 }] }}>
-          <BookingChevronIcon size={20} color="#6C6C6C" />
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
+          backgroundColor="#F0F0F0"
+          chevronColor="#6C6C6C"
+          mirror
+        />
+        <BookingNavCircle
           accessibilityLabel="Next week"
           onPress={onNextWeek}
-          hitSlop={8}
-          style={{ padding: 4 }}>
-          <BookingChevronIcon size={20} color="#6C6C6C" />
-        </Pressable>
+          backgroundColor="#000000"
+          chevronColor="#FFFFFF"
+        />
       </View>
     </View>
   );
 }
 
-type ChooseTimeProps = {
-  onPress?: () => void;
+type SlotItem = {
+  label: string;
+  booked: boolean;
 };
 
-export function BookingChooseTimeRow({ onPress }: ChooseTimeProps) {
+type PeriodSectionProps = {
+  title: string;
+  items: SlotItem[];
+  selectedSlot: string | null;
+  onSelect: (label: string) => void;
+  initialVisible?: number;
+};
+
+function chunkSlots(items: SlotItem[], size = 3): SlotItem[][] {
+  const rows: SlotItem[][] = [];
+  for (let i = 0; i < items.length; i += size) {
+    rows.push(items.slice(i, i + size));
+  }
+  return rows;
+}
+
+/**
+ * Morning / Afternoon block — shows `initialVisible` slots, chevron reveals the rest.
+ */
+export function BookingPeriodSection({
+  title,
+  items,
+  selectedSlot,
+  onSelect,
+  initialVisible = 6,
+}: PeriodSectionProps) {
+  const [expanded, setExpanded] = useState(false);
+  const canExpand = items.length > initialVisible;
+  const visibleItems =
+    expanded || !canExpand ? items : items.slice(0, initialVisible);
+  const { animStyle, onPressIn, onPressOut } = usePressScale(0.98);
+
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel="Choose time"
-      onPress={onPress}
-      style={{
-        width: '100%',
-        backgroundColor: CHIP_BG,
-        borderRadius: 16,
-        padding: 12,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 10,
-      }}>
-      <BookingClockIcon size={20} color="#6C6C6C" />
-      <Text
-        style={{
-          fontFamily: Inter.regular,
-          fontSize: 16,
-          color: '#6C6C6C',
-          letterSpacing: -0.64,
-        }}>
-        Choose time
-      </Text>
-    </Pressable>
+    <View style={{ gap: 10 }}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={
+          canExpand
+            ? `${title}, ${expanded ? 'collapse' : 'show all'} time slots`
+            : title
+        }
+        accessibilityState={{ expanded: canExpand ? expanded : undefined }}
+        disabled={!canExpand}
+        onPress={() => setExpanded((v) => !v)}
+        onPressIn={canExpand ? onPressIn : undefined}
+        onPressOut={canExpand ? onPressOut : undefined}>
+        <Animated.View
+          style={[
+            canExpand ? animStyle : null,
+            {
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              paddingVertical: 2,
+            },
+          ]}>
+          <Text
+            style={{
+              fontFamily: Inter.medium,
+              fontSize: 15,
+              color: '#111111',
+              letterSpacing: -0.3,
+            }}>
+            {title}
+          </Text>
+          {canExpand ? (
+            <View style={{ transform: [{ rotate: expanded ? '180deg' : '0deg' }] }}>
+              <IconsaxArrowDownIcon size={16} color="#717680" />
+            </View>
+          ) : null}
+        </Animated.View>
+      </Pressable>
+
+      {chunkSlots(visibleItems).map((row, rowIndex) => (
+        <View
+          key={`${title}-${rowIndex}`}
+          style={{ flexDirection: 'row', gap: 10 }}>
+          {row.map((slot) => (
+            <BookingSlotChip
+              key={slot.label}
+              label={slot.label}
+              selected={selectedSlot === slot.label}
+              booked={slot.booked}
+              onPress={() => onSelect(slot.label)}
+            />
+          ))}
+          {row.length < 3
+            ? Array.from({ length: 3 - row.length }).map((_, i) => (
+                <View key={`pad-${i}`} style={{ flex: 1, flexBasis: 0 }} />
+              ))
+            : null}
+        </View>
+      ))}
+    </View>
   );
 }
 
@@ -198,31 +367,47 @@ type BookButtonProps = {
 };
 
 export function BookingPrimaryButton({ disabled, loading, onPress }: BookButtonProps) {
+  const { animStyle, onPressIn, onPressOut } = usePressScale(0.98);
+  const inactive = disabled || loading;
+
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel="Book appointment"
-      disabled={disabled || loading}
+      disabled={inactive}
       onPress={onPress}
-      style={{
-        width: '100%',
-        height: 48,
-        borderRadius: 48,
-        backgroundColor: '#000000',
-        alignItems: 'center',
-        justifyContent: 'center',
-        opacity: disabled || loading ? 0.45 : 1,
-      }}>
-      <Text
-        style={{
-          fontFamily: Inter.medium,
-          fontSize: 16,
-          color: '#FFFFFF',
-          textTransform: 'capitalize',
-          lineHeight: 16,
-        }}>
-        {loading ? 'Booking…' : 'Book Appointment'}
-      </Text>
+      onPressIn={inactive ? undefined : onPressIn}
+      onPressOut={inactive ? undefined : onPressOut}>
+      <Animated.View
+        style={[
+          inactive ? null : animStyle,
+          {
+            width: '100%',
+            height: 48,
+            borderRadius: 48,
+            backgroundColor: '#000000',
+            alignItems: 'center',
+            justifyContent: 'center',
+            opacity: inactive ? 0.45 : 1,
+            // Soft light lift — no extra fill behind the black pill
+            shadowColor: '#C8C8C8',
+            shadowOffset: { width: 0, height: 6 },
+            shadowOpacity: inactive ? 0 : 0.5,
+            shadowRadius: 14,
+            elevation: inactive ? 0 : 6,
+          },
+        ]}>
+        <Text
+          style={{
+            fontFamily: Inter.medium,
+            fontSize: 16,
+            color: '#FFFFFF',
+            textTransform: 'capitalize',
+            lineHeight: 16,
+          }}>
+          {loading ? 'Booking…' : 'Book Appointment'}
+        </Text>
+      </Animated.View>
     </Pressable>
   );
 }
