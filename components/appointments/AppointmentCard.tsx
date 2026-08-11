@@ -49,8 +49,6 @@ type Props = {
   /** Upcoming only — drives the status icon next to call. */
   status?: Extract<AppointmentStatus, 'pending' | 'confirmed'>;
   phoneNumber?: string | null;
-  cancelDisabled?: boolean;
-  onCancel?: () => void;
   onReschedule?: () => void;
   /** Past chevron / card press. Cancelled rows typically omit. */
   onPress?: () => void;
@@ -71,8 +69,6 @@ export function AppointmentCard({
   backgroundColor,
   status,
   phoneNumber,
-  cancelDisabled = false,
-  onCancel,
   onReschedule,
   onPress,
   enterIndex,
@@ -271,6 +267,7 @@ export function AppointmentCard({
                 columnGap: variant === 'upcoming' ? 20 : 16,
                 rowGap: 10,
                 paddingHorizontal: 10,
+                paddingTop: 6,
                 minHeight: 28,
                 width: '100%',
               }}>
@@ -353,38 +350,6 @@ export function AppointmentCard({
               ) : null}
             </View>
           </View>
-
-          {variant === 'upcoming' && onCancel ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Cancel appointment"
-              disabled={cancelDisabled}
-              onPress={onCancel}
-              style={{
-                width: '100%',
-                backgroundColor: 'rgba(255,255,255,0.83)',
-                borderWidth: 1,
-                borderColor: '#E3E3E3',
-                borderRadius: 16,
-                paddingVertical: 8,
-                paddingHorizontal: 4,
-                alignItems: 'center',
-                justifyContent: 'center',
-                opacity: cancelDisabled ? 0.5 : 1,
-              }}>
-              <Text
-                style={{
-                  fontFamily: Inter.regular,
-                  fontSize: 15,
-                  color: '#1B1B1B',
-                  letterSpacing: -1.2,
-                  textAlign: 'center',
-                  lineHeight: 20,
-                }}>
-                Cancel Appointment
-              </Text>
-            </Pressable>
-          ) : null}
 
           {variant === 'cancelled' && onReschedule ? (
             <Pressable

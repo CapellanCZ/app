@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Linking, Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, Linking, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,6 +9,7 @@ import { AppointmentBookedCard } from '@/components/booking/AppointmentBookedCar
 import { AppointmentBookedCheckIcon } from '@/components/booking/AppointmentBookedCheckIcon';
 import { AppointmentImportantNote } from '@/components/booking/AppointmentImportantNote';
 import { formatVisitReasonDisplay } from '@/components/booking/BookingConsultationFields';
+import { useAuth } from '@/lib/auth/AuthProvider';
 import {
   appointmentReminderAt,
   buildGoogleCalendarUrl,
@@ -19,6 +20,7 @@ import {
 } from '@/lib/health-service/appointmentDisplay';
 import { healthServiceApi } from '@/lib/health-service/healthServiceApi';
 import { useHealthServiceStore } from '@/lib/health-service/healthServiceStore';
+import { notifyAppointmentCancelled } from '@/lib/notifications/appointmentNotifications';
 import { Inter } from '@/lib/typography/inter';
 
 const REMINDER_MINUTES_BEFORE = 30;
@@ -33,9 +35,11 @@ const CLINIC_LOCATION = 'CampusCare Student Health Clinic';
 export default function AppointmentBookedScreen() {
   const insets = useSafeAreaInsets();
   const { toast } = useToast();
+  const { session } = useAuth();
   const [reminderBusy, setReminderBusy] = useState(false);
   const [reminderSetAt, setReminderSetAt] = useState<Date | null>(null);
   const [calendarBusy, setCalendarBusy] = useState(false);
+  const [cancelBusy, setCancelBusy] = useState(false);
   const [queueNumberLabel, setQueueNumberLabel] = useState<string | null>(null);
   const {
     id,
@@ -60,6 +64,7 @@ export default function AppointmentBookedScreen() {
   }>();
 
   const appointments = useHealthServiceStore((s) => s.appointments);
+  const cancelAppointment = useHealthServiceStore((s) => s.cancelAppointment);
   const storeReason = useMemo(() => {
     const appointmentId = id ? String(id) : '';
     if (!appointmentId) return null;
@@ -130,6 +135,40 @@ export default function AppointmentBookedScreen() {
 
   /** Hide the reminder row once the appointment is within 30 minutes (unless already set). */
   const showReminder = Boolean(reminderSetAt || reminderAvailable);
+
+  const requestCancel = useCallback(() => {
+    const appointmentId = id ? String(id) : '';
+    if (!appointmentId || cancelBusy) return;
+
+    Alert.alert(
+      'Cancel appointment?',
+      `Cancel your appointment with ${name}?`,
+      [
+        { text: 'Keep', style: 'cancel' },
+        {
+          text: 'Cancel appointment',
+          style: 'destructive',
+          onPress: () => {
+            void (async () => {
+              setCancelBusy(true);
+              try {
+                await cancelAppointment(appointmentId);
+                notifyAppointmentCancelled(session?.user?.id, {
+                  appointmentId,
+                  doctorName: name,
+                });
+                router.replace('/appointments');
+              } catch {
+                Alert.alert('Could not cancel', 'Please try again in a moment.');
+              } finally {
+                setCancelBusy(false);
+              }
+            })();
+          },
+        },
+      ],
+    );
+  }, [cancelAppointment, cancelBusy, id, name, session?.user?.id]);
 
   const handleAddToCalendar = useCallback(async () => {
     if (!dateKey || !appointmentTime || calendarBusy) return;
@@ -482,8 +521,9 @@ export default function AppointmentBookedScreen() {
 
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="View my appointments"
-                onPress={() => router.replace('/appointments')}
+                accessibilityLabel="Cancel appointment"
+                disabled={cancelBusy || !id}
+                onPress={requestCancel}
                 style={{
                   height: 48,
                   borderRadius: 48,
@@ -492,6 +532,7 @@ export default function AppointmentBookedScreen() {
                   backgroundColor: 'transparent',
                   alignItems: 'center',
                   justifyContent: 'center',
+                  opacity: cancelBusy || !id ? 0.55 : 1,
                 }}
                 className="active:opacity-80">
                 <Text
@@ -502,7 +543,7 @@ export default function AppointmentBookedScreen() {
                     letterSpacing: -1.2,
                     lineHeight: 18,
                   }}>
-                  View My Appointments
+                  {cancelBusy ? 'Cancelling…' : 'Cancel Appointment'}
                 </Text>
               </Pressable>
             </View>

@@ -679,7 +679,7 @@ function createSupabaseHealthServiceApi(): HealthServiceApi {
             .select('ticket_code, queue_position, queue_number, estimated_wait_minutes, status')
             .eq('patient_id', patientId)
             .eq('service_date', serviceDate)
-            .in('status', ['waiting', 'called', 'idle', 'checked_in'])
+            .in('status', ['waiting', 'called', 'idle', 'checked_in', 'completed', 'expired'])
             .order('created_at', { ascending: false })
             .limit(1)
             .maybeSingle();

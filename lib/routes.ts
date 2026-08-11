@@ -23,6 +23,7 @@ export const ROUTES = {
   healthService: '/health-service',
   healthServiceAppointments: '/appointments',
   healthServiceDoctors: '/(tabs)/book',
+  visitCompleted: '/visit-completed',
 
   // --- Settings ---
   personalInfo: '/personal-info',

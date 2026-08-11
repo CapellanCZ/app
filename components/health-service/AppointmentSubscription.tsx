@@ -5,7 +5,7 @@ import { useHealthServiceStore } from '@/lib/health-service/healthServiceStore';
 
 /**
  * Keeps appointment realtime listening globally so confirm/cancel
- * notifications + toasts fire even when Home isn’t mounted.
+ * notifications fire and completed visits open Visit Completed anywhere.
  */
 export function AppointmentSubscription() {
   const { session } = useAuth();

@@ -24,6 +24,8 @@ type Props = {
   bottomPadding?: number;
   /** Whether tapping outside dismisses the sheet. Default: true */
   dismissOnBackdropPress?: boolean;
+  /** Sheet surface color. Default: `#FFFFFF` */
+  backgroundColor?: string;
 };
 
 export type BottomSheetModalHandle = {
@@ -42,7 +44,13 @@ export type BottomSheetModalHandle = {
  * 3. A spring animates translateY to 0 and the backdrop fades in.
  */
 export const BottomSheetModal = forwardRef<BottomSheetModalHandle, Props>(function BottomSheetModal(
-  { children, onClose, bottomPadding = 24, dismissOnBackdropPress = true },
+  {
+    children,
+    onClose,
+    bottomPadding = 24,
+    dismissOnBackdropPress = true,
+    backgroundColor = '#FFFFFF',
+  },
   ref,
 ) {
   const insets = useSafeAreaInsets();
@@ -50,7 +58,6 @@ export const BottomSheetModal = forwardRef<BottomSheetModalHandle, Props>(functi
   const sheetOpacity = useSharedValue(0);
   const backdropOpacity = useSharedValue(0);
   const [measured, setMeasured] = useState(false);
-  const [ready, setReady] = useState(false);
 
   const handleLayout = useCallback(
     (e: LayoutChangeEvent) => {
@@ -62,13 +69,12 @@ export const BottomSheetModal = forwardRef<BottomSheetModalHandle, Props>(functi
       translateY.value = h;
       sheetOpacity.value = 1;
       backdropOpacity.value = withTiming(1, { duration: 260, easing: Easing.out(Easing.cubic) });
-      translateY.value = withSpring(
-        0,
-        { damping: 26, stiffness: 180, mass: 1, overshootClamping: true },
-        (finished) => {
-          if (finished) runOnJS(setReady)(true);
-        },
-      );
+      translateY.value = withSpring(0, {
+        damping: 26,
+        stiffness: 180,
+        mass: 1,
+        overshootClamping: true,
+      });
     },
     [measured, translateY, sheetOpacity, backdropOpacity],
   );
@@ -103,7 +109,10 @@ export const BottomSheetModal = forwardRef<BottomSheetModalHandle, Props>(functi
       onLayout={handleLayout}
       style={[
         styles.sheet,
-        { paddingBottom: Math.max(insets.bottom, 12) + bottomPadding },
+        {
+          backgroundColor,
+          paddingBottom: Math.max(insets.bottom, 12) + bottomPadding,
+        },
         sheetStyle,
       ]}>
       <View style={styles.handle} />
@@ -122,7 +131,8 @@ export const BottomSheetModal = forwardRef<BottomSheetModalHandle, Props>(functi
         />
       </Animated.View>
 
-      {ready && Platform.OS === 'ios' ? (
+      {/* Keep a stable wrapper so children (e.g. check animation) don’t remount mid-open. */}
+      {Platform.OS === 'ios' ? (
         <KeyboardAvoidingView behavior="padding" pointerEvents="box-none" style={styles.keyboardWrap}>
           {sheet}
         </KeyboardAvoidingView>
@@ -148,7 +158,6 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   sheet: {
-    backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
     paddingTop: 10,

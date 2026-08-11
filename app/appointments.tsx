@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -28,16 +28,14 @@ import { EmptyStateAppointmentsIllustration } from '@/components/appointments/Em
 import { HealthServiceScreenShell } from '@/components/health-service/HealthServiceScreenShell';
 import { TAB_BAR_HEIGHT } from '@/components/layout/BottomTabBar';
 import { CircleBackButton } from '@/components/ui/CircleBackButton';
-import { useAuth } from '@/lib/auth/AuthProvider';
 import {
   formatAppointmentBookedDate,
   formatAppointmentCancelledWhen,
-  formatAppointmentCardDate,
   formatAppointmentCardDateTime,
   formatCancellationLabel,
 } from '@/lib/health-service/appointmentDisplay';
+import { formatVisitReasonDisplay } from '@/components/booking/BookingConsultationFields';
 import { useHealthServiceStore } from '@/lib/health-service/healthServiceStore';
-import { notifyAppointmentCancelled } from '@/lib/notifications/appointmentNotifications';
 import { Inter } from '@/lib/typography/inter';
 
 /** Figma tabs: Upcoming · Past · Cancelled */
@@ -70,10 +68,8 @@ function matchesTab(
  */
 export default function AppointmentsScreen() {
   const insets = useSafeAreaInsets();
-  const { session } = useAuth();
   const [activeTab, setActiveTab] = useState<AppointmentTab>('upcoming');
   const [panelKey, setPanelKey] = useState(0);
-  const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const directionRef = useRef<'forward' | 'back'>('forward');
   const reduceMotion = useReducedMotion();
@@ -87,7 +83,6 @@ export default function AppointmentsScreen() {
   const staff = useHealthServiceStore((s) => s.staff);
   const loadAppointments = useHealthServiceStore((s) => s.loadAppointments);
   const loadStaff = useHealthServiceStore((s) => s.loadStaff);
-  const cancelAppointment = useHealthServiceStore((s) => s.cancelAppointment);
   const refreshData = useHealthServiceStore((s) => s.refreshData);
 
   useEffect(() => {
@@ -202,39 +197,6 @@ export default function AppointmentsScreen() {
           };
 
   const showSkeleton = !refreshing && !appointmentsLoaded && appointments.length === 0;
-
-  const requestCancel = (id: string, doctorName: string) => {
-    Alert.alert(
-      'Cancel appointment?',
-      `Cancel your appointment with ${doctorName}?`,
-      [
-        { text: 'Keep', style: 'cancel' },
-        {
-          text: 'Cancel appointment',
-          style: 'destructive',
-          onPress: () => {
-            void (async () => {
-              setCancellingId(id);
-              try {
-                await cancelAppointment(id);
-                notifyAppointmentCancelled(session?.user?.id, {
-                  appointmentId: id,
-                  doctorName,
-                });
-                const settleMs = reduceMotion ? 40 : 240;
-                await new Promise<void>((resolve) => setTimeout(resolve, settleMs));
-                goToTab('cancelled', 'forward');
-              } catch {
-                Alert.alert('Could not cancel', 'Please try again in a moment.');
-              } finally {
-                setCancellingId(null);
-              }
-            })();
-          },
-        },
-      ],
-    );
-  };
 
   const entering = reduceMotion
     ? FadeIn.duration(120)
@@ -385,22 +347,19 @@ export default function AppointmentsScreen() {
                   filtered.map((item, index) => {
                     const staffMember = staff.find((s) => s.id === item.staffId);
                     const doctorName = staffMember?.name ?? 'Unknown Doctor';
-                    const visitReason = item.reason?.trim() || 'Consultation';
                     const variant = activeTab as AppointmentCardVariant;
 
                     const dateLabel =
-                      variant === 'upcoming'
+                      variant === 'upcoming' || variant === 'past'
                         ? formatAppointmentCardDateTime(item.dateKey, item.startLabel)
-                        : variant === 'cancelled'
-                          ? formatAppointmentCancelledWhen(item.dateKey, item.startLabel)
-                          : formatAppointmentCardDate(item.dateKey);
+                        : formatAppointmentCancelledWhen(item.dateKey, item.startLabel);
 
                     const secondaryLabel =
                       variant === 'upcoming'
                         ? undefined
                         : variant === 'cancelled'
                           ? formatCancellationLabel(item.cancellationReason)
-                          : visitReason;
+                          : formatVisitReasonDisplay(item.reason) || 'Consultation';
 
                     return (
                       <AppointmentCard
@@ -420,12 +379,6 @@ export default function AppointmentsScreen() {
                         backgroundColor={
                           APPOINTMENT_CARD_COLORS[index % APPOINTMENT_CARD_COLORS.length]
                         }
-                        cancelDisabled={cancellingId === item.id}
-                        onCancel={
-                          variant === 'upcoming'
-                            ? () => requestCancel(item.id, doctorName)
-                            : undefined
-                        }
                         onReschedule={
                           variant === 'cancelled'
                             ? () =>
@@ -438,22 +391,40 @@ export default function AppointmentsScreen() {
                         onPress={
                           variant === 'cancelled'
                             ? undefined
-                            : () =>
-                                router.push({
-                                  pathname: '/health-service/appointment-booked',
-                                  params: {
-                                    id: item.id,
-                                    doctorName,
-                                    specialtyLabel:
-                                      staffMember?.specialtyLabel ?? 'Physician',
-                                    photoUrl: staffMember?.photoUrl ?? '',
-                                    appointmentDate: formatAppointmentBookedDate(item.dateKey),
-                                    appointmentTime: item.startLabel,
-                                    dateKey: item.dateKey,
-                                    status: item.status,
-                                    reason: item.reason ?? '',
-                                  },
-                                })
+                            : variant === 'past'
+                              ? () =>
+                                  router.push({
+                                    pathname: '/visit-completed',
+                                    params: {
+                                      id: item.id,
+                                      staffId: item.staffId,
+                                      doctorName,
+                                      specialtyLabel:
+                                        staffMember?.specialtyLabel ?? 'Physician',
+                                      photoUrl: staffMember?.photoUrl ?? '',
+                                      appointmentDate: formatAppointmentBookedDate(item.dateKey),
+                                      appointmentTime: item.startLabel,
+                                      dateKey: item.dateKey,
+                                      reason: item.reason ?? '',
+                                      completedTime: item.endLabel ?? '',
+                                    },
+                                  })
+                              : () =>
+                                  router.push({
+                                    pathname: '/health-service/appointment-booked',
+                                    params: {
+                                      id: item.id,
+                                      doctorName,
+                                      specialtyLabel:
+                                        staffMember?.specialtyLabel ?? 'Physician',
+                                      photoUrl: staffMember?.photoUrl ?? '',
+                                      appointmentDate: formatAppointmentBookedDate(item.dateKey),
+                                      appointmentTime: item.startLabel,
+                                      dateKey: item.dateKey,
+                                      status: item.status,
+                                      reason: item.reason ?? '',
+                                    },
+                                  })
                         }
                       />
                     );

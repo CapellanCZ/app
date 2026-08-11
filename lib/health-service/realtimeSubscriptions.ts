@@ -5,10 +5,13 @@ import {
   notifyAppointmentCancelled,
   notifyAppointmentConfirmed,
 } from '@/lib/notifications/appointmentNotifications';
+import { openVisitCompletedScreen } from '@/lib/health-service/visitCompletedNavigation';
+import type { Appointment, Staff } from '@/lib/health-service/types';
 
 type HealthStoreGet = () => {
   loadAppointments: () => Promise<void>;
-  staff: Array<{ id: string; name: string }>;
+  appointments: Appointment[];
+  staff: Staff[];
 };
 
 function removeStaleChannel(client: SupabaseClient, channelName: string) {
@@ -70,11 +73,12 @@ export function acquireAppointmentsSubscription(get: HealthStoreGet): () => void
             return;
           }
 
+          const appointmentId = payload.new.id;
           const nextStatus = (payload.new.status ?? '').toLowerCase();
           const prevFromPayload = (payload.old?.status ?? '').toLowerCase();
           // Snapshot local status BEFORE reload — needed if realtime omits old.status.
           const localPrev = (
-            get().appointments.find((a) => a.id === payload.new?.id)?.status ?? ''
+            get().appointments.find((a) => a.id === appointmentId)?.status ?? ''
           ).toLowerCase();
           const prevStatus = prevFromPayload || localPrev;
 
@@ -85,31 +89,44 @@ export function acquireAppointmentsSubscription(get: HealthStoreGet): () => void
             nextStatus === 'cancelled' &&
             prevStatus !== '' &&
             prevStatus !== 'cancelled';
+          const becameCompleted =
+            nextStatus === 'completed' &&
+            prevStatus !== '' &&
+            prevStatus !== 'completed';
 
-          void get().loadAppointments();
+          await get().loadAppointments();
 
-          if (!becameConfirmed && !becameCancelled) return;
+          if (!becameConfirmed && !becameCancelled && !becameCompleted) return;
 
           const {
             data: { user },
           } = await client.auth.getUser();
           if (!user?.id) return;
 
-          const staffName =
-            get().staff.find((s) => s.id === payload.new?.doctor_id)?.name ?? undefined;
+          const staffMember =
+            get().staff.find((s) => s.id === payload.new?.doctor_id) ?? null;
+          const staffName = staffMember?.name;
 
           if (becameConfirmed) {
             notifyAppointmentConfirmed(user.id, {
-              appointmentId: payload.new.id,
+              appointmentId,
               doctorName: staffName,
             });
           }
 
           if (becameCancelled) {
             notifyAppointmentCancelled(user.id, {
-              appointmentId: payload.new.id,
+              appointmentId,
               doctorName: staffName,
             });
+          }
+
+          if (becameCompleted) {
+            // Only open if this appointment is in the patient's loaded list (owns it).
+            const appointment = get().appointments.find((a) => a.id === appointmentId);
+            if (appointment?.status === 'completed') {
+              openVisitCompletedScreen(appointment, staffMember);
+            }
           }
         },
       )
