@@ -445,6 +445,7 @@ export default function AppointmentsScreen() {
                                     appointmentTime: item.startLabel,
                                     dateKey: item.dateKey,
                                     status: item.status,
+                                    reason: item.reason ?? '',
                                   },
                                 })
                         }

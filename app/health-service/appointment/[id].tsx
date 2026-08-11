@@ -69,6 +69,7 @@ export default function AppointmentConfirmedScreen() {
         appointmentTime: ap.startLabel,
         dateKey: ap.dateKey,
         status: ap.status,
+        reason: ap.reason ?? '',
       },
     });
   }, [ap, staff?.photoUrl, staff?.specialtyLabel]);

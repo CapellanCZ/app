@@ -8,6 +8,7 @@ import { useToast } from 'heroui-native';
 import { AppointmentBookedCard } from '@/components/booking/AppointmentBookedCard';
 import { AppointmentBookedCheckIcon } from '@/components/booking/AppointmentBookedCheckIcon';
 import { AppointmentImportantNote } from '@/components/booking/AppointmentImportantNote';
+import { formatVisitReasonDisplay } from '@/components/booking/BookingConsultationFields';
 import {
   appointmentReminderAt,
   buildGoogleCalendarUrl,
@@ -17,6 +18,7 @@ import {
   formatClinicTime,
 } from '@/lib/health-service/appointmentDisplay';
 import { healthServiceApi } from '@/lib/health-service/healthServiceApi';
+import { useHealthServiceStore } from '@/lib/health-service/healthServiceStore';
 import { Inter } from '@/lib/typography/inter';
 
 const REMINDER_MINUTES_BEFORE = 30;
@@ -34,6 +36,7 @@ export default function AppointmentBookedScreen() {
   const [reminderBusy, setReminderBusy] = useState(false);
   const [reminderSetAt, setReminderSetAt] = useState<Date | null>(null);
   const [calendarBusy, setCalendarBusy] = useState(false);
+  const [queueNumberLabel, setQueueNumberLabel] = useState<string | null>(null);
   const {
     id,
     doctorName,
@@ -43,6 +46,7 @@ export default function AppointmentBookedScreen() {
     appointmentTime,
     dateKey,
     status,
+    reason,
   } = useLocalSearchParams<{
     id?: string;
     doctorName?: string;
@@ -52,7 +56,20 @@ export default function AppointmentBookedScreen() {
     appointmentTime?: string;
     dateKey?: string;
     status?: string;
+    reason?: string;
   }>();
+
+  const appointments = useHealthServiceStore((s) => s.appointments);
+  const storeReason = useMemo(() => {
+    const appointmentId = id ? String(id) : '';
+    if (!appointmentId) return null;
+    return appointments.find((a) => a.id === appointmentId)?.reason ?? null;
+  }, [appointments, id]);
+
+  const visitReason = useMemo(
+    () => formatVisitReasonDisplay(reason || storeReason),
+    [reason, storeReason],
+  );
 
   const statusNorm = String(status ?? '').toLowerCase();
   const isCancelled = statusNorm === 'cancelled';
@@ -63,6 +80,28 @@ export default function AppointmentBookedScreen() {
       router.replace('/appointments');
     }
   }, [isCancelled]);
+
+  useEffect(() => {
+    const appointmentId = id ? String(id) : '';
+    if (!appointmentId || !isConfirmed) {
+      setQueueNumberLabel(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const ticket = await healthServiceApi.getQueueTicketForAppointment(appointmentId);
+        if (cancelled) return;
+        setQueueNumberLabel(ticket ? `${ticket.position}#` : null);
+      } catch (error) {
+        console.warn('[queue] fetch failed:', error);
+        if (!cancelled) setQueueNumberLabel(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [id, isConfirmed]);
 
   const name = doctorName?.trim() || 'Clinic staff';
   const specialty = specialtyLabel?.trim() || 'Campus Clinic';
@@ -86,9 +125,11 @@ export default function AppointmentBookedScreen() {
       return `Reminder set for ${formatClinicTime(reminderSetAt)} →`;
     }
     if (!reminderAt) return 'Get a reminder 30 minutes before →';
-    if (!reminderAvailable) return 'Reminder unavailable — starts too soon';
     return `Get a reminder at ${formatClinicTime(reminderAt)} (${formatClinicDayMonth(reminderAt)}) →`;
-  }, [reminderAt, reminderAvailable, reminderSetAt]);
+  }, [reminderAt, reminderSetAt]);
+
+  /** Hide the reminder row once the appointment is within 30 minutes (unless already set). */
+  const showReminder = Boolean(reminderSetAt || reminderAvailable);
 
   const handleAddToCalendar = useCallback(async () => {
     if (!dateKey || !appointmentTime || calendarBusy) return;
@@ -304,6 +345,9 @@ export default function AppointmentBookedScreen() {
                 dateLabel={dateLabel}
                 timeLabel={time}
                 estDoneLabel={estDoneLabel}
+                showQueueRow
+                queueNumberLabel={queueNumberLabel}
+                visitReason={visitReason}
               />
 
               <View style={{ width: '100%', gap: 12 }}>
@@ -333,32 +377,34 @@ export default function AppointmentBookedScreen() {
                   </Text>
                 </Pressable>
 
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={reminderLinkLabel}
-                  disabled={reminderBusy || Boolean(reminderSetAt) || !reminderAvailable}
-                  onPress={() => void handleReminder()}
-                  style={{
-                    height: 48,
-                    borderRadius: 48,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    opacity: reminderBusy || Boolean(reminderSetAt) || !reminderAvailable ? 0.55 : 1,
-                  }}
-                  className="active:opacity-80">
-                  <Text
+                {showReminder ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={reminderLinkLabel}
+                    disabled={reminderBusy || Boolean(reminderSetAt) || !reminderAvailable}
+                    onPress={() => void handleReminder()}
                     style={{
-                      fontFamily: Inter.regular,
-                      fontSize: 17,
-                      color: reminderSetAt || !reminderAvailable ? '#6C6C6C' : '#048AF3',
-                      letterSpacing: -0.6,
-                      lineHeight: 18,
-                      textAlign: 'center',
-                      paddingHorizontal: 8,
-                    }}>
-                    {reminderBusy ? 'Setting reminder…' : reminderLinkLabel}
-                  </Text>
-                </Pressable>
+                      height: 48,
+                      borderRadius: 48,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      opacity: reminderBusy || Boolean(reminderSetAt) || !reminderAvailable ? 0.55 : 1,
+                    }}
+                    className="active:opacity-80">
+                    <Text
+                      style={{
+                        fontFamily: Inter.regular,
+                        fontSize: 17,
+                        color: reminderSetAt || !reminderAvailable ? '#6C6C6C' : '#048AF3',
+                        letterSpacing: -0.6,
+                        lineHeight: 18,
+                        textAlign: 'center',
+                        paddingHorizontal: 8,
+                      }}>
+                      {reminderBusy ? 'Setting reminder…' : reminderLinkLabel}
+                    </Text>
+                  </Pressable>
+                ) : null}
               </View>
 
               <View style={{ height: 1, backgroundColor: '#EFEFEF', width: '100%' }} />
@@ -403,6 +449,7 @@ export default function AppointmentBookedScreen() {
                 photoUrl={photoUrl}
                 dateLabel={dateLabel}
                 timeLabel={time}
+                visitReason={visitReason}
               />
             </View>
 

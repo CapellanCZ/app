@@ -4,6 +4,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { IconsaxCalendarIcon } from '@/components/icons/IconsaxCalendarIcon';
 import { IconsaxCallFilledIcon } from '@/components/icons/IconsaxCallFilledIcon';
 import { IconsaxTimerIcon } from '@/components/icons/IconsaxTimerIcon';
+import { StaffPresenceDot } from '@/components/ui/StaffPresenceDot';
+import type { DoctorPresenceDotStatus } from '@/lib/health-service/staffPresenceDot';
 import { Inter } from '@/lib/typography/inter';
 
 const CARD_BG = '#D3E9FA';
@@ -18,6 +20,8 @@ export type HomeUpcomingAppointmentCardProps = {
   timeLabel: string;
   /** Estimated finish time, e.g. "10:20 AM" — shown as EST */
   estDoneLabel?: string | null;
+  /** Live staff presence for the avatar status circle. */
+  presenceStatus?: DoctorPresenceDotStatus;
   onPress?: () => void;
   onCallPress?: () => void;
 };
@@ -32,6 +36,7 @@ export function HomeUpcomingAppointmentCard({
   dateLabel,
   timeLabel,
   estDoneLabel,
+  presenceStatus,
   onPress,
   onCallPress,
 }: HomeUpcomingAppointmentCardProps) {
@@ -91,22 +96,29 @@ export function HomeUpcomingAppointmentCard({
               borderBottomColor: 'rgba(0,0,0,0.16)',
             }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1, minWidth: 0 }}>
-              <View
-                style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: 22,
-                  overflow: 'hidden',
-                  backgroundColor: '#FFFFFF',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
-                }}>
-                {photoUrl ? (
-                  <Image source={{ uri: photoUrl }} style={{ width: 44, height: 44 }} resizeMode="cover" />
-                ) : (
-                  <Ionicons name="person" size={22} color="#A4A7AE" />
-                )}
+              <View style={{ width: 44, height: 44, flexShrink: 0 }}>
+                <View
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: 22,
+                    overflow: 'hidden',
+                    backgroundColor: '#FFFFFF',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}>
+                  {photoUrl ? (
+                    <Image source={{ uri: photoUrl }} style={{ width: 44, height: 44 }} resizeMode="cover" />
+                  ) : (
+                    <Ionicons name="person" size={22} color="#A4A7AE" />
+                  )}
+                </View>
+                {/* Keep fully inside the 44×44 box — Android clips anything outside. */}
+                <StaffPresenceDot
+                  status={presenceStatus ?? 'offline'}
+                  size={12}
+                  style={{ position: 'absolute', right: 0, bottom: 0, zIndex: 2 }}
+                />
               </View>
               <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
                 <Text

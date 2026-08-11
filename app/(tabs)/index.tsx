@@ -15,13 +15,20 @@ import { HealthServiceScreenShell } from '@/components/health-service/HealthServ
 import { TAB_BAR_HEIGHT } from '@/components/layout/BottomTabBar';
 import { useAnnouncementStore } from '@/lib/announcements/announcementStore';
 import { useAuth } from '@/lib/auth/AuthProvider';
+import { healthServiceApi } from '@/lib/health-service/healthServiceApi';
 import {
   staffNameForAppointment,
   useHealthServiceStore,
 } from '@/lib/health-service/healthServiceStore';
+import {
+  mapStaffPresenceToDotStatus,
+  type DoctorPresenceDotStatus,
+} from '@/lib/health-service/staffPresenceDot';
 import { useProfileStore } from '@/lib/profile/profileStore';
 import { ROUTES } from '@/lib/routes';
 import { Inter } from '@/lib/typography/inter';
+
+const PRESENCE_POLL_MS = 45_000;
 
 function formatShortDate(dateKey: string): string {
   const [y, m, d] = dateKey.split('-').map(Number);
@@ -77,17 +84,6 @@ export default function HealthServiceScreen() {
     return subscribeAppointments();
   }, []);
 
-  const handleRefresh = useCallback(async () => {
-    setRefreshing(true);
-    try {
-      await Promise.all([refreshData(), loadAnnouncements({ force: true })]);
-    } catch (e) {
-      console.error('Refresh failed:', e);
-    } finally {
-      setRefreshing(false);
-    }
-  }, [refreshData, loadAnnouncements]);
-
   const userName = useMemo(() => {
     const full =
       patient?.full_name?.trim() ||
@@ -116,6 +112,49 @@ export default function HealthServiceScreen() {
 
   const upcomingStaffName = upcomingItem ? staffNameForAppointment(upcomingItem.staffId) : '';
   const upcomingStaff = upcomingItem ? staff.find((s) => s.id === upcomingItem.staffId) : null;
+  /** Prefer appointment staff id so presence loads even before staff list hydrates. */
+  const upcomingStaffId = upcomingItem?.staffId ?? upcomingStaff?.id ?? null;
+
+  const [presenceStatus, setPresenceStatus] = useState<DoctorPresenceDotStatus | undefined>(
+    undefined,
+  );
+
+  const loadUpcomingPresence = useCallback(async (staffId: string) => {
+    try {
+      const presence = await healthServiceApi.getStaffPresence(staffId, new Date());
+      setPresenceStatus(mapStaffPresenceToDotStatus(presence));
+    } catch (error) {
+      console.error('Failed to load staff presence:', error);
+      setPresenceStatus('offline');
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!upcomingStaffId) {
+      setPresenceStatus(undefined);
+      return;
+    }
+    void loadUpcomingPresence(upcomingStaffId);
+    const timer = setInterval(() => {
+      void loadUpcomingPresence(upcomingStaffId);
+    }, PRESENCE_POLL_MS);
+    return () => clearInterval(timer);
+  }, [upcomingStaffId, loadUpcomingPresence]);
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([
+        refreshData(),
+        loadAnnouncements({ force: true }),
+        upcomingStaffId ? loadUpcomingPresence(upcomingStaffId) : Promise.resolve(),
+      ]);
+    } catch (e) {
+      console.error('Refresh failed:', e);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refreshData, loadAnnouncements, upcomingStaffId, loadUpcomingPresence]);
 
   const timeLabel = upcomingItem?.startLabel ?? '';
 
@@ -184,6 +223,7 @@ export default function HealthServiceScreen() {
               dateLabel={formatShortDate(upcomingItem.dateKey)}
               timeLabel={timeLabel}
               estDoneLabel={estDoneLabel}
+              presenceStatus={presenceStatus}
               onPress={() =>
                 router.push({
                   pathname: '/health-service/appointment/[id]',

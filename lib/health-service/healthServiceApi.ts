@@ -148,6 +148,8 @@ export type HealthServiceApi = {
     appointmentId: string,
     minutesBefore?: number,
   ): Promise<{ remindAt: string; minutesBefore: number }>;
+  /** Patient's queue ticket for a confirmed appointment (if issued). */
+  getQueueTicketForAppointment(appointmentId: string): Promise<QueueTicket | null>;
   cancelAppointment(id: string): Promise<void>;
   /** Provider approves a pending booking; ticket is NOT created automatically. */
   confirmAppointmentByProvider(id: string): Promise<void>;
@@ -642,6 +644,70 @@ function createSupabaseHealthServiceApi(): HealthServiceApi {
       return {
         remindAt: String(row.remind_at),
         minutesBefore: Number(row.minutes_before ?? minutesBefore),
+      };
+    },
+
+    async getQueueTicketForAppointment(appointmentId) {
+      if (!supabase) throw new Error('Supabase not configured');
+      const { patientId } = await requireLinkedPatient();
+
+      const { data, error } = await supabase
+        .from('health_queue_tickets')
+        .select('ticket_code, queue_position, queue_number, estimated_wait_minutes, status')
+        .eq('appointment_id', appointmentId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      let row = data;
+      // Some clinic tickets link by patient + day instead of appointment_id.
+      if (!row) {
+        const { data: appt, error: apptError } = await supabase
+          .from('appointments')
+          .select('starts_at')
+          .eq('id', appointmentId)
+          .eq('patient_id', patientId)
+          .maybeSingle();
+        if (apptError) throw apptError;
+        if (appt?.starts_at) {
+          const serviceDate = dateKeyInClinicTz(appt.starts_at as string);
+          const { data: byPatient, error: byPatientError } = await supabase
+            .from('health_queue_tickets')
+            .select('ticket_code, queue_position, queue_number, estimated_wait_minutes, status')
+            .eq('patient_id', patientId)
+            .eq('service_date', serviceDate)
+            .in('status', ['waiting', 'called', 'idle', 'checked_in'])
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          if (byPatientError) throw byPatientError;
+          row = byPatient;
+        }
+      }
+
+      if (!row) return null;
+
+      const position =
+        typeof row.queue_position === 'number'
+          ? row.queue_position
+          : typeof row.queue_number === 'number'
+            ? row.queue_number
+            : null;
+      if (position == null) return null;
+
+      const statusRaw = String(row.status ?? 'idle');
+      const status: QueueTicket['status'] =
+        statusRaw === 'waiting' || statusRaw === 'called' || statusRaw === 'idle'
+          ? statusRaw
+          : 'idle';
+
+      return {
+        code: String(row.ticket_code ?? `${position}#`),
+        position,
+        estimatedMinutes: Number(row.estimated_wait_minutes ?? 0),
+        status,
       };
     },
 

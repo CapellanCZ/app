@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import Animated, {
   interpolate,
   useAnimatedStyle,
@@ -373,7 +373,8 @@ export function BookingPrimaryButton({ disabled, loading, onPress }: BookButtonP
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel="Book appointment"
+      accessibilityLabel={loading ? 'Booking appointment' : 'Book appointment'}
+      accessibilityState={{ busy: Boolean(loading), disabled: inactive }}
       disabled={inactive}
       onPress={onPress}
       onPressIn={inactive ? undefined : onPressIn}
@@ -397,16 +398,20 @@ export function BookingPrimaryButton({ disabled, loading, onPress }: BookButtonP
             elevation: inactive ? 0 : 6,
           },
         ]}>
-        <Text
-          style={{
-            fontFamily: Inter.medium,
-            fontSize: 16,
-            color: '#FFFFFF',
-            textTransform: 'capitalize',
-            lineHeight: 16,
-          }}>
-          {loading ? 'Booking…' : 'Book Appointment'}
-        </Text>
+        {loading ? (
+          <ActivityIndicator color="#FFFFFF" size="small" />
+        ) : (
+          <Text
+            style={{
+              fontFamily: Inter.medium,
+              fontSize: 16,
+              color: '#FFFFFF',
+              textTransform: 'capitalize',
+              lineHeight: 16,
+            }}>
+            Book Appointment
+          </Text>
+        )}
       </Animated.View>
     </Pressable>
   );

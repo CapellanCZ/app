@@ -494,6 +494,7 @@ export default function HealthServiceBookScreen() {
           appointmentTime: selectedSlot,
           dateKey: dayKey,
           status: isAutoConfirmed ? 'confirmed' : 'pending',
+          reason,
         },
       });
     } catch (error) {
