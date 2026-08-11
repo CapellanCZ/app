@@ -1,3 +1,5 @@
+import type { NotificationStatusType } from '@/lib/notifications/types';
+
 type ToastVariant = 'default' | 'accent' | 'success' | 'warning' | 'danger';
 
 export type AppToastOptions = {
@@ -6,6 +8,11 @@ export type AppToastOptions = {
   duration?: number;
   label: string;
   description?: string;
+  /**
+   * Icon style matching the notification list.
+   * When omitted, derived from `variant` (danger → error, accent → info, …).
+   */
+  status?: NotificationStatusType;
 };
 
 type ToastShowFn = (options: AppToastOptions) => void;

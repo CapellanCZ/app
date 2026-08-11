@@ -3,20 +3,16 @@
 /**
  * send-appointment-email — Supabase Edge Function
  *
- * Triggered by Database Webhook on `public.appointments`:
+ * Triggered by DB trigger `queue_appointment_email` on `public.appointments`:
  *   - INSERT with status pending  → "request received" email
  *   - UPDATE to status confirmed  → "appointment confirmed" email
+ *   - UPDATE to status cancelled  → "appointment cancelled" email (includes reason)
  *
  * Secrets:
  *   RESEND_API_KEY
- *   APPOINTMENT_EMAIL_FROM  (optional; default Resend onboarding sender)
+ *   APPOINTMENT_EMAIL_FROM  (optional; default CampusCare sender)
  *   SUPABASE_URL
  *   SUPABASE_SERVICE_ROLE_KEY
- *
- * Dashboard webhook:
- *   Table: appointments · Events: Insert, Update
- *   URL:   https://<ref>.supabase.co/functions/v1/send-appointment-email
- *   Headers: Authorization: Bearer <service_role_or_anon>
  */
 
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
@@ -32,6 +28,7 @@ type AppointmentRow = {
   status: string;
   reason: string | null;
   location: string | null;
+  cancellation_reason?: string | null;
 };
 
 type WebhookPayload = {
@@ -41,7 +38,7 @@ type WebhookPayload = {
   old_record: AppointmentRow | null;
 };
 
-type EmailKind = 'pending' | 'confirmed';
+type EmailKind = 'pending' | 'confirmed' | 'cancelled';
 
 const MANILA = 'Asia/Manila';
 
@@ -71,6 +68,18 @@ function escapeHtml(s: string): string {
     .replaceAll('"', '&quot;');
 }
 
+/** Friendly copy for emails from `appointments.cancellation_reason`. */
+function formatCancellationReason(raw: string | null | undefined): string {
+  const trimmed = raw?.trim();
+  if (!trimmed) {
+    return 'No reason was provided. Contact the Health Service Office if you have questions.';
+  }
+  if (/^patient\s*cancelled?$/i.test(trimmed)) {
+    return 'You cancelled this appointment.';
+  }
+  return trimmed;
+}
+
 function buildEmail(input: {
   kind: EmailKind;
   patientName: string;
@@ -79,6 +88,7 @@ function buildEmail(input: {
   time: string;
   location: string | null;
   reason: string | null;
+  cancellationReason: string | null;
 }): { subject: string; html: string; text: string } {
   const name = escapeHtml(input.patientName.trim() || 'Patient');
   const doctor = escapeHtml(input.doctorName.trim() || 'the Health Service provider');
@@ -86,28 +96,55 @@ function buildEmail(input: {
   const time = escapeHtml(input.time);
   const location = input.location ? escapeHtml(input.location) : 'Campus Health Service Office';
   const reason = input.reason ? escapeHtml(input.reason) : null;
+  const cancelWhy = formatCancellationReason(input.cancellationReason);
+  const cancelWhyHtml = escapeHtml(cancelWhy);
 
-  const isConfirmed = input.kind === 'confirmed';
-  const subject = isConfirmed
-    ? 'Your appointment is confirmed — CampusCare Health Service'
-    : 'We received your appointment request — CampusCare Health Service';
+  let subject: string;
+  let headline: string;
+  let lead: string;
+  let statusLabel: string;
+  let detailsRows: [string, string][];
 
-  const headline = isConfirmed
-    ? 'Your appointment is confirmed'
-    : 'Appointment request received';
-
-  const lead = isConfirmed
-    ? `Hi ${name}, your appointment with <strong>${doctor}</strong> is confirmed. Please arrive a few minutes early.`
-    : `Hi ${name}, we received your appointment request with <strong>${doctor}</strong>. It is <strong>pending confirmation</strong> from the Health Service Office. We will email you again once it is confirmed.`;
-
-  const detailsRows = [
-    ['Provider', doctor],
-    ['Date', date],
-    ['Time', time],
-    ['Location', location],
-    ...(reason ? [['Reason', reason] as const] : []),
-    ['Status', isConfirmed ? 'Confirmed' : 'Pending confirmation'],
-  ];
+  if (input.kind === 'cancelled') {
+    subject = 'Your appointment was cancelled — CampusCare Health Service';
+    headline = 'Your appointment was cancelled';
+    lead = `Hi ${name}, your appointment with <strong>${doctor}</strong> on <strong>${date}</strong> at <strong>${time}</strong> has been cancelled.`;
+    statusLabel = 'Cancelled';
+    detailsRows = [
+      ['Provider', doctor],
+      ['Date', date],
+      ['Time', time],
+      ['Location', location],
+      ['Why', cancelWhyHtml],
+      ['Status', statusLabel],
+    ];
+  } else if (input.kind === 'confirmed') {
+    subject = 'Your appointment is confirmed — CampusCare Health Service';
+    headline = 'Your appointment is confirmed';
+    lead = `Hi ${name}, your appointment with <strong>${doctor}</strong> is confirmed. Please arrive a few minutes early.`;
+    statusLabel = 'Confirmed';
+    detailsRows = [
+      ['Provider', doctor],
+      ['Date', date],
+      ['Time', time],
+      ['Location', location],
+      ...(reason ? ([['Reason', reason]] as [string, string][]) : []),
+      ['Status', statusLabel],
+    ];
+  } else {
+    subject = 'We received your appointment request — CampusCare Health Service';
+    headline = 'Appointment request received';
+    lead = `Hi ${name}, we received your appointment request with <strong>${doctor}</strong>. It is <strong>pending confirmation</strong> from the Health Service Office. We will email you again once it is confirmed.`;
+    statusLabel = 'Pending confirmation';
+    detailsRows = [
+      ['Provider', doctor],
+      ['Date', date],
+      ['Time', time],
+      ['Location', location],
+      ...(reason ? ([['Reason', reason]] as [string, string][]) : []),
+      ['Status', statusLabel],
+    ];
+  }
 
   const rowsHtml = detailsRows
     .map(
@@ -118,6 +155,11 @@ function buildEmail(input: {
       </tr>`,
     )
     .join('');
+
+  const footerNote =
+    input.kind === 'cancelled'
+      ? 'You can book a new slot anytime in the CampusCare app. If you have questions, contact the Health Service Office.'
+      : 'This message was sent by the Campus Health Service Office via CampusCare. If you did not request this appointment, please contact the Health Service Office.';
 
   const html = `<!DOCTYPE html>
 <html>
@@ -140,8 +182,7 @@ function buildEmail(input: {
                 ${rowsHtml}
               </table>
               <p style="margin:0;font-size:13px;line-height:1.5;color:#64748b;">
-                This message was sent by the Campus Health Service Office via CampusCare.
-                If you did not request this appointment, please contact the Health Service Office.
+                ${footerNote}
               </p>
             </td>
           </tr>
@@ -152,24 +193,40 @@ function buildEmail(input: {
 </body>
 </html>`;
 
-  const text = [
+  const textLines: (string | null)[] = [
     headline,
     '',
-    isConfirmed
-      ? `Hi ${input.patientName || 'Patient'}, your appointment with ${input.doctorName || 'the provider'} is confirmed.`
-      : `Hi ${input.patientName || 'Patient'}, we received your appointment request. It is pending confirmation.`,
+  ];
+
+  if (input.kind === 'cancelled') {
+    textLines.push(
+      `Hi ${input.patientName || 'Patient'}, your appointment with ${input.doctorName || 'the provider'} on ${input.date} at ${input.time} has been cancelled.`,
+      '',
+      `Why: ${cancelWhy}`,
+    );
+  } else if (input.kind === 'confirmed') {
+    textLines.push(
+      `Hi ${input.patientName || 'Patient'}, your appointment with ${input.doctorName || 'the provider'} is confirmed.`,
+    );
+  } else {
+    textLines.push(
+      `Hi ${input.patientName || 'Patient'}, we received your appointment request. It is pending confirmation.`,
+    );
+  }
+
+  textLines.push(
     '',
     `Provider: ${input.doctorName || 'Provider'}`,
     `Date: ${input.date}`,
     `Time: ${input.time}`,
     `Location: ${input.location || 'Campus Health Service Office'}`,
-    reason ? `Reason: ${input.reason}` : null,
-    `Status: ${isConfirmed ? 'Confirmed' : 'Pending confirmation'}`,
+    input.kind !== 'cancelled' && input.reason ? `Reason: ${input.reason}` : null,
+    `Status: ${statusLabel}`,
     '',
     '— CampusCare Health Service Office',
-  ]
-    .filter(Boolean)
-    .join('\n');
+  );
+
+  const text = textLines.filter((line) => line != null).join('\n');
 
   return { subject, html, text };
 }
@@ -181,7 +238,6 @@ function resolveKind(payload: WebhookPayload): EmailKind | null {
   if (payload.type === 'INSERT') {
     const status = String(row.status ?? '').toLowerCase();
     if (status === 'pending') return 'pending';
-    // Some flows insert already confirmed
     if (status === 'confirmed') return 'confirmed';
     return null;
   }
@@ -190,8 +246,7 @@ function resolveKind(payload: WebhookPayload): EmailKind | null {
     const prev = String(payload.old_record?.status ?? '').toLowerCase();
     const next = String(row.status ?? '').toLowerCase();
     if (prev !== next && next === 'confirmed') return 'confirmed';
-    // If inserted pending then quickly auto-confirmed, we may get UPDATE only — still send confirmed.
-    // Pending emails are only on INSERT.
+    if (prev !== next && next === 'cancelled') return 'cancelled';
     return null;
   }
 
@@ -275,6 +330,7 @@ Deno.serve(async (req: Request) => {
     time,
     location: row.location,
     reason: row.reason,
+    cancellationReason: row.cancellation_reason ?? null,
   });
 
   const res = await fetch('https://api.resend.com/emails', {

@@ -47,15 +47,19 @@ export function buildBookingReason(
   return lines.join('\n') || 'Clinic consultation';
 }
 
-/** Friendly one-line label for success / detail cards. */
+/** Friendly one-line label for success / detail cards — consultation type only. */
 export function formatVisitReasonDisplay(raw: string | null | undefined): string | null {
   if (!raw?.trim()) return null;
   const text = raw.trim();
   const request = text.match(/Consultation request:\s*(.+?)(?:\n|$)/i)?.[1]?.trim();
-  const comments = text.match(/Comments:\s*([\s\S]+)/i)?.[1]?.trim();
-  if (request && comments) return `${request} — ${comments}`;
   if (request) return request;
-  return text.replace(/\s*\n\s*/g, ' · ');
+
+  // Legacy / freeform rows: drop any "Comments:" block and collapse remaining lines.
+  const withoutComments = text
+    .replace(/(?:^|\n)\s*Comments:\s*[\s\S]*$/i, '')
+    .trim();
+  if (!withoutComments) return null;
+  return withoutComments.replace(/\s*\n\s*/g, ' · ');
 }
 
 type SelectProps = {

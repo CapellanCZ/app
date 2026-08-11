@@ -461,17 +461,10 @@ export default function HealthServiceBookScreen() {
 
       const isAutoConfirmed = bookedStatus === 'confirmed';
 
-      if (isAutoConfirmed) {
-        useNotificationStore.getState().notifySelf(session?.user?.id, {
-          category: 'health',
-          title: "You're All Set",
-          body: `Your appointment with ${doctorLabel} on ${formatAppointmentDate(selectedDay)} at ${selectedSlot} has been confirmed.`,
-          href: `/health-service/appointment/${appointmentId}`,
-          source: 'Health Service',
-          notificationType: 'success',
-        });
-      } else {
-        useNotificationStore.getState().notifySelf(session?.user?.id, {
+      // Confirmed → DB trigger inserts "Appointment Confirmed!" (no client duplicate).
+      // Pending → client inserts + toast so the patient always gets feedback.
+      if (!isAutoConfirmed) {
+        await useNotificationStore.getState().notifySelf(session?.user?.id, {
           category: 'health',
           title: 'Appointment Pending',
           body: `Your request with ${doctorLabel} on ${formatAppointmentDate(selectedDay)} at ${selectedSlot} was submitted. Please wait for confirmation.`,

@@ -33,7 +33,8 @@ export function notifyAppointmentCancelled(
 
 /**
  * Notify the patient that an appointment was confirmed.
- * Dedupes client + realtime paths for the same appointment id.
+ * Prefer the DB trigger (`Appointment Confirmed!`) — kept for rare offline/dev paths.
+ * Dedupes client paths for the same appointment id.
  */
 export function notifyAppointmentConfirmed(
   userId: string | null | undefined,

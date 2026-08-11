@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useFocusEffect, useNavigation, useRouter } from 'expo-router';
 import {
   Alert,
-  FlatList,
   type ListRenderItem,
   Pressable,
   RefreshControl,
@@ -19,6 +18,7 @@ import Animated, {
   FadeOut,
   FadeOutLeft,
   FadeOutRight,
+  LinearTransition,
   runOnJS,
   useAnimatedStyle,
   useReducedMotion,
@@ -79,6 +79,10 @@ export default function NotificationsScreen() {
   const directionRef = useRef<'forward' | 'back'>('forward');
   /** Stagger enter only on the first list paint this visit. */
   const allowEnterAnimRef = useRef(true);
+  /** IDs already shown — used to animate only realtime / live inserts. */
+  const seenIdsRef = useRef<Set<string>>(new Set());
+  const seenSeededRef = useRef(false);
+  const [liveEnterIds, setLiveEnterIds] = useState<Set<string>>(() => new Set());
   const reduceMotion = useReducedMotion();
 
   const dragX = useSharedValue(0);
@@ -129,6 +133,29 @@ export default function NotificationsScreen() {
   const filtered = useMemo(() => {
     return readFilter === 'unread' ? items.filter((n) => !n.read) : items;
   }, [items, readFilter]);
+
+  useEffect(() => {
+    if (!hasLoaded) return;
+
+    if (!seenSeededRef.current) {
+      seenIdsRef.current = new Set(items.map((n) => n.id));
+      seenSeededRef.current = true;
+      return;
+    }
+
+    const incoming: string[] = [];
+    for (const item of items) {
+      if (!seenIdsRef.current.has(item.id)) {
+        incoming.push(item.id);
+        seenIdsRef.current.add(item.id);
+      }
+    }
+    if (!incoming.length) return;
+
+    setLiveEnterIds(new Set(incoming));
+    const t = setTimeout(() => setLiveEnterIds(new Set()), 420);
+    return () => clearTimeout(t);
+  }, [hasLoaded, items]);
 
   useEffect(() => {
     if (filtered.length > 0) {
@@ -249,18 +276,26 @@ export default function NotificationsScreen() {
   }, []);
 
   const renderItem: ListRenderItem<NotificationItem> = useCallback(
-    ({ item, index }) => (
-      <NotificationListRow
-        item={item}
-        enterIndex={allowEnterAnimRef.current ? index : undefined}
-        animateOutDelay={clearExitDelays?.[item.id]}
-        onExitComplete={clearExitDelays ? () => undefined : undefined}
-        onArchive={archiveNotification}
-        onMarkRead={markRead}
-        onOpenMenu={openMenu}
-      />
-    ),
-    [archiveNotification, clearExitDelays, markRead, openMenu],
+    ({ item, index }) => {
+      const enterIndex = allowEnterAnimRef.current
+        ? index
+        : liveEnterIds.has(item.id)
+          ? 0
+          : undefined;
+
+      return (
+        <NotificationListRow
+          item={item}
+          enterIndex={enterIndex}
+          animateOutDelay={clearExitDelays?.[item.id]}
+          onExitComplete={clearExitDelays ? () => undefined : undefined}
+          onArchive={archiveNotification}
+          onMarkRead={markRead}
+          onOpenMenu={openMenu}
+        />
+      );
+    },
+    [archiveNotification, clearExitDelays, liveEnterIds, markRead, openMenu],
   );
 
   const keyExtractor = useCallback((item: NotificationItem) => item.id, []);
@@ -445,7 +480,7 @@ export default function NotificationsScreen() {
                 </View>
               </ScrollView>
             ) : (
-              <FlatList
+              <Animated.FlatList
                 data={filtered}
                 keyExtractor={keyExtractor}
                 renderItem={renderItem}
@@ -456,6 +491,9 @@ export default function NotificationsScreen() {
                 maxToRenderPerBatch={8}
                 windowSize={7}
                 removeClippedSubviews
+                itemLayoutAnimation={
+                  reduceMotion ? undefined : LinearTransition.duration(220)
+                }
                 contentContainerStyle={{ gap: 20, paddingBottom: 8 }}
                 style={{ flex: 1 }}
                 refreshControl={refreshControl}

@@ -63,21 +63,33 @@ export default function AppointmentBookedScreen() {
   }>();
 
   const appointments = useHealthServiceStore((s) => s.appointments);
+  const loadAppointments = useHealthServiceStore((s) => s.loadAppointments);
   const cancelAppointment = useHealthServiceStore((s) => s.cancelAppointment);
-  const storeReason = useMemo(() => {
+  const storeAppointment = useMemo(() => {
     const appointmentId = id ? String(id) : '';
     if (!appointmentId) return null;
-    return appointments.find((a) => a.id === appointmentId)?.reason ?? null;
+    return appointments.find((a) => a.id === appointmentId) ?? null;
   }, [appointments, id]);
+
+  const storeReason = storeAppointment?.reason ?? null;
 
   const visitReason = useMemo(
     () => formatVisitReasonDisplay(reason || storeReason),
     [reason, storeReason],
   );
 
-  const statusNorm = String(status ?? '').toLowerCase();
-  const isCancelled = statusNorm === 'cancelled';
-  const isConfirmed = statusNorm === 'confirmed';
+  const statusNorm = String(status ?? storeAppointment?.status ?? '').toLowerCase();
+  const isCancelled = statusNorm === 'cancelled' || storeAppointment?.status === 'cancelled';
+  // Prefer live store once realtime updates arrive (URL params can stay stale as "pending").
+  const isConfirmed =
+    storeAppointment?.status === 'confirmed' ||
+    statusNorm === 'confirmed' ||
+    statusNorm === 'in_progress';
+
+  useEffect(() => {
+    // Keep status/queue in sync when admin confirms while this screen is open.
+    void loadAppointments();
+  }, [loadAppointments]);
 
   useEffect(() => {
     if (isCancelled) {
@@ -110,7 +122,7 @@ export default function AppointmentBookedScreen() {
     return () => {
       cancelled = true;
     };
-  }, [id, isConfirmed]);
+  }, [id, isConfirmed, storeAppointment?.status]);
 
   const name = doctorName?.trim() || 'Clinic staff';
   const specialty = specialtyLabel?.trim() || 'Campus Clinic';
@@ -354,7 +366,7 @@ export default function AppointmentBookedScreen() {
         {isConfirmed ? (
           <View style={{ alignItems: 'center', gap: 39, width: '100%' }}>
             <View style={{ alignItems: 'center', gap: 12, width: '100%' }}>
-              <AppointmentBookedCheckIcon size={111} />
+              <AppointmentBookedCheckIcon size={111} animateCheck />
               <Text
                 style={{
                   fontFamily: Inter.medium,
@@ -458,7 +470,7 @@ export default function AppointmentBookedScreen() {
           <View style={{ alignItems: 'center', gap: 39, width: '100%' }}>
             <View style={{ alignItems: 'center', gap: 28, width: '100%' }}>
               <View style={{ alignItems: 'center', gap: 12, width: '100%' }}>
-                <AppointmentBookedCheckIcon size={111} />
+                <AppointmentBookedCheckIcon size={111} animateCheck />
                 <Text
                   style={{
                     fontFamily: Inter.medium,

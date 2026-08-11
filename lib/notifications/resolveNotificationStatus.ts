@@ -13,6 +13,8 @@ export const NOTIFICATION_STATUS_STYLE: Record<
 
 const STATUS_BY_TITLE: Record<string, NotificationStatusType> = {
   'appointment pending': 'info',
+  'appointment confirmed': 'success',
+  'appointment confirmed!': 'success',
   "you're all set": 'success',
   'youre all set': 'success',
   'visit in 30 minutes': 'warning',

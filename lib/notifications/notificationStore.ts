@@ -12,7 +12,7 @@ import {
   type NotificationRow,
   type NotificationSection,
 } from './types';
-import { showAppToast } from '@/lib/ui/toastBridge';
+import { toastFromNotification } from '@/lib/notifications/toastFromNotification';
 
 function countUnread(items: NotificationItem[]): number {
   let n = 0;
@@ -63,13 +63,16 @@ interface NotificationState {
 
   /**
    * Send a self-notification after an in-app action.
-   * - Supabase configured: inserts a DB row (realtime/polling will reflect it).
+   * - Supabase configured: inserts a DB row and prepends locally (realtime reconciles).
    * - Not configured: falls back to pushLocal.
    */
   notifySelf: (
     userId: string | undefined,
     payload: Omit<NotificationItem, 'id' | 'read' | 'timeLabel' | 'section'>,
   ) => Promise<void>;
+
+  /** Prepend a fetched/inserted row if it isn’t already in the list. */
+  prependItem: (item: NotificationItem) => void;
 }
 
 export const useNotificationStore = create<NotificationState>((set, get) => ({
@@ -181,8 +184,15 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
   },
 
   subscribe: (userId) =>
-    acquireNotificationsSubscription(userId, () => {
-      void get().fetchAll(userId, { silent: true });
+    acquireNotificationsSubscription(userId, {
+      onChange: () => {
+        void get().fetchAll(userId, { silent: true });
+      },
+      onInsert: (row) => {
+        const item = toNotificationItem(row);
+        get().prependItem(item);
+        toastFromNotification(item);
+      },
     }),
 
   loadMock: () => {
@@ -211,47 +221,70 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
     });
   },
 
+  prependItem: (item) => {
+    set((s) => {
+      if (s.items.some((existing) => existing.id === item.id)) return s;
+      const items = [item, ...s.items];
+      return { items, unreadCount: countUnread(items) };
+    });
+  },
+
   notifySelf: async (userId, payload) => {
     const title = toTitleCase(payload.title);
-    const toastVariant =
-      payload.notificationType === 'success'
-        ? 'success'
-        : payload.notificationType === 'error'
-          ? 'danger'
-          : payload.notificationType === 'warning'
-            ? 'warning'
-            : 'accent';
-
-    showAppToast({
-      variant: toastVariant,
-      placement: 'top',
-      duration: 5000,
-      label: title,
-      description: payload.body,
-    });
 
     if (isSupabaseConfigured && supabase && userId) {
-      const { error } = await supabase.from('notifications').insert({
-        user_id: userId,
-        type: mapCategoryToDbType(payload.category),
-        title,
-        body: payload.body,
-        href: payload.href ?? null,
-        read_at: null,
-        metadata: {
-          category: payload.category,
-          notification_type: payload.notificationType ?? 'info',
-          source: payload.source ?? null,
-        },
-      });
+      const { data, error } = await supabase
+        .from('notifications')
+        .insert({
+          user_id: userId,
+          type: mapCategoryToDbType(payload.category),
+          title,
+          body: payload.body,
+          href: payload.href ?? null,
+          read_at: null,
+          metadata: {
+            category: payload.category,
+            notification_type: payload.notificationType ?? 'info',
+            source: payload.source ?? null,
+          },
+        })
+        .select('*')
+        .single();
+
       if (error) {
         console.warn('[notifications] notifySelf insert failed:', error.message);
         get().pushLocal({ ...payload, title });
+        toastFromNotification({
+          id: `local-fail-${Date.now()}`,
+          title,
+          body: payload.body,
+          notificationType: payload.notificationType,
+        });
         return;
       }
-      // Realtime subscription (debounced) refreshes the list — no eager fetchAll.
+
+      if (data) {
+        const item = toNotificationItem(data as NotificationRow);
+        get().prependItem(item);
+        toastFromNotification(item);
+      } else {
+        // Fallback if insert succeeded without a returned row.
+        void get().fetchAll(userId, { silent: true });
+        toastFromNotification({
+          id: `local-${Date.now()}`,
+          title,
+          body: payload.body,
+          notificationType: payload.notificationType,
+        });
+      }
     } else {
       get().pushLocal({ ...payload, title });
+      toastFromNotification({
+        id: `local-${Date.now()}`,
+        title,
+        body: payload.body,
+        notificationType: payload.notificationType,
+      });
     }
   },
 }));

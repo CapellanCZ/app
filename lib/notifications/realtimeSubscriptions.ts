@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import type { NotificationRow } from '@/lib/notifications/types';
 
 type RefCountedSubscription = {
   count: number;
@@ -44,10 +45,20 @@ function debounce(fn: () => void, ms: number) {
   };
 }
 
+export type NotificationsRealtimeHandlers = {
+  onChange: () => void;
+  /** Fired for each new notification row (server or client insert). */
+  onInsert?: (row: NotificationRow) => void;
+};
+
 export function acquireNotificationsSubscription(
   userId: string,
-  onChange: () => void,
+  handlers: NotificationsRealtimeHandlers | (() => void),
 ): () => void {
+  // Back-compat: older callers passed a bare onChange function.
+  const onChange = typeof handlers === 'function' ? handlers : handlers.onChange;
+  const onInsert = typeof handlers === 'function' ? undefined : handlers.onInsert;
+
   if (!isSupabaseConfigured || !supabase) {
     return () => {};
   }
@@ -81,7 +92,33 @@ export function acquireNotificationsSubscription(
       .on(
         'postgres_changes',
         {
-          event: '*',
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${userId}`,
+        },
+        (payload) => {
+          const row = payload.new as NotificationRow | undefined;
+          if (row?.id && onInsert) {
+            onInsert(row);
+          }
+          debouncedChange();
+        },
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${userId}`,
+        },
+        () => debouncedChange(),
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
           schema: 'public',
           table: 'notifications',
           filter: `user_id=eq.${userId}`,

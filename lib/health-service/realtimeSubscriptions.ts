@@ -1,10 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 import { supabase } from '@/lib/supabase';
-import {
-  notifyAppointmentCancelled,
-  notifyAppointmentConfirmed,
-} from '@/lib/notifications/appointmentNotifications';
+import { notifyAppointmentCancelled } from '@/lib/notifications/appointmentNotifications';
 import { openVisitCompletedScreen } from '@/lib/health-service/visitCompletedNavigation';
 import type { Appointment, Staff } from '@/lib/health-service/types';
 
@@ -82,9 +79,6 @@ export function acquireAppointmentsSubscription(get: HealthStoreGet): () => void
           ).toLowerCase();
           const prevStatus = prevFromPayload || localPrev;
 
-          const becameConfirmed =
-            nextStatus === 'confirmed' &&
-            (prevStatus === 'pending' || prevStatus === '');
           const becameCancelled =
             nextStatus === 'cancelled' &&
             prevStatus !== '' &&
@@ -96,7 +90,8 @@ export function acquireAppointmentsSubscription(get: HealthStoreGet): () => void
 
           await get().loadAppointments();
 
-          if (!becameConfirmed && !becameCancelled && !becameCompleted) return;
+          // Confirmed: DB trigger inserts "Appointment Confirmed!" (toast via notifications realtime).
+          if (!becameCancelled && !becameCompleted) return;
 
           const {
             data: { user },
@@ -106,13 +101,6 @@ export function acquireAppointmentsSubscription(get: HealthStoreGet): () => void
           const staffMember =
             get().staff.find((s) => s.id === payload.new?.doctor_id) ?? null;
           const staffName = staffMember?.name;
-
-          if (becameConfirmed) {
-            notifyAppointmentConfirmed(user.id, {
-              appointmentId,
-              doctorName: staffName,
-            });
-          }
 
           if (becameCancelled) {
             notifyAppointmentCancelled(user.id, {

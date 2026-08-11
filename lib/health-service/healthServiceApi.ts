@@ -652,64 +652,95 @@ function createSupabaseHealthServiceApi(): HealthServiceApi {
       if (!supabase) throw new Error('Supabase not configured');
       const { patientId } = await requireLinkedPatient();
 
-      const { data, error } = await supabase
+      const mapTicketRow = (row: {
+        ticket_code?: string | null;
+        queue_position?: number | null;
+        queue_number?: number | null;
+        estimated_wait_minutes?: number | null;
+        status?: string | null;
+      }): QueueTicket | null => {
+        // Patient-facing number is `queue_number` when present (admin queue #).
+        const position =
+          typeof row.queue_number === 'number'
+            ? row.queue_number
+            : typeof row.queue_position === 'number'
+              ? row.queue_position
+              : null;
+        if (position == null) return null;
+
+        const statusRaw = String(row.status ?? 'idle');
+        const status: QueueTicket['status'] =
+          statusRaw === 'waiting' || statusRaw === 'called' || statusRaw === 'idle'
+            ? statusRaw
+            : 'idle';
+
+        return {
+          code: String(row.ticket_code ?? `${position}#`),
+          position,
+          estimatedMinutes: Number(row.estimated_wait_minutes ?? 0),
+          status,
+        };
+      };
+
+      // 1) Ticket linked by appointment_id
+      const { data: byAppointment, error } = await supabase
         .from('health_queue_tickets')
         .select('ticket_code, queue_position, queue_number, estimated_wait_minutes, status')
         .eq('appointment_id', appointmentId)
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
-
       if (error) throw error;
+      const fromAppointment = byAppointment ? mapTicketRow(byAppointment) : null;
+      if (fromAppointment) return fromAppointment;
 
-      let row = data;
-      // Some clinic tickets link by patient + day instead of appointment_id.
-      if (!row) {
-        const { data: appt, error: apptError } = await supabase
-          .from('appointments')
-          .select('starts_at')
-          .eq('id', appointmentId)
-          .eq('patient_id', patientId)
+      // 2) Appointment row: queue_ticket_id / queue_number (admin may set these on confirm)
+      const { data: appt, error: apptError } = await supabase
+        .from('appointments')
+        .select('starts_at, queue_number, queue_ticket_id')
+        .eq('id', appointmentId)
+        .eq('patient_id', patientId)
+        .maybeSingle();
+      if (apptError) throw apptError;
+
+      if (appt?.queue_ticket_id) {
+        const { data: byId, error: byIdError } = await supabase
+          .from('health_queue_tickets')
+          .select('ticket_code, queue_position, queue_number, estimated_wait_minutes, status')
+          .eq('id', appt.queue_ticket_id as string)
           .maybeSingle();
-        if (apptError) throw apptError;
-        if (appt?.starts_at) {
-          const serviceDate = dateKeyInClinicTz(appt.starts_at as string);
-          const { data: byPatient, error: byPatientError } = await supabase
-            .from('health_queue_tickets')
-            .select('ticket_code, queue_position, queue_number, estimated_wait_minutes, status')
-            .eq('patient_id', patientId)
-            .eq('service_date', serviceDate)
-            .in('status', ['waiting', 'called', 'idle', 'checked_in', 'completed', 'expired'])
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle();
-          if (byPatientError) throw byPatientError;
-          row = byPatient;
-        }
+        if (byIdError) throw byIdError;
+        const fromTicketId = byId ? mapTicketRow(byId) : null;
+        if (fromTicketId) return fromTicketId;
       }
 
-      if (!row) return null;
+      if (typeof appt?.queue_number === 'number') {
+        return {
+          code: `${appt.queue_number}#`,
+          position: appt.queue_number,
+          estimatedMinutes: 0,
+          status: 'waiting',
+        };
+      }
 
-      const position =
-        typeof row.queue_position === 'number'
-          ? row.queue_position
-          : typeof row.queue_number === 'number'
-            ? row.queue_number
-            : null;
-      if (position == null) return null;
+      // 3) Same-day ticket for this patient (legacy clinic tickets)
+      if (appt?.starts_at) {
+        const serviceDate = dateKeyInClinicTz(appt.starts_at as string);
+        const { data: byPatient, error: byPatientError } = await supabase
+          .from('health_queue_tickets')
+          .select('ticket_code, queue_position, queue_number, estimated_wait_minutes, status')
+          .eq('patient_id', patientId)
+          .eq('service_date', serviceDate)
+          .in('status', ['waiting', 'called', 'idle', 'checked_in', 'completed', 'expired'])
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (byPatientError) throw byPatientError;
+        const fromPatientDay = byPatient ? mapTicketRow(byPatient) : null;
+        if (fromPatientDay) return fromPatientDay;
+      }
 
-      const statusRaw = String(row.status ?? 'idle');
-      const status: QueueTicket['status'] =
-        statusRaw === 'waiting' || statusRaw === 'called' || statusRaw === 'idle'
-          ? statusRaw
-          : 'idle';
-
-      return {
-        code: String(row.ticket_code ?? `${position}#`),
-        position,
-        estimatedMinutes: Number(row.estimated_wait_minutes ?? 0),
-        status,
-      };
+      return null;
     },
 
     async cancelAppointment(id) {

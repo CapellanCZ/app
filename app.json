@@ -17,6 +17,15 @@
     "plugins": [
       "expo-router",
       "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/heart-blue.png",
+          "imageWidth": 120,
+          "resizeMode": "contain",
+          "backgroundColor": "#ffffff"
+        }
+      ],
       "@react-native-community/datetimepicker",
       [
         "expo-image-picker",
@@ -35,7 +44,7 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "splash": {
-      "image": "./assets/splash.png",
+      "image": "./assets/heart-blue.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },

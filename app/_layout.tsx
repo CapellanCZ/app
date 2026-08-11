@@ -1,5 +1,6 @@
 import '../global.css';
 import { useFonts } from 'expo-font';
+import * as SplashScreen from 'expo-splash-screen';
 import { HeroUINativeProvider } from 'heroui-native';
 import { Stack } from 'expo-router';
 import { useColorScheme, View } from 'react-native';
@@ -16,6 +17,8 @@ import { NotificationSubscription } from '@/components/notifications/Notificatio
 import { AppToastBinder } from '@/components/ui/AppToastBinder';
 import { FeedbackSoundHost } from '@/components/ui/FeedbackSoundHost';
 import { tamaguiConfig } from '../tamagui.config';
+
+void SplashScreen.preventAutoHideAsync();
 
 export const unstable_settings = {
   // Ensure that reloading on `/modal` keeps a back button present.
@@ -37,7 +40,7 @@ export default function RootLayout() {
   }
 
   const themeName = colorScheme === 'dark' ? 'dark' : 'light';
-  const rootBackgroundColor = colorScheme === 'dark' ? '#000000' : '#FFFFFF';
+  const rootBackgroundColor = '#FFFFFF';
 
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: rootBackgroundColor }}>
@@ -52,10 +55,10 @@ export default function RootLayout() {
               <NotificationHandler />
               <NotificationSubscription />
               <UniwindInsetSync />
-              <View style={{ flex: 1 }}>
+              <View style={{ flex: 1, backgroundColor: rootBackgroundColor }}>
               <Stack
                 screenOptions={{
-                  contentStyle: { flex: 1 },
+                  contentStyle: { flex: 1, backgroundColor: rootBackgroundColor },
                   headerShown: false,
                   /** Avoid iOS back labels derived from route segment names like `(tabs)`. */
                   headerBackTitleVisible: false,
