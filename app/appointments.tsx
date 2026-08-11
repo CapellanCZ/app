@@ -34,6 +34,7 @@ import {
   formatAppointmentCancelledWhen,
   formatAppointmentCardDate,
   formatAppointmentCardDateTime,
+  formatCancellationLabel,
 } from '@/lib/health-service/appointmentDisplay';
 import { useHealthServiceStore } from '@/lib/health-service/healthServiceStore';
 import { notifyAppointmentCancelled } from '@/lib/notifications/appointmentNotifications';
@@ -384,7 +385,7 @@ export default function AppointmentsScreen() {
                   filtered.map((item, index) => {
                     const staffMember = staff.find((s) => s.id === item.staffId);
                     const doctorName = staffMember?.name ?? 'Unknown Doctor';
-                    const reason = item.reason?.trim() || 'Consultation';
+                    const visitReason = item.reason?.trim() || 'Consultation';
                     const variant = activeTab as AppointmentCardVariant;
 
                     const dateLabel =
@@ -394,7 +395,12 @@ export default function AppointmentsScreen() {
                           ? formatAppointmentCancelledWhen(item.dateKey, item.startLabel)
                           : formatAppointmentCardDate(item.dateKey);
 
-                    const secondaryLabel = variant === 'upcoming' ? undefined : reason;
+                    const secondaryLabel =
+                      variant === 'upcoming'
+                        ? undefined
+                        : variant === 'cancelled'
+                          ? formatCancellationLabel(item.cancellationReason)
+                          : visitReason;
 
                     return (
                       <AppointmentCard

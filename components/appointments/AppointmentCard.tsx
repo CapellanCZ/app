@@ -42,7 +42,7 @@ type Props = {
   staffPhoto?: string | null;
   /** Left meta — date, or combined "6 Aug, Thu, 9:20 PM" for upcoming. */
   dateLabel: string;
-  /** Right meta — consultation type (past / cancelled). Hidden on upcoming. */
+  /** Right meta — consultation type (past) or cancel reason (cancelled). Hidden on upcoming. */
   secondaryLabel?: string;
   /** Pastel background — pass from APPOINTMENT_CARD_COLORS[index % 3]. */
   backgroundColor: string;

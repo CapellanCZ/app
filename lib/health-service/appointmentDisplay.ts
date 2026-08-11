@@ -15,6 +15,24 @@ export function getPatientTicketLabel(appointmentId: string): string {
   return `Patient #${(Math.abs(h) % 99) + 1}`;
 }
 
+/**
+ * Cancelled card meta label.
+ * Patient cancels → "Patient Cancelled".
+ * Nurse/staff cancel → short cancel reason from `cancellation_reason`.
+ */
+export function formatCancellationLabel(
+  cancellationReason: string | null | undefined,
+): string {
+  const raw = cancellationReason?.trim();
+  if (!raw || /^patient\s*cancelled?$/i.test(raw)) {
+    return 'Patient Cancelled';
+  }
+  // Prefer a short label (first word / short phrase) for the card chip.
+  const first = raw.split(/[\n|,·–—-]/)[0]?.trim() || raw;
+  const word = first.split(/\s+/).slice(0, 3).join(' ');
+  return word.length > 28 ? `${word.slice(0, 27)}…` : word;
+}
+
 export function parseAppointmentDateKey(dateKey: string): Date {
   const [y, m, d] = dateKey.split('-').map((n) => Number(n));
   return new Date(y, m - 1, d);

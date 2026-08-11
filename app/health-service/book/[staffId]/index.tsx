@@ -498,10 +498,11 @@ export default function HealthServiceBookScreen() {
         },
       });
     } catch (error) {
-      console.error('Failed to book appointment:', error);
       const message = error instanceof Error ? error.message : 'Please try again.';
-      const isSameDay =
-        message.includes('already have an appointment on this day');
+      const isSameDay = message.includes('already have an appointment on this day');
+      if (!isSameDay) {
+        console.error('Failed to book appointment:', error);
+      }
       toast.show({
         variant: isSameDay ? 'accent' : 'danger',
         placement: 'top',

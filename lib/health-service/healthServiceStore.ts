@@ -76,10 +76,13 @@ export const useHealthServiceStore = create<HealthServiceState>((set, get) => ({
       // Reload appointments to get the new one
       await get().loadAppointments();
     } catch (error) {
-      console.error('Failed to book appointment:', error);
-      set({ 
-        error: error instanceof Error ? error.message : 'Failed to book appointment',
-        loading: false 
+      const message = error instanceof Error ? error.message : 'Failed to book appointment';
+      if (!message.includes('already have an appointment on this day')) {
+        console.error('Failed to book appointment:', error);
+      }
+      set({
+        error: message,
+        loading: false,
       });
       throw error; // Re-throw so UI can handle it
     }

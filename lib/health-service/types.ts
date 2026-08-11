@@ -47,6 +47,8 @@ export type Appointment = {
   endLabel?: string;
   /** Visit reason / symptoms from `appointments.reason`. */
   reason?: string | null;
+  /** Who/why cancelled — from `appointments.cancellation_reason`. */
+  cancellationReason?: string | null;
   status: AppointmentStatus;
   checkInCode?: string;
   /** ISO timestamp of when the appointment row was created. */

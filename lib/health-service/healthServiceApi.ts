@@ -528,7 +528,7 @@ function createSupabaseHealthServiceApi(): HealthServiceApi {
 
       const { data: appointments, error } = await supabase
         .from('appointments')
-        .select('id, doctor_id, starts_at, ends_at, status, created_at, reason')
+        .select('id, doctor_id, starts_at, ends_at, status, created_at, reason, cancellation_reason')
         .eq('patient_id', patientId)
         .in('status', [
           'pending',
@@ -550,6 +550,7 @@ function createSupabaseHealthServiceApi(): HealthServiceApi {
         startLabel: labelFromIso(appt.starts_at as string),
         endLabel: appt.ends_at ? labelFromIso(appt.ends_at as string) : undefined,
         reason: (appt.reason as string | null) ?? null,
+        cancellationReason: (appt.cancellation_reason as string | null) ?? null,
         status: mapDbStatus(String(appt.status)),
         createdAt: appt.created_at as string,
       }));
@@ -718,7 +719,10 @@ function createSupabaseHealthServiceApi(): HealthServiceApi {
 
       const { error } = await supabase
         .from('appointments')
-        .update({ status: 'cancelled' })
+        .update({
+          status: 'cancelled',
+          cancellation_reason: 'Patient cancelled',
+        })
         .eq('id', id)
         .eq('patient_id', patientId);
 
