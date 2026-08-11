@@ -1,73 +1,55 @@
-import { Image, Text, useWindowDimensions, View } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { Image, Text, useWindowDimensions, View, type StyleProp, type ViewStyle } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, { Path } from 'react-native-svg';
 
 import { CircleBackButton } from '@/components/ui/CircleBackButton';
 import { Inter } from '@/lib/typography/inter';
 
 /** Figma doctor portrait model (node 2235:1558) — full-body, not avatar crop. */
 const doctorHeroModel = require('@/assets/images/booking/doctor-hero.png');
+const campusCareHeart = require('@/assets/heart-grey.png');
 
 type Props = {
   doctorName: string;
   specialty: string;
   onBack: () => void;
+  /** Hides / fades the model (e.g. when the sheet is fully expanded). */
+  modelStyle?: StyleProp<ViewStyle>;
 };
 
-function BrandHeart() {
-  return (
-    <Svg width={22} height={18} viewBox="0 0 40 33" fill="none" opacity={0.35}>
-      <Path
-        d="M33.7 6.3C37.2 9.8 37.2 15.4 33.7 18.9L23.7 28.9C21.7 30.9 18.4 30.9 16.4 28.9L7.5 19.9L21.1 6.3C24.6 2.8 30.2 2.8 33.7 6.3Z"
-        fill="#5E5E5E"
-      />
-    </Svg>
-  );
-}
-
 /**
- * Booking hero — same pattern as GetStartedHero:
- * flex image area fills space above the sheet; model sticks to the top-right.
+ * Booking hero — fills the clipped band above the sheet.
+ * Asset is a waist-cropped portrait (hard bottom edge) — tuck that edge
+ * under the sheet and fade into it so the cut doesn’t show.
  */
-export function BookingHero({ doctorName, specialty, onBack }: Props) {
+export function BookingHero({ doctorName, specialty, onBack, modelStyle }: Props) {
   const insets = useSafeAreaInsets();
   const { width: screenW } = useWindowDimensions();
 
   return (
     <View style={{ flex: 1, backgroundColor: '#F9F9F9', overflow: 'hidden' }}>
-      {/* Doctor model — pinned to top-right, fills the hero (get-started style) */}
-      <Image
-        source={doctorHeroModel}
-        accessibilityLabel="Doctor"
-        style={{
-          position: 'absolute',
-          top: insets.top * 0.2,
-          right: -screenW * 0.06,
-          width: screenW * 0.72,
-          height: '108%',
-        }}
-        resizeMode="contain"
-      />
-
-      {/* Soft fade into the booking sheet */}
-      <LinearGradient
-        colors={[
-          'rgba(249,249,249,0)',
-          'rgba(249,249,249,0.35)',
-          'rgba(249,249,249,0.85)',
-          '#F9F9F9',
+      {/*
+        Wrap RN Image so resizeMode="contain" is reliable; animate opacity on the shell.
+        Negative bottom tucks the asset’s hard waist crop under the sheet lip.
+      */}
+      <Animated.View
+        style={[
+          {
+            position: 'absolute',
+            right: screenW * 0.02,
+            width: screenW * 0.66,
+            // bottom + height come from modelStyle (tucked under sheet)
+          },
+          modelStyle,
         ]}
-        locations={[0, 0.35, 0.7, 1]}
-        style={{
-          position: 'absolute',
-          left: 0,
-          right: 0,
-          bottom: 0,
-          height: '28%',
-        }}
-        pointerEvents="none"
-      />
+        pointerEvents="none">
+        <Image
+          source={doctorHeroModel}
+          accessibilityLabel="Doctor"
+          style={{ width: '100%', height: '100%' }}
+          resizeMode="contain"
+        />
+      </Animated.View>
 
       <CircleBackButton
         onPress={onBack}
@@ -78,14 +60,19 @@ export function BookingHero({ doctorName, specialty, onBack }: Props) {
         }}
       />
 
-      <View style={{ marginTop: 28, marginLeft: 25, maxWidth: '48%', gap: 12, zIndex: 2 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-          <BrandHeart />
+      <View style={{ marginTop: 44, marginLeft: 25, maxWidth: '48%', gap: 10, zIndex: 2 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <Image
+            source={campusCareHeart}
+            accessibilityLabel="CampusCare"
+            style={{ width: 22, height: 18, opacity: 0.45 }}
+            resizeMode="contain"
+          />
           <Text
             style={{
               fontFamily: Inter.regular,
               fontSize: 20,
-              color: '#CFCFCF',
+              color: '#B8B8B8',
               letterSpacing: -1.6,
             }}>
             CampusCare

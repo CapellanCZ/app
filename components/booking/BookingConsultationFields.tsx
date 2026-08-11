@@ -268,10 +268,11 @@ type CommentsProps = {
   value: string;
   onChange: (value: string) => void;
   onFocus?: () => void;
+  onBlur?: () => void;
 };
 
 /** Booking-styled multiline comments field. */
-export function BookingCommentsField({ value, onChange, onFocus }: CommentsProps) {
+export function BookingCommentsField({ value, onChange, onFocus, onBlur }: CommentsProps) {
   return (
     <View style={{ gap: 8 }}>
       <Text
@@ -288,6 +289,7 @@ export function BookingCommentsField({ value, onChange, onFocus }: CommentsProps
         value={value}
         onChangeText={onChange}
         onFocus={onFocus}
+        onBlur={onBlur}
         placeholder="Share symptoms, concerns, or notes for the clinic…"
         placeholderTextColor="#A7A7A7"
         multiline

@@ -1,0 +1,198 @@
+  const scrollCommentsIntoView = useCallback(() => {
+    expandSheet();
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        sheetScrollRef.current?.scrollToEnd({ animated: true });
+      }, Platform.OS === 'ios' ? 80 : 120);
+    });
+  }, [expandSheet]);
+
+  return (
+    <KeyboardAvoidingView
+      style={{ flex: 1, backgroundColor: '#FFFFFF' }}
+      behavior="padding"
+      keyboardVerticalOffset={0}>
+      <Pressable style={{ flex: 1 }} onPress={dismissAndCollapse}>
+        <BookingHero
+          doctorName={displayName}
+          specialty={specLabel}
+          onBack={() => router.back()}
+        />
+
+        <Animated.View
+          style={[
+            {
+              marginTop: -36,
+              backgroundColor: '#FFFFFF',
+              borderTopLeftRadius: 16,
+              borderTopRightRadius: 16,
+              paddingHorizontal: 20,
+              paddingBottom: sheetBottomPad,
+              justifyContent: 'space-between',
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: -8 },
+              shadowOpacity: 0.12,
+              shadowRadius: 24,
+              elevation: 12,
+              zIndex: 3,
+              overflow: 'hidden',
+            },
+            sheetAnimStyle,
+          ]}>
+          <GestureDetector gesture={sheetPan}>
+            <View
+              accessibilityRole="adjustable"
+              accessibilityLabel="Resize booking sheet"
+              style={{
+                alignItems: 'center',
+                justifyContent: 'center',
+                paddingTop: 10,
+                paddingBottom: 12,
+              }}>
+              <View
+                style={{
+                  width: 40,
+                  height: 4,
+                  borderRadius: 2,
+                  backgroundColor: '#D4D4D4',
+                }}
+              />
+            </View>
+          </GestureDetector>
+
+          <View style={{ gap: 16, flexShrink: 1, flex: 1, minHeight: 0 }}>
+            <View style={{ gap: 12 }}>
+              <BookingSheetHeader
+                monthLabel={monthLabel}
+                onPrevWeek={() => {
+                  Keyboard.dismiss();
+                  shiftWeek(-1);
+                }}
+                onNextWeek={() => {
+                  Keyboard.dismiss();
+                  shiftWeek(1);
+                }}
+              />
+
+              <View style={{ flexDirection: 'row', gap: 6 }}>
+                {weekDays.map((day) => {
+                  const past = isPastDay(day);
+                  const bookable = isDayBookable(day);
+                  return (
+                    <BookingDayChip
+                      key={`${day.getFullYear()}-${day.getMonth()}-${day.getDate()}`}
+                      weekday={DAY_SHORT[day.getDay()]}
+                      dayNumber={String(day.getDate()).padStart(2, '0')}
+                      selected={isSameDay(day, selectedDay)}
+                      disabled={past || !bookable}
+                      onPress={() => {
+                        if (past || !bookable) return;
+                        Keyboard.dismiss();
+                        setSelectedDay(startOfDay(day));
+                      }}
+                    />
+                  );
+                })}
+              </View>
+            </View>
+
+            <View style={{ gap: 12, flex: 1, minHeight: 0 }}>
+              <Text
+                style={{
+                  fontFamily: Inter.semiBold,
+                  fontSize: 20,
+                  color: '#111111',
+                  letterSpacing: -0.8,
+                  lineHeight: 26,
+                }}>
+                Time
+              </Text>
+
+              <ScrollView
+                ref={sheetScrollRef}
+                style={{ flex: 1 }}
+                contentContainerStyle={{ gap: 18, paddingBottom: 24 }}
+                showsVerticalScrollIndicator={false}
+                nestedScrollEnabled
+                keyboardShouldPersistTaps="handled"
+                keyboardDismissMode="on-drag"
+                onScrollBeginDrag={Keyboard.dismiss}>
+                {!working ? (
+                  <Text
+                    style={{
+                      fontFamily: Inter.regular,
+                      fontSize: 14,
+                      color: '#6C6C6C',
+                      letterSpacing: -0.28,
+                    }}>
+                    No clinic hours on this day. Pick another date.
+                  </Text>
+                ) : loadingSlots ? (
+                  <ActivityIndicator color="#111" style={{ marginVertical: 8 }} />
+                ) : openCount === 0 ? (
+                  <Text
+                    style={{
+                      fontFamily: Inter.regular,
+                      fontSize: 14,
+                      color: '#6C6C6C',
+                      letterSpacing: -0.28,
+                    }}>
+                    No open slots left for this day.
+                  </Text>
+                ) : (
+                  (
+                    [
+                      { title: 'Morning', items: morningSlots },
+                      { title: 'Afternoon', items: afternoonSlots },
+                    ] as const
+                  ).map((section) => {
+                    if (section.items.length === 0) return null;
+                    return (
+                      <BookingPeriodSection
+                        key={`${selectedDay.toDateString()}-${section.title}`}
+                        title={section.title}
+                        items={section.items}
+                        selectedSlot={selectedSlot}
+                        onSelect={(label) => {
+                          Keyboard.dismiss();
+                          setSelectedSlot(label);
+                        }}
+                        initialVisible={6}
+                      />
+                    );
+                  })
+                )}
+
+                <BookingConsultationSelect
+                  value={consultationRequest}
+                  error={showRequestError && !consultationRequest}
+                  onChange={(next) => {
+                    Keyboard.dismiss();
+                    setConsultationRequest(next);
+                    setShowRequestError(false);
+                  }}
+                />
+                <BookingCommentsField
+                  value={comments}
+                  onChange={setComments}
+                  onFocus={scrollCommentsIntoView}
+                />
+              </ScrollView>
+            </View>
+          </View>
+
+          <View style={{ marginTop: 16, paddingTop: 4 }}>
+            <BookingPrimaryButton
+              disabled={!canBook}
+              loading={isBooking}
+              onPress={() => {
+                Keyboard.dismiss();
+                void handleBookAppointment();
+              }}
+            />
+          </View>
+        </Animated.View>
+      </Pressable>
+    </KeyboardAvoidingView>
+  );
+}

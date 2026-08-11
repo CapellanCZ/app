@@ -9,7 +9,14 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
-import { KeyboardAvoidingView, useKeyboardState } from 'react-native-keyboard-controller';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useReanimatedKeyboardAnimation } from 'react-native-keyboard-controller';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useToast } from 'heroui-native';
@@ -66,6 +73,11 @@ const MONTH_SHORT = [
   'Nov',
   'Dec',
 ];
+
+/** Sheet height as a fraction of screen — tweak freely. */
+const SHEET_COLLAPSED_RATIO = 0.48;
+/** Expanded uses full screen minus status-bar inset (see expandedH). */
+const SHEET_SPRING = { damping: 24, stiffness: 240, mass: 0.85 } as const;
 
 type SlotItem = {
   label: string;
@@ -160,14 +172,130 @@ export default function HealthServiceBookScreen() {
   const { staffId } = useLocalSearchParams<{ staffId: string }>();
   const insets = useSafeAreaInsets();
   const { height: screenH } = useWindowDimensions();
-  const keyboardVisible = useKeyboardState((s) => s.isVisible);
+  /** Negative when open — used as translateY by the library. */
+  const { height: keyboardHeight } = useReanimatedKeyboardAnimation();
   const { staff: allStaff, loadStaff } = useHealthServiceStore();
   const { session } = useAuth();
   const { toast } = useToast();
 
-  /** Shorter when keyboard is open so the sheet sits flush above it. */
-  const sheetHeight = Math.round(screenH * (keyboardVisible ? 0.42 : 0.48));
-  const sheetBottomPad = keyboardVisible ? 8 : Math.max(insets.bottom, 16);
+  const collapsedH = Math.round(screenH * SHEET_COLLAPSED_RATIO);
+  /** Full sheet stops under the status bar (never overlaps it). */
+  const expandedH = Math.round(screenH - insets.top);
+  const sheetH = useSharedValue(collapsedH);
+  const dragStartH = useSharedValue(collapsedH);
+  const minSheetH = useSharedValue(collapsedH);
+  const maxSheetH = useSharedValue(expandedH);
+
+  useEffect(() => {
+    minSheetH.value = collapsedH;
+    maxSheetH.value = expandedH;
+    // Keep relative position when screen size changes
+    const mid = (collapsedH + expandedH) / 2;
+    sheetH.value = sheetH.value > mid ? expandedH : collapsedH;
+  }, [collapsedH, expandedH, maxSheetH, minSheetH, sheetH]);
+
+  const sheetBottomClosed = Math.max(insets.bottom, 16);
+
+  const expandSheet = useCallback(() => {
+    sheetH.value = withSpring(maxSheetH.value, SHEET_SPRING);
+  }, [maxSheetH, sheetH]);
+
+  const collapseSheet = useCallback(() => {
+    sheetH.value = withSpring(minSheetH.value, SHEET_SPRING);
+  }, [minSheetH, sheetH]);
+
+  const dismissAndCollapse = useCallback(() => {
+    Keyboard.dismiss();
+    collapseSheet();
+  }, [collapseSheet]);
+
+  const sheetPan = useMemo(
+    () =>
+      Gesture.Pan()
+        .maxPointers(1)
+        .activeOffsetY([-8, 8])
+        .onBegin(() => {
+          dragStartH.value = sheetH.value;
+        })
+        .onUpdate((e) => {
+          const next = dragStartH.value - e.translationY;
+          const lo = minSheetH.value;
+          const hi = maxSheetH.value;
+          sheetH.value = Math.min(hi, Math.max(lo, next));
+        })
+        .onEnd((e) => {
+          const lo = minSheetH.value;
+          const hi = maxSheetH.value;
+          const mid = (lo + hi) / 2;
+          let target = sheetH.value >= mid ? hi : lo;
+          // Strong flick wins over position
+          if (e.velocityY > 900) target = lo;
+          if (e.velocityY < -900) target = hi;
+          sheetH.value = withSpring(target, SHEET_SPRING);
+        }),
+    [dragStartH, maxSheetH, minSheetH, sheetH],
+  );
+
+  /** Sheet rides flush above the keyboard — no KeyboardAvoidingView padding gap. */
+  const sheetAnimStyle = useAnimatedStyle(() => {
+    const kb = -keyboardHeight.value;
+    const available = screenH - kb - insets.top;
+    const h = Math.min(sheetH.value, Math.max(minSheetH.value, available));
+    return {
+      height: h,
+      bottom: kb,
+      // Home-indicator pad only when keyboard is closed — otherwise flush on keyboard.
+      paddingBottom: kb > 10 ? 8 : sheetBottomClosed,
+    };
+  });
+
+  /**
+   * Hero paints full-screen *behind* the sheet so the model’s hard waist-crop
+   * can tuck under the sheet lip (clipping to the sheet top exposed the cut).
+   */
+  const heroBehindStyle = useAnimatedStyle(() => ({
+    bottom: -keyboardHeight.value,
+  }));
+
+  /** Soft shadow strip rides the sheet’s top edge (native shadow is clipped by overflow). */
+  const sheetTopShadowStyle = useAnimatedStyle(() => {
+    const kb = -keyboardHeight.value;
+    const available = screenH - kb - insets.top;
+    const h = Math.min(sheetH.value, Math.max(minSheetH.value, available));
+    return {
+      bottom: h + kb,
+    };
+  });
+
+  /**
+   * Model opacity + position: keep the asset’s hard bottom edge ~36px under
+   * the sheet top so the crop is covered; fade out in full-sheet mode.
+   */
+  const modelAnimStyle = useAnimatedStyle(() => {
+    const lo = minSheetH.value;
+    const hi = maxSheetH.value;
+    const kb = -keyboardHeight.value;
+    const available = screenH - kb - insets.top;
+    const h = Math.min(sheetH.value, Math.max(lo, available));
+    const heroBand = screenH - h - kb;
+    const expandT = (sheetH.value - lo) / Math.max(1, hi - lo);
+
+    let opacity = 1;
+    if (expandT > 0.82 || heroBand < 140) {
+      opacity = 0;
+    } else {
+      opacity = 1 - Math.min(1, Math.max(0, (expandT - 0.45) / 0.37));
+    }
+
+    const tuck = 40;
+    // ~0.66 width earlier — keep height under the full hero band so it doesn’t dominate
+    const modelH = Math.max(heroBand * 0.88 + tuck, 1);
+    return {
+      opacity,
+      bottom: h + kb - tuck,
+      height: modelH,
+    };
+  });
 
   const staff = useMemo(
     () => (staffId ? allStaff.find((s) => s.id === staffId) : undefined),
@@ -416,46 +544,98 @@ export default function HealthServiceBookScreen() {
   const sheetScrollRef = useRef<ScrollView>(null);
 
   const scrollCommentsIntoView = useCallback(() => {
-    // Let the keyboard animation start, then bring the field above it.
+    expandSheet();
     requestAnimationFrame(() => {
       setTimeout(() => {
         sheetScrollRef.current?.scrollToEnd({ animated: true });
       }, Platform.OS === 'ios' ? 80 : 120);
     });
-  }, []);
+  }, [expandSheet]);
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: '#FFFFFF' }}
-      behavior="padding"
-      keyboardVerticalOffset={0}>
-      {/* Tap outside the comments field to dismiss keyboard / unfocus */}
-      <Pressable style={{ flex: 1 }} onPress={Keyboard.dismiss}>
-        <BookingHero
-          doctorName={displayName}
-          specialty={specLabel}
-          onBack={() => router.back()}
-        />
+    <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
+      <Animated.View
+        style={[
+          {
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            overflow: 'hidden',
+            zIndex: 1,
+          },
+          heroBehindStyle,
+        ]}>
+        <Pressable style={{ flex: 1 }} onPress={dismissAndCollapse}>
+          <BookingHero
+            doctorName={displayName}
+            specialty={specLabel}
+            onBack={() => router.back()}
+            modelStyle={modelAnimStyle}
+          />
+        </Pressable>
+      </Animated.View>
 
-        <View
-          style={{
-            height: sheetHeight,
-            marginTop: -36,
+      {/* Soft upward shadow sitting on the sheet’s top edge */}
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          {
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            height: 32,
+            zIndex: 2,
+          },
+          sheetTopShadowStyle,
+        ]}>
+        <LinearGradient
+          colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.07)']}
+          locations={[0, 1]}
+          style={{ flex: 1 }}
+        />
+      </Animated.View>
+
+      {/* Absolute bottom sheet — rides keyboard height; resize must not reflow under the finger. */}
+      <Animated.View
+        style={[
+          {
+            position: 'absolute',
+            left: 0,
+            right: 0,
             backgroundColor: '#FFFFFF',
             borderTopLeftRadius: 16,
             borderTopRightRadius: 16,
             paddingHorizontal: 20,
-            paddingTop: 28,
-            paddingBottom: sheetBottomPad,
             justifyContent: 'space-between',
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: -8 },
-            shadowOpacity: 0.12,
-            shadowRadius: 24,
-            elevation: 12,
             zIndex: 3,
-          }}>
-          <View style={{ gap: 16, flexShrink: 1, flex: 1 }}>
+            overflow: 'hidden',
+          },
+          sheetAnimStyle,
+        ]}>
+          <GestureDetector gesture={sheetPan}>
+            <View
+              accessibilityRole="adjustable"
+              accessibilityLabel="Resize booking sheet"
+              style={{
+                alignItems: 'center',
+                justifyContent: 'center',
+                alignSelf: 'stretch',
+                minHeight: 52,
+                paddingVertical: 16,
+              }}>
+              <View
+                style={{
+                  width: 56,
+                  height: 5,
+                  borderRadius: 3,
+                  backgroundColor: '#C8C8C8',
+                }}
+              />
+            </View>
+          </GestureDetector>
+
+          <View style={{ gap: 16, flexShrink: 1, flex: 1, minHeight: 0 }}>
             <View style={{ gap: 12 }}>
               <BookingSheetHeader
                 monthLabel={monthLabel}
@@ -586,8 +766,7 @@ export default function HealthServiceBookScreen() {
               }}
             />
           </View>
-        </View>
-      </Pressable>
-    </KeyboardAvoidingView>
+        </Animated.View>
+    </View>
   );
 }
