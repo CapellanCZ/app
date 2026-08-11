@@ -24,7 +24,8 @@ import { HealthServiceScreenShell } from '@/components/health-service/HealthServ
 import { TAB_BAR_HEIGHT } from '@/components/layout/BottomTabBar';
 import { healthServiceApi, type StaffPresenceStatus } from '@/lib/health-service/healthServiceApi';
 import { useHealthServiceStore } from '@/lib/health-service/healthServiceStore';
-import type { StaffRole } from '@/lib/health-service/types';
+import { subscribeStaffPresenceChanges } from '@/lib/health-service/staffPresenceRealtime';
+import type { Staff, StaffRole } from '@/lib/health-service/types';
 import { Inter } from '@/lib/typography/inter';
 
 type FilterId = 'all' | 'doctor' | 'dentist';
@@ -41,9 +42,27 @@ const TAB_SWIPE_DISTANCE = 56;
 const TAB_SWIPE_VELOCITY = 650;
 const EASE_OUT = Easing.bezier(0.23, 1, 0.32, 1);
 const DRAG_SPRING = { damping: 26, stiffness: 200, mass: 0.85 } as const;
+/** Backup for time-based presence (cutoff) — break toggles use realtime. */
+const PRESENCE_POLL_MS = 45_000;
 
 /** Survive remounts so revisiting doesn't flash "unavailable" while presence refetches. */
 let cachedStaffPresence: Record<string, StaffPresenceStatus> = {};
+
+async function fetchPresenceMap(list: Staff[]): Promise<Record<string, StaffPresenceStatus>> {
+  if (!list.length) return {};
+  const today = new Date();
+  const entries = await Promise.all(
+    list.map(async (s) => {
+      try {
+        const status = await healthServiceApi.getStaffPresence(s.id, today);
+        return [s.id, status] as const;
+      } catch {
+        return [s.id, 'unavailable' as StaffPresenceStatus] as const;
+      }
+    }),
+  );
+  return Object.fromEntries(entries);
+}
 
 /**
  * School Doctors — Figma node 2243:333.
@@ -86,31 +105,26 @@ export function SchoolDoctorsScreen() {
   }, [doctors, filter]);
 
   const loadAvailability = useCallback(async () => {
-    if (!doctors.length) {
+    const list = useHealthServiceStore
+      .getState()
+      .staff.filter((s) => s.role === 'doctor' || s.role === 'dentist');
+    if (!list.length) {
       cachedStaffPresence = {};
       setPresence({});
       return;
     }
-    const today = new Date();
-    const entries = await Promise.all(
-      doctors.map(async (s) => {
-        try {
-          const status = await healthServiceApi.getStaffPresence(s.id, today);
-          return [s.id, status] as const;
-        } catch {
-          return [s.id, 'unavailable' as StaffPresenceStatus] as const;
-        }
-      }),
-    );
-    const next = Object.fromEntries(entries);
+    const next = await fetchPresenceMap(list);
     cachedStaffPresence = next;
     setPresence(next);
-  }, [doctors]);
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
-      void (async () => {
+      let unsubscribeRealtime: (() => void) | null = null;
+      let pollTimer: ReturnType<typeof setInterval> | null = null;
+
+      const refreshPresence = async () => {
         try {
           if (!useHealthServiceStore.getState().staffLoaded) {
             await loadStaff();
@@ -126,28 +140,30 @@ export function SchoolDoctorsScreen() {
             return;
           }
 
-          const today = new Date();
-          const entries = await Promise.all(
-            list.map(async (s) => {
-              try {
-                const status = await healthServiceApi.getStaffPresence(s.id, today);
-                return [s.id, status] as const;
-              } catch {
-                return [s.id, 'unavailable' as StaffPresenceStatus] as const;
-              }
-            }),
-          );
+          const next = await fetchPresenceMap(list);
           if (!cancelled) {
-            const next = Object.fromEntries(entries);
             cachedStaffPresence = next;
             setPresence(next);
           }
         } catch (e) {
-          console.error('School doctors load failed:', e);
+          console.error('School doctors presence refresh failed:', e);
         }
-      })();
+      };
+
+      void refreshPresence();
+
+      unsubscribeRealtime = subscribeStaffPresenceChanges(() => {
+        void refreshPresence();
+      });
+
+      pollTimer = setInterval(() => {
+        void refreshPresence();
+      }, PRESENCE_POLL_MS);
+
       return () => {
         cancelled = true;
+        unsubscribeRealtime?.();
+        if (pollTimer) clearInterval(pollTimer);
       };
     }, [loadStaff]),
   );
