@@ -3,13 +3,13 @@ import { Alert, Linking, Pressable, ScrollView, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useToast } from 'heroui-native';
-
 import { AppointmentBookedCard } from '@/components/booking/AppointmentBookedCard';
 import { AppointmentBookedCheckIcon } from '@/components/booking/AppointmentBookedCheckIcon';
 import { AppointmentImportantNote } from '@/components/booking/AppointmentImportantNote';
 import { formatVisitReasonDisplay } from '@/components/booking/BookingConsultationFields';
 import { useAuth } from '@/lib/auth/AuthProvider';
+import { showAppToast } from '@/lib/ui/toastBridge';
+import { playToastFeedback } from '@/lib/ui/feedbackSound';
 import {
   appointmentReminderAt,
   buildGoogleCalendarUrl,
@@ -34,7 +34,6 @@ const CLINIC_LOCATION = 'CampusCare Student Health Clinic';
  */
 export default function AppointmentBookedScreen() {
   const insets = useSafeAreaInsets();
-  const { toast } = useToast();
   const { session } = useAuth();
   const [reminderBusy, setReminderBusy] = useState(false);
   const [reminderSetAt, setReminderSetAt] = useState<Date | null>(null);
@@ -84,6 +83,11 @@ export default function AppointmentBookedScreen() {
     if (isCancelled) {
       router.replace('/appointments');
     }
+  }, [isCancelled]);
+
+  useEffect(() => {
+    if (isCancelled) return;
+    void playToastFeedback('success');
   }, [isCancelled]);
 
   useEffect(() => {
@@ -182,7 +186,7 @@ export default function AppointmentBookedScreen() {
     });
 
     if (!url) {
-      toast.show({
+      showAppToast({
         variant: 'danger',
         placement: 'top',
         label: 'Could not add to calendar',
@@ -194,7 +198,7 @@ export default function AppointmentBookedScreen() {
     setCalendarBusy(true);
     try {
       await Linking.openURL(url);
-      toast.show({
+      showAppToast({
         variant: 'success',
         placement: 'top',
         label: 'Opening calendar',
@@ -202,7 +206,7 @@ export default function AppointmentBookedScreen() {
       });
     } catch (error) {
       console.warn('[calendar] open failed:', error);
-      toast.show({
+      showAppToast({
         variant: 'danger',
         placement: 'top',
         label: 'Could not open calendar',
@@ -211,13 +215,13 @@ export default function AppointmentBookedScreen() {
     } finally {
       setCalendarBusy(false);
     }
-  }, [appointmentTime, calendarBusy, dateKey, dateLabel, name, specialty, time, toast]);
+  }, [appointmentTime, calendarBusy, dateKey, dateLabel, name, specialty, time]);
 
   const handleReminder = useCallback(async () => {
     if (!dateKey || !appointmentTime || reminderBusy || reminderSetAt) return;
     if (!reminderAvailable) {
-      toast.show({
-        variant: 'info',
+      showAppToast({
+        variant: 'accent',
         placement: 'top',
         label: 'Too close to start',
         description: `Your appointment is at ${time}. Reminders need at least ${REMINDER_MINUTES_BEFORE} minutes beforehand.`,
@@ -227,7 +231,7 @@ export default function AppointmentBookedScreen() {
 
     const appointmentId = id ? String(id) : '';
     if (!appointmentId) {
-      toast.show({
+      showAppToast({
         variant: 'danger',
         placement: 'top',
         label: 'Could not set reminder',
@@ -242,7 +246,7 @@ export default function AppointmentBookedScreen() {
       REMINDER_MINUTES_BEFORE,
     );
     if (!fireAt) {
-      toast.show({
+      showAppToast({
         variant: 'danger',
         placement: 'top',
         label: 'Could not set reminder',
@@ -287,7 +291,7 @@ export default function AppointmentBookedScreen() {
       }
 
       setReminderSetAt(notifyInstant);
-      toast.show({
+      showAppToast({
         variant: 'success',
         placement: 'top',
         label: 'Reminder set',
@@ -295,7 +299,7 @@ export default function AppointmentBookedScreen() {
       });
     } catch (error) {
       console.warn('[reminder] failed:', error);
-      toast.show({
+      showAppToast({
         variant: 'danger',
         placement: 'top',
         label: 'Could not set reminder',
@@ -314,7 +318,6 @@ export default function AppointmentBookedScreen() {
     reminderBusy,
     reminderSetAt,
     time,
-    toast,
   ]);
 
   if (isCancelled) {

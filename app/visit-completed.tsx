@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 
@@ -9,6 +9,7 @@ import { BottomSheetModal, type BottomSheetModalHandle } from '@/components/ui/B
 import { formatAppointmentBookedDate } from '@/lib/health-service/appointmentDisplay';
 import { useHealthServiceStore } from '@/lib/health-service/healthServiceStore';
 import { Inter } from '@/lib/typography/inter';
+import { playToastFeedback } from '@/lib/ui/feedbackSound';
 
 /**
  * Completed visit receipt — bottom sheet (Past list + realtime).
@@ -37,6 +38,10 @@ export default function VisitCompletedSheet() {
     reason?: string;
     completedTime?: string;
   }>();
+
+  useEffect(() => {
+    void playToastFeedback('success');
+  }, []);
 
   const appointments = useHealthServiceStore((s) => s.appointments);
   const appointment = useMemo(() => {

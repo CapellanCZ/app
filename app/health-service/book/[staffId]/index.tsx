@@ -19,8 +19,6 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useToast } from 'heroui-native';
-
 import { BookingHero } from '@/components/booking/BookingHero';
 import {
   BookingCommentsField,
@@ -43,6 +41,7 @@ import { useHealthServiceStore } from '@/lib/health-service/healthServiceStore';
 import type { StaffRole } from '@/lib/health-service/types';
 import { useNotificationStore } from '@/lib/notifications/notificationStore';
 import { Inter } from '@/lib/typography/inter';
+import { showAppToast } from '@/lib/ui/toastBridge';
 
 const DAY_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTH_LONG = [
@@ -176,7 +175,6 @@ export default function HealthServiceBookScreen() {
   const { height: keyboardHeight } = useReanimatedKeyboardAnimation();
   const { staff: allStaff, loadStaff } = useHealthServiceStore();
   const { session } = useAuth();
-  const { toast } = useToast();
 
   const collapsedH = Math.round(screenH * SHEET_COLLAPSED_RATIO);
   /** Full sheet stops under the status bar (never overlaps it). */
@@ -434,7 +432,7 @@ export default function HealthServiceBookScreen() {
     if (!staff || !selectedSlot || isBooking) return;
     if (!consultationRequest) {
       setShowRequestError(true);
-      toast.show({
+      showAppToast({
         variant: 'accent',
         placement: 'top',
         duration: 3500,
@@ -503,7 +501,7 @@ export default function HealthServiceBookScreen() {
       if (!isSameDay) {
         console.error('Failed to book appointment:', error);
       }
-      toast.show({
+      showAppToast({
         variant: isSameDay ? 'accent' : 'danger',
         placement: 'top',
         duration: 4500,
@@ -513,7 +511,7 @@ export default function HealthServiceBookScreen() {
     } finally {
       setIsBooking(false);
     }
-  }, [staff, selectedSlot, selectedDay, consultationRequest, comments, isBooking, session, toast]);
+  }, [staff, selectedSlot, selectedDay, consultationRequest, comments, isBooking, session]);
 
   if (!staff) {
     return (

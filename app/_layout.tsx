@@ -14,6 +14,7 @@ import { AppointmentSubscription } from '@/components/health-service/Appointment
 import { NotificationHandler } from '@/components/notifications/NotificationHandler';
 import { NotificationSubscription } from '@/components/notifications/NotificationSubscription';
 import { AppToastBinder } from '@/components/ui/AppToastBinder';
+import { FeedbackSoundHost } from '@/components/ui/FeedbackSoundHost';
 import { tamaguiConfig } from '../tamagui.config';
 
 export const unstable_settings = {
@@ -46,6 +47,7 @@ export default function RootLayout() {
             <KeyboardProvider>
               <AuthProvider>
               <AppToastBinder />
+              <FeedbackSoundHost />
               <AppointmentSubscription />
               <NotificationHandler />
               <NotificationSubscription />

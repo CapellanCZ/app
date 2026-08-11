@@ -23,5 +23,11 @@ export function showAppToast(options: AppToastOptions) {
     console.warn('[toast] showAppToast called before AppToastBinder mounted', options.label);
     return;
   }
+
+  // Fire-and-forget feedback — never block the toast UI.
+  void import('@/lib/ui/feedbackSound').then(({ playToastFeedback }) =>
+    playToastFeedback(options.variant ?? 'accent'),
+  );
+
   boundShow(options);
 }
