@@ -1,11 +1,12 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
 
-const BRAND      = '#2970FF';
+const BRAND = '#2970FF';
 const BRAND_DARK = '#155EEF';
 const BRAND_SOFT = '#F5F8FF';
-const DISABLED   = '#D5D7DA';
+const DISABLED = '#D5D7DA';
+const BLACK = '#000000';
 
-export type AppButtonVariant = 'primary' | 'secondary';
+export type AppButtonVariant = 'primary' | 'secondary' | 'dark';
 
 export type AppButtonProps = {
   label: string;
@@ -25,6 +26,7 @@ export function AppButton({
   accessibilityLabel,
 }: AppButtonProps) {
   const isPrimary = variant === 'primary';
+  const isDark = variant === 'dark';
   const isDisabled = disabled || loading;
 
   return (
@@ -36,14 +38,21 @@ export function AppButton({
       accessibilityState={{ disabled: isDisabled }}
       style={({ pressed }) => [
         styles.base,
-        isPrimary ? styles.primary : styles.secondary,
-        isDisabled && (isPrimary ? styles.primaryDisabled : styles.secondaryDisabled),
-        pressed && !isDisabled && (isPrimary ? styles.primaryPressed : styles.secondaryPressed),
+        isDark ? styles.dark : isPrimary ? styles.primary : styles.secondary,
+        isDisabled &&
+          (isDark || isPrimary ? styles.primaryDisabled : styles.secondaryDisabled),
+        pressed &&
+          !isDisabled &&
+          (isDark ? styles.darkPressed : isPrimary ? styles.primaryPressed : styles.secondaryPressed),
       ]}>
       {loading ? (
-        <ActivityIndicator color={isPrimary ? '#FFFFFF' : BRAND_DARK} size="small" />
+        <ActivityIndicator color={isPrimary || isDark ? '#FFFFFF' : BRAND_DARK} size="small" />
       ) : (
-        <Text style={[styles.label, isPrimary ? styles.labelPrimary : styles.labelSecondary]}>
+        <Text
+          style={[
+            styles.label,
+            isDark || isPrimary ? styles.labelPrimary : styles.labelSecondary,
+          ]}>
           {label}
         </Text>
       )}
@@ -66,6 +75,12 @@ const styles = StyleSheet.create({
   },
   primaryPressed: {
     backgroundColor: '#1D65F5',
+  },
+  dark: {
+    backgroundColor: BLACK,
+  },
+  darkPressed: {
+    backgroundColor: '#222222',
   },
   primaryDisabled: {
     backgroundColor: DISABLED,

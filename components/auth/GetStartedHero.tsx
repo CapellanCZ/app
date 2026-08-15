@@ -3,10 +3,9 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient';
 
 import { AppButton } from '@/components/ui/AppButton';
-import { AppLogoIcon } from '@/components/icons/AppLogoIcon';
+import { Inter } from '@/lib/typography/inter';
 
-const BRAND_DARK = '#155EEF';
-const BG         = '#F5F5F5';
+const BG = '#F9F9F9';
 
 export type GetStartedHeroProps = {
   onSignIn: () => void;
@@ -20,14 +19,13 @@ export function GetStartedHero({ onSignIn, onTerms, onPrivacy }: GetStartedHeroP
 
   return (
     <View style={styles.root}>
-
-      {/* ── Gray image area — flex:1 fills all space above panel ── */}
+      {/* Image area — sharp cut into the bottom panel */}
       <View style={styles.imageArea}>
         <Image
           source={require('../../assets/student-model.optimized.png')}
           style={{
-            width: screenW * 0.90,
-            height: '75%',
+            width: screenW * 0.9,
+            height: '78%',
             position: 'absolute',
             bottom: 0,
             alignSelf: 'center',
@@ -35,71 +33,59 @@ export function GetStartedHero({ onSignIn, onTerms, onPrivacy }: GetStartedHeroP
           }}
           resizeMode="contain"
         />
-        {/* Smoke fade */}
-        <LinearGradient
-          colors={[
-            'rgba(245,245,245,0)',
-            'rgba(245,245,245,0.15)',
-            'rgba(248,248,248,0.45)',
-            'rgba(251,251,251,0.72)',
-            'rgba(254,254,254,1)',
-            '#FFFFFF',
-          ]}
-          locations={[0, 0.15, 0.35, 0.55, 0.75, 1]}
-          style={[styles.fadeGradient, { height: '30%', bottom: -1 }]}
-          pointerEvents="none"
-        />
       </View>
 
-      {/* ── White bottom panel — SafeAreaView handles home indicator ── */}
       <SafeAreaView edges={['bottom']} style={styles.safePanel}>
+        {/* Soft top shadow (works on Android + iOS; elevation can't cast upward). */}
+        <LinearGradient
+          pointerEvents="none"
+          colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.07)']}
+          locations={[0, 1]}
+          style={styles.topShadow}
+        />
         <View style={styles.panel}>
-
-          {/* Headline */}
           <View style={styles.textBlock}>
-            <Text style={styles.headline}>
-              {'Your '}
-              <Text style={styles.headlineAccent}>Ultimate Centralized</Text>
-              {'\nStudent Welfare App'}
-            </Text>
+            <Text style={styles.headline}>Shaping the Future of{'\n'}Health Care</Text>
             <Text style={styles.subtitle}>
-              Schedule your campus welfare appointments instantly, anytime and anywhere.
+              Book your appointments visits faster with the Health Service Office.
             </Text>
           </View>
 
-          {/* Buttons */}
           <View style={styles.btnStack}>
-            <AppButton label="Sign in with Email" onPress={onSignIn} variant="primary" />
+            <AppButton label="Get Started" onPress={onSignIn} variant="dark" />
           </View>
 
-          {/* Legal */}
           <Text style={styles.legal}>
-            {'By proceeding to use CampusCare, you agree to our '}
+            {'By proceeding, you agree to our '}
             <Text
               style={styles.legalLink}
               onPress={onTerms}
               accessibilityRole="link"
-              accessibilityLabel="Terms of use">
-              terms of use
+              accessibilityLabel="Terms of Use">
+              Terms of Use
             </Text>
             {' and acknowledge that you have read our '}
             <Text
               style={styles.legalLink}
               onPress={onPrivacy}
               accessibilityRole="link"
-              accessibilityLabel="Privacy policy">
-              privacy policy
+              accessibilityLabel="Privacy Policy">
+              Privacy Policy
             </Text>
           </Text>
         </View>
       </SafeAreaView>
 
-      {/* ── Logo — floats above everything ── */}
+      {/* Grey heart + CampusCare wordmark */}
       <View style={[styles.logoRow, { top: insets.top + 18 }]} pointerEvents="none">
-        <AppLogoIcon width={34} height={32} />
+        <Image
+          source={require('../../assets/heart-grey.png')}
+          style={styles.logoHeart}
+          resizeMode="contain"
+          accessibilityLabel="CampusCare"
+        />
         <Text style={styles.logoText}>CampusCare</Text>
       </View>
-
     </View>
   );
 }
@@ -107,7 +93,7 @@ export function GetStartedHero({ onSignIn, onTerms, onPrivacy }: GetStartedHeroP
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#FFFFFF', // white fills any sub-pixel gap between imageArea and panel
+    backgroundColor: '#F9F9F9',
   },
   imageArea: {
     flex: 1,
@@ -115,54 +101,63 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   safePanel: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F9F9F9',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: -6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    zIndex: 2,
+    // Pull panel up so it covers the lower body a bit.
+    marginTop: -48,
   },
-  fadeGradient: {
+  topShadow: {
     position: 'absolute',
-    bottom: 0,
     left: 0,
     right: 0,
+    top: -24,
+    height: 24,
+    zIndex: 3,
   },
   panel: {
-    backgroundColor: '#FFFFFF',
-    paddingTop: 14,
-    paddingHorizontal: 14,
+    backgroundColor: '#F9F9F9',
+    paddingTop: 40,
+    paddingHorizontal: 20,
     paddingBottom: 10,
-    gap: 14,
+    gap: 16,
   },
   textBlock: {
     gap: 10,
     alignItems: 'center',
   },
   headline: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: '#181D27',
-    letterSpacing: -0.48,
+    // Weight lives in the font file — don't set fontWeight or iOS/Android may ignore Inter-Medium.
+    fontFamily: Inter.medium,
+    fontSize: 42,
+    color: '#111111',
+    letterSpacing: -3,
     textAlign: 'center',
-    lineHeight: 32,
-  },
-  headlineAccent: {
-    color: BRAND_DARK,
+    lineHeight: 46,
   },
   subtitle: {
-    fontSize: 16,
-    fontWeight: '400',
-    color: '#717680',
-    letterSpacing: -0.3,
+    fontFamily: Inter.regular,
+    fontSize: 17,
+    color: '#727272',
+    letterSpacing: -0.4,
     textAlign: 'center',
     lineHeight: 22,
+    paddingHorizontal: 12,
   },
   btnStack: {
-    marginTop: 12,
+    marginTop: 4,
     gap: 12,
   },
   legal: {
-    fontSize: 12,
+    fontFamily: Inter.regular,
+    fontSize: 14,
     color: '#A4A7AE',
     textAlign: 'center',
     letterSpacing: -0.2,
-    lineHeight: 16,
+    lineHeight: 18,
     paddingHorizontal: 12,
   },
   legalLink: {
@@ -179,10 +174,15 @@ const styles = StyleSheet.create({
     gap: 8,
     zIndex: 10,
   },
+  logoHeart: {
+    width: 28,
+    height: 24,
+    opacity: 0.45,
+  },
   logoText: {
+    fontFamily: Inter.regular,
     fontSize: 20,
-    fontWeight: '700',
-    color: BRAND_DARK,
-    letterSpacing: -0.2,
+    color: '#B8B8B8',
+    letterSpacing: -1.6,
   },
 });
