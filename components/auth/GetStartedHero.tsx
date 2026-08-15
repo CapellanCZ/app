@@ -2,7 +2,7 @@ import { StyleSheet, Image, Text, View, useWindowDimensions } from 'react-native
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 
-import { AppButton } from '@/components/ui/AppButton';
+import { GetStartedGlassButton } from '@/components/auth/GetStartedGlassButton';
 import { Inter } from '@/lib/typography/inter';
 
 const BG = '#F9F9F9';
@@ -22,12 +22,12 @@ export function GetStartedHero({ onSignIn, onTerms, onPrivacy }: GetStartedHeroP
       {/* Image area — sharp cut into the bottom panel */}
       <View style={styles.imageArea}>
         <Image
-          source={require('../../assets/student-model.optimized.png')}
+          source={require('../../assets/images/booking/doctor-hero.png')}
           style={{
             width: screenW * 0.9,
             height: '78%',
             position: 'absolute',
-            bottom: 0,
+            bottom: 28,
             alignSelf: 'center',
             left: screenW * 0.06,
           }}
@@ -39,8 +39,8 @@ export function GetStartedHero({ onSignIn, onTerms, onPrivacy }: GetStartedHeroP
         {/* Soft top shadow (works on Android + iOS; elevation can't cast upward). */}
         <LinearGradient
           pointerEvents="none"
-          colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.07)']}
-          locations={[0, 1]}
+          colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.05)', 'rgba(0,0,0,0.12)']}
+          locations={[0, 0.55, 1]}
           style={styles.topShadow}
         />
         <View style={styles.panel}>
@@ -52,7 +52,7 @@ export function GetStartedHero({ onSignIn, onTerms, onPrivacy }: GetStartedHeroP
           </View>
 
           <View style={styles.btnStack}>
-            <AppButton label="Get Started" onPress={onSignIn} variant="dark" />
+            <GetStartedGlassButton onPress={onSignIn} />
           </View>
 
           <Text style={styles.legal}>
@@ -103,9 +103,9 @@ const styles = StyleSheet.create({
   safePanel: {
     backgroundColor: '#F9F9F9',
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: -6 },
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
+    shadowOffset: { width: 0, height: -8 },
+    shadowOpacity: 0.16,
+    shadowRadius: 20,
     zIndex: 2,
     // Pull panel up so it covers the lower body a bit.
     marginTop: -48,
@@ -114,8 +114,8 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     right: 0,
-    top: -24,
-    height: 24,
+    top: -36,
+    height: 36,
     zIndex: 3,
   },
   panel: {

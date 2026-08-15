@@ -1,7 +1,8 @@
+import { useRouter } from 'expo-router';
 import { ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { ScreenNavbar } from '@/components/layout/ScreenNavbar';
+import { CircleBackButton } from '@/components/ui/CircleBackButton';
 import { SCHEDULE_PARTNER } from '@/lib/ui/theme';
 import { Inter } from '@/lib/typography/inter';
 
@@ -21,8 +22,8 @@ export type LegalDocumentScreenProps = {
 };
 
 /**
- * Shared Privacy / Terms layout — matches settings screens
- * (ScreenNavbar, surface cards, muted section labels, Inter type).
+ * Privacy / Terms layout — same chrome as Appointments & booking
+ * (`CircleBackButton` + large Inter title on #F9F9F9).
  */
 export function LegalDocumentScreen({
   title,
@@ -33,36 +34,47 @@ export function LegalDocumentScreen({
   footerEmail,
 }: LegalDocumentScreenProps) {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
+
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/');
+    }
+  };
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#FDFDFD' }}>
-      <ScreenNavbar title={title} />
+    <View style={{ flex: 1, backgroundColor: '#F9F9F9' }}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         keyboardDismissMode="on-drag"
         contentContainerStyle={{
-          paddingHorizontal: 16,
-          paddingTop: 8,
+          paddingTop: insets.top + 12,
+          paddingHorizontal: 20,
           paddingBottom: Math.max(insets.bottom, 16) + 32,
-          gap: 16,
+          gap: 20,
         }}>
-        {/* Meta */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 4 }}>
-          <View
-            style={{
-              backgroundColor: SCHEDULE_PARTNER.segmentTrackBg,
-              borderWidth: 1,
-              borderColor: SCHEDULE_PARTNER.cardBorder,
-              borderRadius: 99,
-              paddingHorizontal: 10,
-              paddingVertical: 5,
-            }}>
+        <View style={{ gap: 16 }}>
+          <CircleBackButton onPress={handleBack} />
+          <View style={{ gap: 6 }}>
             <Text
               style={{
                 fontFamily: Inter.medium,
-                fontSize: 12,
-                color: SCHEDULE_PARTNER.textMuted,
-                letterSpacing: -0.2,
+                fontSize: 30,
+                color: '#222222',
+                letterSpacing: -2.24,
+                lineHeight: 36,
+              }}>
+              {title}
+            </Text>
+            <Text
+              style={{
+                fontFamily: Inter.regular,
+                fontSize: 16,
+                color: '#727272',
+                letterSpacing: -0.4,
+                lineHeight: 22,
               }}>
               Last updated · {lastUpdated}
             </Text>
@@ -75,7 +87,7 @@ export function LegalDocumentScreen({
             borderRadius: 16,
             borderWidth: 1,
             borderColor: SCHEDULE_PARTNER.cardBorder,
-            backgroundColor: SCHEDULE_PARTNER.surface,
+            backgroundColor: '#FFFFFF',
             padding: 16,
           }}>
           <Text
@@ -83,7 +95,7 @@ export function LegalDocumentScreen({
               fontFamily: Inter.regular,
               fontSize: 15,
               lineHeight: 22,
-              color: SCHEDULE_PARTNER.textMuted,
+              color: '#727272',
               letterSpacing: -0.2,
             }}>
             {intro}
@@ -91,23 +103,12 @@ export function LegalDocumentScreen({
         </View>
 
         {/* Sections */}
-        <Text
-          style={{
-            marginLeft: 4,
-            marginBottom: -4,
-            fontFamily: Inter.medium,
-            fontSize: 15,
-            color: SCHEDULE_PARTNER.textMuted,
-            letterSpacing: -0.3,
-          }}>
-          Document
-        </Text>
         <View
           style={{
             borderRadius: 16,
             borderWidth: 1,
             borderColor: SCHEDULE_PARTNER.cardBorder,
-            backgroundColor: SCHEDULE_PARTNER.surface,
+            backgroundColor: '#FFFFFF',
             overflow: 'hidden',
           }}>
           {sections.map((section, index) => {
@@ -129,7 +130,7 @@ export function LegalDocumentScreen({
                     style={{
                       fontFamily: Inter.medium,
                       fontSize: 13,
-                      color: SCHEDULE_PARTNER.brand,
+                      color: '#A4A7AE',
                       letterSpacing: -0.2,
                       marginTop: 1,
                     }}>
@@ -140,7 +141,7 @@ export function LegalDocumentScreen({
                       flex: 1,
                       fontFamily: Inter.semiBold,
                       fontSize: 16,
-                      color: SCHEDULE_PARTNER.textPrimary,
+                      color: '#222222',
                       letterSpacing: -0.4,
                       lineHeight: 22,
                     }}>
@@ -153,7 +154,7 @@ export function LegalDocumentScreen({
                     fontFamily: Inter.regular,
                     fontSize: 14,
                     lineHeight: 22,
-                    color: SCHEDULE_PARTNER.textMuted,
+                    color: '#727272',
                     letterSpacing: -0.15,
                   }}>
                   {section.body}
@@ -164,13 +165,13 @@ export function LegalDocumentScreen({
         </View>
 
         {/* Footer */}
-        {(footerNote || footerEmail) && (
+        {(footerNote || footerEmail) ? (
           <View
             style={{
               borderRadius: 16,
               borderWidth: 1,
               borderColor: SCHEDULE_PARTNER.cardBorder,
-              backgroundColor: SCHEDULE_PARTNER.surface,
+              backgroundColor: '#FFFFFF',
               padding: 16,
               gap: 6,
             }}>
@@ -180,7 +181,7 @@ export function LegalDocumentScreen({
                   fontFamily: Inter.regular,
                   fontSize: 13,
                   lineHeight: 19,
-                  color: SCHEDULE_PARTNER.textMuted,
+                  color: '#727272',
                   letterSpacing: -0.15,
                 }}>
                 {footerNote}
@@ -191,14 +192,15 @@ export function LegalDocumentScreen({
                 style={{
                   fontFamily: Inter.medium,
                   fontSize: 14,
-                  color: SCHEDULE_PARTNER.brand,
+                  color: '#111111',
                   letterSpacing: -0.2,
+                  textDecorationLine: 'underline',
                 }}>
                 {footerEmail}
               </Text>
             ) : null}
           </View>
-        )}
+        ) : null}
       </ScrollView>
     </View>
   );
