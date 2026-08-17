@@ -60,6 +60,7 @@ export function GetStartedHero({ onSignIn, onTerms, onPrivacy }: GetStartedHeroP
             <Text
               style={styles.legalLink}
               onPress={onTerms}
+              suppressHighlighting={false}
               accessibilityRole="link"
               accessibilityLabel="Terms of Use">
               Terms of Use
@@ -68,6 +69,7 @@ export function GetStartedHero({ onSignIn, onTerms, onPrivacy }: GetStartedHeroP
             <Text
               style={styles.legalLink}
               onPress={onPrivacy}
+              suppressHighlighting={false}
               accessibilityRole="link"
               accessibilityLabel="Privacy Policy">
               Privacy Policy

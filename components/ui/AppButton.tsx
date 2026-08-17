@@ -1,4 +1,12 @@
-import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
+import {
+  ActivityIndicator,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+} from 'react-native';
+
+import { androidPressProps } from '@/lib/ui/androidPress';
 
 const BRAND = '#2970FF';
 const BRAND_DARK = '#155EEF';
@@ -36,6 +44,10 @@ export function AppButton({
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
       accessibilityState={{ disabled: isDisabled }}
+      {...androidPressProps({
+        light: isPrimary || isDark,
+        hitSlop: 4,
+      })}
       style={({ pressed }) => [
         styles.base,
         isDark ? styles.dark : isPrimary ? styles.primary : styles.secondary,
@@ -43,7 +55,11 @@ export function AppButton({
           (isDark || isPrimary ? styles.primaryDisabled : styles.secondaryDisabled),
         pressed &&
           !isDisabled &&
-          (isDark ? styles.darkPressed : isPrimary ? styles.primaryPressed : styles.secondaryPressed),
+          (isDark
+            ? styles.darkPressed
+            : isPrimary
+              ? styles.primaryPressed
+              : styles.secondaryPressed),
       ]}>
       {loading ? (
         <ActivityIndicator color={isPrimary || isDark ? '#FFFFFF' : BRAND_DARK} size="small" />
@@ -62,8 +78,9 @@ export function AppButton({
 
 const styles = StyleSheet.create({
   base: {
-    height: 50,
-    borderRadius: 25,
+    minHeight: Platform.OS === 'android' ? 52 : 50,
+    height: Platform.OS === 'android' ? 52 : 50,
+    borderRadius: 26,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
@@ -75,12 +92,14 @@ const styles = StyleSheet.create({
   },
   primaryPressed: {
     backgroundColor: '#1D65F5',
+    opacity: Platform.OS === 'android' ? 0.92 : 1,
   },
   dark: {
     backgroundColor: BLACK,
   },
   darkPressed: {
     backgroundColor: '#222222',
+    opacity: Platform.OS === 'android' ? 0.92 : 1,
   },
   primaryDisabled: {
     backgroundColor: DISABLED,
@@ -91,6 +110,7 @@ const styles = StyleSheet.create({
   },
   secondaryPressed: {
     backgroundColor: '#EBF0FF',
+    opacity: Platform.OS === 'android' ? 0.92 : 1,
   },
   secondaryDisabled: {
     backgroundColor: '#F0F0F0',

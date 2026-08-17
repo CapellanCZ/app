@@ -2,6 +2,7 @@ import { Pressable, Text, View } from 'react-native';
 import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 
 import { GreyAvatar } from '@/components/profile/GreyAvatar';
+import { androidPressProps } from '@/lib/ui/androidPress';
 
 type UserInfoCardProps = {
   name: string;
@@ -72,7 +73,12 @@ export function UserInfoCard({
 
       {/* Avatar + Name row */}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-        <Pressable onPress={onAvatarPress}>
+        <Pressable
+          onPress={onAvatarPress}
+          accessibilityRole="button"
+          accessibilityLabel="Change profile photo"
+          {...androidPressProps({ borderless: true, hitSlop: 8 })}
+          style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}>
           <GreyAvatar size={52} name={name} avatarUrl={avatarUrl} />
         </Pressable>
         <View style={{ flex: 1, gap: 4 }}>

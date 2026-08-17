@@ -5,6 +5,7 @@ import { Pressable } from 'react-native-gesture-handler';
 import { NotificationBellButton } from '@/components/notifications/NotificationBellButton';
 import { GreyAvatar } from '@/components/profile/GreyAvatar';
 import { ROUTES } from '@/lib/routes';
+import { androidPressProps } from '@/lib/ui/androidPress';
 
 const ICON_MUTED = '#1F2024';
 const ROW_HEIGHT = 52;
@@ -61,10 +62,12 @@ export function HomeScreenHeader({
       <Pressable
         accessibilityLabel="Profile"
         accessibilityRole="button"
-        hitSlop={10}
         onPress={() => router.push(ROUTES.profile)}
-        style={{ flexShrink: 0 }}
-        className="active:opacity-80">
+        {...androidPressProps({ borderless: true, hitSlop: 8 })}
+        style={({ pressed }) => ({
+          flexShrink: 0,
+          opacity: pressed ? 0.8 : 1,
+        })}>
         <GreyAvatar size={AVATAR_SIZE} name={userName} avatarUrl={avatarUrl} />
       </Pressable>
     </View>

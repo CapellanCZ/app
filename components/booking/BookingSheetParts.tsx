@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, Text, View } from 'react-native';
 import Animated, {
   interpolate,
   useAnimatedStyle,
@@ -10,6 +10,7 @@ import Animated, {
 import { BookingChevronIcon } from '@/components/booking/BookingIcons';
 import { IconsaxArrowDownIcon } from '@/components/icons/IconsaxArrowDownIcon';
 import { Inter } from '@/lib/typography/inter';
+import { ANDROID_MIN_TOUCH, androidPressProps } from '@/lib/ui/androidPress';
 
 const SELECTED_DAY_BG = '#F3F3F3';
 const SELECTED_DAY_BORDER = '#D8D8D8';
@@ -58,12 +59,13 @@ export function BookingDayChip({
       onPress={onPress}
       onPressIn={onPressIn}
       onPressOut={onPressOut}
-      style={{ flex: 1, flexBasis: 0 }}>
+      {...androidPressProps({ hitSlop: 2 })}
+      style={{ flex: 1, flexBasis: 0, overflow: 'hidden', borderRadius: 14 }}>
       <Animated.View
         style={[
           animStyle,
           {
-            minHeight: 64,
+            minHeight: Platform.OS === 'android' ? 68 : 64,
             borderRadius: 14,
             backgroundColor: isSelected ? SELECTED_DAY_BG : 'transparent',
             borderWidth: 1,
@@ -135,13 +137,16 @@ export function BookingSlotChip({ label, selected, booked = false, onPress }: Sl
         onPress={onPress}
         onPressIn={onPressIn}
         onPressOut={onPressOut}
+        {...androidPressProps({ light: selected, hitSlop: 2 })}
         style={{
           borderRadius: 16,
           backgroundColor: selected ? '#0F0E0E' : '#F4F4F4',
-          paddingVertical: 14,
+          paddingVertical: Platform.OS === 'android' ? 16 : 14,
           paddingHorizontal: 10,
+          minHeight: Platform.OS === 'android' ? 48 : undefined,
           alignItems: 'center',
           justifyContent: 'center',
+          overflow: 'hidden',
           opacity: booked ? 0.45 : 1,
           shadowColor: selected ? '#D0D0D0' : 'transparent',
           shadowOffset: { width: 0, height: 5 },
@@ -200,17 +205,18 @@ function BookingNavCircle({
       onPressOut={() => {
         pressed.set(withSpring(0, PRESS_SPRING));
       }}
-      hitSlop={6}>
+      {...androidPressProps({ borderless: true, hitSlop: 8 })}>
       <Animated.View
         style={[
           animStyle,
           {
-            width: 36,
-            height: 36,
-            borderRadius: 18,
+            width: Platform.OS === 'android' ? ANDROID_MIN_TOUCH : 36,
+            height: Platform.OS === 'android' ? ANDROID_MIN_TOUCH : 36,
+            borderRadius: 999,
             backgroundColor,
             alignItems: 'center',
             justifyContent: 'center',
+            overflow: 'hidden',
           },
         ]}>
         <BookingChevronIcon size={18} color={chevronColor} />
@@ -378,14 +384,16 @@ export function BookingPrimaryButton({ disabled, loading, onPress }: BookButtonP
       disabled={inactive}
       onPress={onPress}
       onPressIn={inactive ? undefined : onPressIn}
-      onPressOut={inactive ? undefined : onPressOut}>
+      onPressOut={inactive ? undefined : onPressOut}
+      {...androidPressProps({ light: true, hitSlop: 4 })}>
       <Animated.View
         style={[
           inactive ? null : animStyle,
           {
             width: '100%',
-            height: 48,
+            height: Platform.OS === 'android' ? 52 : 48,
             borderRadius: 48,
+            overflow: 'hidden',
             backgroundColor: '#000000',
             alignItems: 'center',
             justifyContent: 'center',

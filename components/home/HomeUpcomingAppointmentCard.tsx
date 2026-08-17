@@ -1,4 +1,4 @@
-import { Image, Pressable, Text, View } from 'react-native';
+import { Image, Platform, Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { IconsaxCalendarIcon } from '@/components/icons/IconsaxCalendarIcon';
@@ -7,6 +7,7 @@ import { IconsaxTimerIcon } from '@/components/icons/IconsaxTimerIcon';
 import { StaffPresenceDot } from '@/components/ui/StaffPresenceDot';
 import type { DoctorPresenceDotStatus } from '@/lib/health-service/staffPresenceDot';
 import { Inter } from '@/lib/typography/inter';
+import { ANDROID_MIN_TOUCH, androidPressProps } from '@/lib/ui/androidPress';
 
 const CARD_BG = '#D3E9FA';
 const MUTED = '#3F3F3F';
@@ -75,7 +76,8 @@ export function HomeUpcomingAppointmentCard({
         accessibilityRole="button"
         accessibilityLabel={`Upcoming appointment with ${doctorName}, ${dateLabel}, ${timeAccessibility}`}
         onPress={onPress}
-        style={{
+        {...androidPressProps({ hitSlop: 2 })}
+        style={({ pressed }) => ({
           backgroundColor: CARD_BG,
           borderRadius: 16,
           borderWidth: 1,
@@ -83,8 +85,9 @@ export function HomeUpcomingAppointmentCard({
           paddingTop: 18,
           paddingBottom: 12,
           paddingHorizontal: 16,
-        }}
-        className="active:opacity-90">
+          overflow: 'hidden',
+          opacity: pressed ? 0.92 : 1,
+        })}>
         <View style={{ gap: 8 }}>
           <View
             style={{
@@ -147,17 +150,19 @@ export function HomeUpcomingAppointmentCard({
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Contact clinic"
-              hitSlop={8}
               onPress={() => onCallPress?.()}
-              style={{
-                width: 42,
-                height: 42,
+              {...androidPressProps({ borderless: true, hitSlop: 8 })}
+              style={({ pressed }) => ({
+                width: Platform.OS === 'android' ? ANDROID_MIN_TOUCH : 42,
+                height: Platform.OS === 'android' ? ANDROID_MIN_TOUCH : 42,
                 borderRadius: 999,
                 backgroundColor: 'rgba(255,255,255,0.51)',
                 alignItems: 'center',
                 justifyContent: 'center',
                 flexShrink: 0,
-              }}>
+                overflow: 'hidden',
+                opacity: pressed ? 0.85 : 1,
+              })}>
               <IconsaxCallFilledIcon size={16} color="#1F2024" />
             </Pressable>
           </View>

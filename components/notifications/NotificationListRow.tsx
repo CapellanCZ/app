@@ -20,6 +20,7 @@ import {
 } from '@/lib/notifications/resolveNotificationStatus';
 import type { NotificationItem } from '@/lib/notifications/types';
 import { Inter } from '@/lib/typography/inter';
+import { androidPressProps } from '@/lib/ui/androidPress';
 
 const PRESS_SPRING = { damping: 18, stiffness: 380, mass: 0.35 } as const;
 const BODY_SPLIT = /(Dr\.\s[\w .]+?(?=\s+was\b)|confirmed)/g;
@@ -151,6 +152,7 @@ export const NotificationListRow = memo(function NotificationListRow({
         onPress={handlePress}
         onLongPress={() => onOpenMenu(item)}
         delayLongPress={350}
+        {...androidPressProps({ hitSlop: 2 })}
         onPressIn={() => {
           if (reduceMotion) return;
           scale.value = withSpring(0.97, PRESS_SPRING);

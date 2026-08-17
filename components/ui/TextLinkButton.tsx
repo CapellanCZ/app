@@ -2,6 +2,8 @@ import { useRouter, type Href } from 'expo-router';
 import { useCallback } from 'react';
 import { Pressable, Text } from 'react-native';
 
+import { androidPressProps } from '@/lib/ui/androidPress';
+
 export type TextLinkButtonProps = {
   /** Visible label. */
   label: string;
@@ -35,10 +37,13 @@ export function TextLinkButton({
     <Pressable
       accessibilityLabel={accessibilityLabel ?? label}
       accessibilityRole="button"
-      android_ripple={{ color: 'rgba(0,111,253,0.12)', borderless: true }}
-      hitSlop={hitSlop}
       onPress={handlePress}
-      style={({ pressed }) => ({ opacity: pressed ? 0.55 : 1 })}>
+      {...androidPressProps({ borderless: true, hitSlop })}
+      style={({ pressed }) => ({
+        minHeight: 44,
+        justifyContent: 'center',
+        opacity: pressed ? 0.55 : 1,
+      })}>
       <Text className={className}>{label}</Text>
     </Pressable>
   );

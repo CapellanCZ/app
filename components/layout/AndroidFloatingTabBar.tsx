@@ -94,11 +94,14 @@ export function AndroidFloatingTabBar({ state, descriptors, navigation }: Bottom
           bottom: 0,
           height: barHeight,
         }}>
-        <Svg width={width} height={barHeight} style={{ position: 'absolute' }}>
+        <Svg
+          width={width}
+          height={barHeight}
+          pointerEvents="none"
+          style={{ position: 'absolute' }}>
           <Path
             d={notchPath}
             fill="#FFFFFF"
-            // Soft elevation via duplicate offset path isn't needed — use RN shadow on wrapper.
           />
         </Svg>
         {/* Shadow layer behind SVG (Android elevation needs opaque view) */}
@@ -124,8 +127,9 @@ export function AndroidFloatingTabBar({ state, descriptors, navigation }: Bottom
           style={{
             flex: 1,
             flexDirection: 'row',
-            alignItems: 'flex-start',
-            paddingTop: 10,
+            alignItems: 'stretch',
+            paddingTop: 6,
+            paddingBottom: Math.max(bottomPad - 4, 4),
             paddingHorizontal: 8,
           }}>
           <Pressable
@@ -133,8 +137,16 @@ export function AndroidFloatingTabBar({ state, descriptors, navigation }: Bottom
             accessibilityState={{ selected: homeFocused }}
             accessibilityLabel={descriptors[home?.key ?? '']?.options.title ?? 'Home'}
             onPress={() => home && go('index', home.key, homeFocused)}
-            style={{ flex: 1, alignItems: 'center', gap: 4, paddingTop: 4 }}
-            android_ripple={{ color: 'rgba(41,112,255,0.12)', borderless: true }}>
+            hitSlop={8}
+            style={({ pressed }) => ({
+              flex: 1,
+              minHeight: 48,
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 4,
+              opacity: pressed ? 0.85 : 1,
+            })}
+            android_ripple={{ color: 'rgba(41,112,255,0.12)', borderless: true, radius: 36 }}>
             <IconsaxHomeTabIcon focused={homeFocused} size={24} />
             <Text
               style={{
@@ -148,15 +160,23 @@ export function AndroidFloatingTabBar({ state, descriptors, navigation }: Bottom
           </Pressable>
 
           {/* Spacer for FAB / notch */}
-          <View style={{ width: NOTCH_RADIUS * 2 + 24 }} />
+          <View style={{ width: NOTCH_RADIUS * 2 + 24 }} pointerEvents="none" />
 
           <Pressable
             accessibilityRole="button"
             accessibilityState={{ selected: profileFocused }}
             accessibilityLabel={descriptors[profile?.key ?? '']?.options.title ?? 'Profile'}
             onPress={() => profile && go('profiles', profile.key, profileFocused)}
-            style={{ flex: 1, alignItems: 'center', gap: 4, paddingTop: 4 }}
-            android_ripple={{ color: 'rgba(41,112,255,0.12)', borderless: true }}>
+            hitSlop={8}
+            style={({ pressed }) => ({
+              flex: 1,
+              minHeight: 48,
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 4,
+              opacity: pressed ? 0.85 : 1,
+            })}
+            android_ripple={{ color: 'rgba(41,112,255,0.12)', borderless: true, radius: 36 }}>
             <IconsaxProfileTabIcon focused={profileFocused} size={24} />
             <Text
               style={{
@@ -186,8 +206,14 @@ export function AndroidFloatingTabBar({ state, descriptors, navigation }: Bottom
           accessibilityState={{ selected: bookFocused }}
           accessibilityLabel="Book"
           onPress={() => book && go('book', book.key, bookFocused)}
-          style={{ alignItems: 'center' }}
-          android_ripple={{ color: 'rgba(41,112,255,0.12)', borderless: true, radius: 40 }}>
+          hitSlop={12}
+          style={({ pressed }) => ({
+            alignItems: 'center',
+            minWidth: 64,
+            minHeight: 72,
+            opacity: pressed ? 0.9 : 1,
+          })}
+          android_ripple={{ color: 'rgba(255,255,255,0.25)', borderless: true, radius: 40 }}>
           <View
             style={{
               width: FAB_SIZE,

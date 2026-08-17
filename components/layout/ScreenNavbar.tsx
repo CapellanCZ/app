@@ -1,12 +1,14 @@
 import { useNavigation, useRouter } from 'expo-router';
-import { Pressable, Text, View } from 'react-native';
+import { Platform, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { IconsaxArrowLeftIcon } from '@/components/icons/IconsaxArrowLeftIcon';
 import { IconsaxMenuIcon } from '@/components/icons/IconsaxMenuIcon';
+import { ANDROID_MIN_TOUCH, androidPressProps } from '@/lib/ui/androidPress';
 
 const TITLE_COLOR = '#181D27';
 const DEFAULT_ICON_SIZE = 24;
+const NAV_HIT = Platform.OS === 'android' ? ANDROID_MIN_TOUCH : DEFAULT_ICON_SIZE;
 
 export type ScreenNavbarProps = {
   /** Screen title (Figma: Heading/H2, 18px bold). */
@@ -78,9 +80,15 @@ export function ScreenNavbar({
         <Pressable
           accessibilityLabel="Go back"
           accessibilityRole="button"
-          hitSlop={12}
           onPress={handleBack}
-          className="active:opacity-70">
+          {...androidPressProps({ borderless: true, hitSlop: 8 })}
+          style={({ pressed }) => ({
+            width: NAV_HIT,
+            height: NAV_HIT,
+            alignItems: 'center',
+            justifyContent: 'center',
+            opacity: pressed ? 0.7 : 1,
+          })}>
           <IconsaxArrowLeftIcon color={TITLE_COLOR} size={backSize} />
         </Pressable>
 
@@ -109,13 +117,19 @@ export function ScreenNavbar({
           <Pressable
             accessibilityLabel="Open menu"
             accessibilityRole="button"
-            className="active:opacity-70"
-            hitSlop={12}
-            onPress={handleMenu}>
+            onPress={handleMenu}
+            {...androidPressProps({ borderless: true, hitSlop: 8 })}
+            style={({ pressed }) => ({
+              width: NAV_HIT,
+              height: NAV_HIT,
+              alignItems: 'center',
+              justifyContent: 'center',
+              opacity: pressed ? 0.7 : 1,
+            })}>
             <IconsaxMenuIcon color={TITLE_COLOR} size={menuSize} />
           </Pressable>
         ) : (
-          <View style={{ width: menuSize, height: menuSize }} />
+          <View style={{ width: NAV_HIT, height: NAV_HIT }} />
         )}
       </View>
     </View>

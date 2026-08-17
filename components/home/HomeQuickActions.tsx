@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Platform, Pressable, Text, View } from 'react-native';
 
 import {
   FigmaBookingsIcon,
@@ -7,8 +7,9 @@ import {
   FigmaVitalsIcon,
 } from '@/components/home/FigmaHomeIcons';
 import { Inter } from '@/lib/typography/inter';
+import { androidPressProps } from '@/lib/ui/androidPress';
 
-const TILE_HEIGHT = 88;
+const TILE_HEIGHT = Platform.OS === 'android' ? 92 : 88;
 const ICON_SIZE = 24;
 /** Reserved for up to 2 lines so single- and two-line labels share the same footprint. */
 const LABEL_SLOT_HEIGHT = 28;
@@ -37,9 +38,11 @@ function ActionTile({ label, icon, onPress }: Omit<Action, 'key'>) {
       accessibilityRole="button"
       accessibilityLabel={label.replace(/\n/g, ' ')}
       onPress={onPress}
-      style={{
+      {...androidPressProps({ hitSlop: 4 })}
+      style={({ pressed }) => ({
         flex: 1,
         flexBasis: 0,
+        minHeight: TILE_HEIGHT,
         height: TILE_HEIGHT,
         backgroundColor: '#FFFFFF',
         borderRadius: 16,
@@ -48,8 +51,10 @@ function ActionTile({ label, icon, onPress }: Omit<Action, 'key'>) {
         alignItems: 'center',
         justifyContent: 'center',
         gap: ICON_LABEL_GAP,
-      }}
-      className="active:opacity-80">
+        overflow: 'hidden',
+        opacity: pressed ? 0.88 : 1,
+        elevation: Platform.OS === 'android' ? 1 : 0,
+      })}>
       <View
         style={{
           width: ICON_SIZE,

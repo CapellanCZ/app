@@ -236,7 +236,14 @@ export function GetStartedGlassButton({
       disabled={disabled}
       accessibilityRole="button"
       accessibilityLabel={label}
-      accessibilityState={{ disabled }}>
+      accessibilityState={{ disabled }}
+      android_ripple={
+        Platform.OS === 'android'
+          ? { color: 'rgba(255,255,255,0.18)', borderless: false, foreground: true }
+          : undefined
+      }
+      hitSlop={Platform.OS === 'android' ? 6 : undefined}
+      style={{ overflow: 'hidden', borderRadius: 999 }}>
       <Animated.View style={[styles.outerGlow, rootStyle]}>
         {/* Dual expanding pulse rings */}
         <Animated.View pointerEvents="none" style={[styles.pulseRing, pulseRingAStyle]} />
@@ -329,7 +336,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.08)',
   },
   face: {
-    height: 50,
+    height: Platform.OS === 'android' ? 52 : 50,
     borderRadius: 999,
     overflow: 'hidden',
     justifyContent: 'center',

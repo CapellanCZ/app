@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react';
-import { Animated, Easing, Modal, Pressable, Text, View } from 'react-native';
+import { Animated, Easing, Modal, Platform, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { androidPressProps } from '@/lib/ui/androidPress';
 
 export type LogoutModalProps = {
   visible: boolean;
@@ -122,16 +124,19 @@ export function LogoutModal({ visible, onConfirm, onCancel }: LogoutModalProps) 
             onPress={handleConfirm}
             accessibilityRole="button"
             accessibilityLabel="Confirm log out"
-            className="active:opacity-80"
-            style={{
+            {...androidPressProps({ light: true, hitSlop: 4 })}
+            style={({ pressed }) => ({
               backgroundColor: PRIMARY_BG,
               borderWidth: 1,
               borderColor: BORDER_COLOR,
               borderRadius: 28,
               paddingVertical: 16,
+              minHeight: Platform.OS === 'android' ? 52 : undefined,
               alignItems: 'center',
               marginBottom: 16,
-            }}>
+              overflow: 'hidden',
+              opacity: pressed ? 0.88 : 1,
+            })}>
             <Text style={{ fontSize: 16, fontWeight: '600', color: PRIMARY_TEXT }}>
               Yes, logout
             </Text>
@@ -142,11 +147,14 @@ export function LogoutModal({ visible, onConfirm, onCancel }: LogoutModalProps) 
             onPress={handleCancel}
             accessibilityRole="button"
             accessibilityLabel="Cancel"
-            className="active:opacity-60"
-            style={{
+            {...androidPressProps({ borderless: true, hitSlop: 8 })}
+            style={({ pressed }) => ({
               alignItems: 'center',
-              paddingVertical: 8,
-            }}>
+              paddingVertical: Platform.OS === 'android' ? 14 : 8,
+              minHeight: Platform.OS === 'android' ? 48 : undefined,
+              justifyContent: 'center',
+              opacity: pressed ? 0.65 : 1,
+            })}>
             <Text style={{ fontSize: 16, fontWeight: '500', color: SECONDARY_TEXT }}>
               Nevermind
             </Text>

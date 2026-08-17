@@ -11,6 +11,7 @@ import { fadeSlideUpEntering, fadeSlideUpExiting } from '@/lib/animations/fadeSl
 import type { StaffPresenceStatus } from '@/lib/health-service/healthServiceApi';
 import type { Staff, StaffRole } from '@/lib/health-service/types';
 import { Inter } from '@/lib/typography/inter';
+import { androidPressProps } from '@/lib/ui/androidPress';
 
 const AVATAR_BG = '#F5D0CE';
 const AVAILABLE = '#62D300';
@@ -85,6 +86,7 @@ export function DoctorListCard({ staff, status, onPress, enterIndex }: Props) {
       accessibilityRole="button"
       accessibilityLabel={`${name}, ${specialty}. ${meta.label}. Tap to book.`}
       onPress={onPress}
+      {...androidPressProps({ hitSlop: 2 })}
       onPressIn={() => {
         if (reduceMotion) return;
         scale.value = withSpring(0.97, PRESS_SPRING);

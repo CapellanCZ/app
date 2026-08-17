@@ -1,4 +1,4 @@
-import { Image, Linking, Pressable, Text, View } from 'react-native';
+import { Image, Linking, Platform, Pressable, Text, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useReducedMotion,
@@ -18,6 +18,7 @@ import { IconsaxTickCircleIcon } from '@/components/icons/IconsaxTickCircleIcon'
 import { fadeSlideUpEntering, fadeSlideUpExiting } from '@/lib/animations/fadeSlideUp';
 import type { AppointmentStatus } from '@/lib/health-service/types';
 import { Inter } from '@/lib/typography/inter';
+import { ANDROID_MIN_TOUCH, androidPressProps } from '@/lib/ui/androidPress';
 
 /** Pastel card fills from Figma 2229:518 / 1464 / 1510 — cycle by list index. */
 export const APPOINTMENT_CARD_COLORS = ['#D3E9FA', '#F4EDD6', '#F4E2FC'] as const;
@@ -105,6 +106,7 @@ export function AppointmentCard({
       }${statusLabel ? `, ${statusLabel}` : ''}`}
       disabled={!canPress}
       onPress={onPress}
+      {...androidPressProps({ hitSlop: 2 })}
       onPressIn={() => {
         if (!canPress || reduceMotion) return;
         scale.value = withSpring(0.97, PRESS_SPRING);
@@ -227,17 +229,18 @@ export function AppointmentCard({
                   accessibilityLabel={phoneNumber ? `Call ${staffName}` : 'Call unavailable'}
                   disabled={!phoneNumber}
                   onPress={onCall}
-                  hitSlop={8}
-                  style={{
-                    width: 42,
-                    height: 42,
+                  {...androidPressProps({ borderless: true, hitSlop: 8 })}
+                  style={({ pressed }) => ({
+                    width: Platform.OS === 'android' ? ANDROID_MIN_TOUCH : 42,
+                    height: Platform.OS === 'android' ? ANDROID_MIN_TOUCH : 42,
                     borderRadius: 999,
                     backgroundColor: 'rgba(255,255,255,0.51)',
                     alignItems: 'center',
                     justifyContent: 'center',
                     flexShrink: 0,
-                    opacity: phoneNumber ? 1 : 0.55,
-                  }}>
+                    overflow: 'hidden',
+                    opacity: !phoneNumber ? 0.55 : pressed ? 0.85 : 1,
+                  })}>
                   <IconsaxCallFilledIcon size={16} color="#1F2024" />
                 </Pressable>
               ) : null}
@@ -356,17 +359,21 @@ export function AppointmentCard({
               accessibilityRole="button"
               accessibilityLabel="Reschedule appointment"
               onPress={onReschedule}
-              style={{
+              {...androidPressProps({ hitSlop: 2 })}
+              style={({ pressed }) => ({
                 width: '100%',
                 backgroundColor: 'rgba(255,255,255,0.83)',
                 borderWidth: 1,
                 borderColor: '#E3E3E3',
                 borderRadius: 16,
-                paddingVertical: 8,
+                paddingVertical: Platform.OS === 'android' ? 12 : 8,
+                minHeight: Platform.OS === 'android' ? 48 : undefined,
                 paddingHorizontal: 4,
                 alignItems: 'center',
                 justifyContent: 'center',
-              }}>
+                overflow: 'hidden',
+                opacity: pressed ? 0.88 : 1,
+              })}>
               <Text
                 style={{
                   fontFamily: Inter.regular,

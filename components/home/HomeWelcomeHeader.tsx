@@ -6,6 +6,7 @@ import { NotificationBellButton } from '@/components/notifications/NotificationB
 import { GreyAvatar } from '@/components/profile/GreyAvatar';
 import { ROUTES } from '@/lib/routes';
 import { Inter } from '@/lib/typography/inter';
+import { androidPressProps } from '@/lib/ui/androidPress';
 
 type Props = {
   userName: string;
@@ -31,7 +32,11 @@ export function HomeWelcomeHeader({ userName, avatarUrl }: Props) {
           accessibilityRole="button"
           accessibilityLabel="Profile"
           onPress={() => router.push(ROUTES.profile)}
-          style={{ flexShrink: 0 }}>
+          {...androidPressProps({ borderless: true, hitSlop: 8 })}
+          style={({ pressed }) => ({
+            flexShrink: 0,
+            opacity: pressed ? 0.85 : 1,
+          })}>
           <GreyAvatar size={48} name={userName} avatarUrl={avatarUrl} />
         </Pressable>
 
