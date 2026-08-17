@@ -1,8 +1,20 @@
 import { useAnnouncementStore } from '@/lib/announcements/announcementStore';
 import { useHealthServiceStore } from '@/lib/health-service/healthServiceStore';
+import {
+  pickUpcomingConfirmedStaffId,
+  useStaffPresenceStore,
+} from '@/lib/health-service/staffPresenceStore';
 import { useNotificationStore } from '@/lib/notifications/notificationStore';
+import { usePatientStore } from '@/lib/patients/patientStore';
+import { useProfileStore } from '@/lib/profile/profileStore';
+import { useVitalsStore } from '@/lib/vitals/vitalsStore';
 
-const PREFETCH_TIMEOUT_MS = 10_000;
+const PREFETCH_TIMEOUT_MS = 12_000;
+
+export type PrefetchCoreOptions = {
+  email?: string;
+  userMetadata?: Record<string, unknown>;
+};
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
   return new Promise((resolve) => {
@@ -30,21 +42,64 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
 }
 
 /**
- * Prefetch the data home / tabs need so the UI doesn't skeleton after splash.
- * Safe to call while AuthProvider also kicks off staff/appointments.
+ * Prefetch home / tabs data + warm realtime channels while the branded splash shows.
+ * Safe alongside AuthProvider effects (stores skip duplicate work when already loaded).
  */
-export async function prefetchCoreData(userId: string): Promise<void> {
+export async function prefetchCoreData(
+  userId: string,
+  opts?: PrefetchCoreOptions,
+): Promise<void> {
   const health = useHealthServiceStore.getState();
   const notifications = useNotificationStore.getState();
   const announcements = useAnnouncementStore.getState();
+  const profile = useProfileStore.getState();
+  const patient = usePatientStore.getState().patient;
+  const vitals = useVitalsStore.getState();
 
-  await withTimeout(
-    Promise.all([
-      health.appointmentsLoaded ? Promise.resolve() : health.loadAppointments(),
-      health.staffLoaded ? Promise.resolve() : health.loadStaff(),
-      notifications.hasLoaded ? Promise.resolve() : notifications.fetchAll(userId),
-      announcements.hasLoaded ? Promise.resolve() : announcements.load(),
-    ]),
-    PREFETCH_TIMEOUT_MS,
-  );
+  // Warm realtime early so the first screen is already live.
+  const releaseAppointments = health.subscribeAppointments();
+  const releaseNotifications = notifications.subscribe(userId);
+
+  try {
+    await withTimeout(
+      (async () => {
+        await Promise.all([
+          health.appointmentsLoaded ? Promise.resolve() : health.loadAppointments(),
+          health.staffLoaded ? Promise.resolve() : health.loadStaff(),
+          notifications.hasLoaded ? Promise.resolve() : notifications.fetchAll(userId),
+          announcements.hasLoaded ? Promise.resolve() : announcements.load(),
+          profile.profile?.id === userId && (profile.profile.full_name || profile.profile.first_name)
+            ? Promise.resolve()
+            : patient
+              ? (() => {
+                  useProfileStore.getState().setFromPatient(patient, userId, {
+                    userMetadata: opts?.userMetadata,
+                  });
+                  return Promise.resolve();
+                })()
+              : profile.fetchProfile(userId, {
+                  email: opts?.email,
+                  userMetadata: opts?.userMetadata,
+                }),
+          vitals.load({
+            studentId: patient?.student_id,
+            employeeId: patient?.employee_id,
+          }),
+        ]);
+
+        // After appointments hydrate, warm presence for the next visit.
+        const staffId = pickUpcomingConfirmedStaffId(
+          useHealthServiceStore.getState().appointments,
+        );
+        if (staffId) {
+          await useStaffPresenceStore.getState().loadOne(staffId);
+        }
+      })(),
+      PREFETCH_TIMEOUT_MS,
+    );
+  } finally {
+    // Global AppointmentSubscription / NotificationSubscription keep ref-counts alive.
+    releaseAppointments();
+    releaseNotifications();
+  }
 }

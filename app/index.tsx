@@ -46,7 +46,10 @@ export default function Index() {
 
     void (async () => {
       if (enrollmentStatus === 'enrolled' && session.user?.id) {
-        await prefetchCoreData(session.user.id);
+        await prefetchCoreData(session.user.id, {
+          email: session.user.email ?? undefined,
+          userMetadata: session.user.user_metadata as Record<string, unknown> | undefined,
+        });
       }
 
       const remaining = Math.max(0, MIN_SPLASH_MS - (Date.now() - started));

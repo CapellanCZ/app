@@ -5,9 +5,13 @@ import type { Session } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { registerPushToken } from '@/lib/notifications/registerPushToken';
 import { useHealthServiceStore } from '@/lib/health-service/healthServiceStore';
+import { useStaffPresenceStore } from '@/lib/health-service/staffPresenceStore';
 import { usePatientStore } from '@/lib/patients/patientStore';
 import type { EnrollmentStatus, Patient } from '@/lib/patients/types';
 import { useProfileStore } from '@/lib/profile/profileStore';
+import { useVitalsStore } from '@/lib/vitals/vitalsStore';
+import { useAnnouncementStore } from '@/lib/announcements/announcementStore';
+import { useNotificationStore } from '@/lib/notifications/notificationStore';
 
 type AuthContextValue = {
   session: Session | null;
@@ -93,6 +97,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       loadAppointments();
     } else if (session === null && !isLoading) {
       resetHealthService();
+      useStaffPresenceStore.getState().reset();
+      useVitalsStore.getState().reset();
+      useAnnouncementStore.setState({ items: [], hasLoaded: false, loading: false });
+      useNotificationStore.setState({
+        items: [],
+        unreadCount: 0,
+        loading: false,
+        error: null,
+        hasLoaded: false,
+      });
     }
   }, [session?.user?.id, enrollmentStatus]);
 

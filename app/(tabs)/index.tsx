@@ -15,22 +15,15 @@ import { HealthServiceScreenShell } from '@/components/health-service/HealthServ
 import { TAB_BAR_HEIGHT } from '@/components/layout/BottomTabBar';
 import { useAnnouncementStore } from '@/lib/announcements/announcementStore';
 import { useAuth } from '@/lib/auth/AuthProvider';
-import { healthServiceApi } from '@/lib/health-service/healthServiceApi';
 import {
   staffNameForAppointment,
   useHealthServiceStore,
 } from '@/lib/health-service/healthServiceStore';
-import {
-  mapStaffPresenceToDotStatus,
-  type DoctorPresenceDotStatus,
-} from '@/lib/health-service/staffPresenceDot';
+import { useStaffPresenceStore } from '@/lib/health-service/staffPresenceStore';
 import { useProfileStore } from '@/lib/profile/profileStore';
 import { ROUTES } from '@/lib/routes';
 import { Inter } from '@/lib/typography/inter';
-import {
-  fetchLatestVitalsForPatient,
-  type LatestVitals,
-} from '@/lib/vitals/vitalsApi';
+import { useVitalsStore } from '@/lib/vitals/vitalsStore';
 
 const PRESENCE_POLL_MS = 45_000;
 
@@ -75,43 +68,33 @@ export default function HealthServiceScreen() {
   const avatarUrl = profile?.avatar_url ?? null;
 
   const [refreshing, setRefreshing] = useState(false);
-  const [vitals, setVitals] = useState<LatestVitals>({
-    bloodPressure: null,
-    heartRate: null,
-    updatedAt: null,
-  });
 
   const { appointments, staff, loadAppointments, loadStaff, refreshData, subscribeAppointments } =
     useHealthServiceStore();
   const loadAnnouncements = useAnnouncementStore((s) => s.load);
-
-  const loadVitals = useCallback(async () => {
-    if (!patient?.student_id && !patient?.employee_id) {
-      setVitals({ bloodPressure: null, heartRate: null, updatedAt: null });
-      return;
-    }
-    try {
-      const next = await fetchLatestVitalsForPatient({
-        studentId: patient.student_id,
-        employeeId: patient.employee_id,
-      });
-      setVitals(next);
-    } catch (error) {
-      console.error('Failed to load vitals:', error);
-    }
-  }, [patient?.student_id, patient?.employee_id]);
+  const vitals = useVitalsStore((s) => s.vitals);
+  const loadVitals = useVitalsStore((s) => s.load);
+  const loadPresence = useStaffPresenceStore((s) => s.loadOne);
+  const presenceByStaffId = useStaffPresenceStore((s) => s.byStaffId);
 
   useEffect(() => {
-    // Prefetch announcements as soon as Home mounts (overlaps skeleton).
+    // Stores are usually warm from splash prefetch; only fill gaps.
     void loadAnnouncements();
-    if (!staff.length) loadStaff();
-    if (!appointments.length) loadAppointments();
+    if (!staff.length) void loadStaff();
+    if (!appointments.length) void loadAppointments();
+    void loadVitals({
+      studentId: patient?.student_id,
+      employeeId: patient?.employee_id,
+    });
     return subscribeAppointments();
   }, []);
 
   useEffect(() => {
-    void loadVitals();
-  }, [loadVitals]);
+    void loadVitals({
+      studentId: patient?.student_id,
+      employeeId: patient?.employee_id,
+    });
+  }, [patient?.student_id, patient?.employee_id, loadVitals]);
 
   const userName = useMemo(() => {
     const full =
@@ -143,32 +126,16 @@ export default function HealthServiceScreen() {
   const upcomingStaff = upcomingItem ? staff.find((s) => s.id === upcomingItem.staffId) : null;
   /** Prefer appointment staff id so presence loads even before staff list hydrates. */
   const upcomingStaffId = upcomingItem?.staffId ?? upcomingStaff?.id ?? null;
-
-  const [presenceStatus, setPresenceStatus] = useState<DoctorPresenceDotStatus | undefined>(
-    undefined,
-  );
-
-  const loadUpcomingPresence = useCallback(async (staffId: string) => {
-    try {
-      const presence = await healthServiceApi.getStaffPresence(staffId, new Date());
-      setPresenceStatus(mapStaffPresenceToDotStatus(presence));
-    } catch (error) {
-      console.error('Failed to load staff presence:', error);
-      setPresenceStatus('offline');
-    }
-  }, []);
+  const presenceStatus = upcomingStaffId ? presenceByStaffId[upcomingStaffId] : undefined;
 
   useEffect(() => {
-    if (!upcomingStaffId) {
-      setPresenceStatus(undefined);
-      return;
-    }
-    void loadUpcomingPresence(upcomingStaffId);
+    if (!upcomingStaffId) return;
+    void loadPresence(upcomingStaffId);
     const timer = setInterval(() => {
-      void loadUpcomingPresence(upcomingStaffId);
+      void loadPresence(upcomingStaffId);
     }, PRESENCE_POLL_MS);
     return () => clearInterval(timer);
-  }, [upcomingStaffId, loadUpcomingPresence]);
+  }, [upcomingStaffId, loadPresence]);
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -176,15 +143,27 @@ export default function HealthServiceScreen() {
       await Promise.all([
         refreshData(),
         loadAnnouncements({ force: true }),
-        loadVitals(),
-        upcomingStaffId ? loadUpcomingPresence(upcomingStaffId) : Promise.resolve(),
+        loadVitals({
+          studentId: patient?.student_id,
+          employeeId: patient?.employee_id,
+          force: true,
+        }),
+        upcomingStaffId ? loadPresence(upcomingStaffId) : Promise.resolve(),
       ]);
     } catch (e) {
       console.error('Refresh failed:', e);
     } finally {
       setRefreshing(false);
     }
-  }, [refreshData, loadAnnouncements, loadVitals, upcomingStaffId, loadUpcomingPresence]);
+  }, [
+    refreshData,
+    loadAnnouncements,
+    loadVitals,
+    loadPresence,
+    upcomingStaffId,
+    patient?.student_id,
+    patient?.employee_id,
+  ]);
 
   const timeLabel = upcomingItem?.startLabel ?? '';
 
