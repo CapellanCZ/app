@@ -2,6 +2,7 @@ import { useNotificationStore } from '@/lib/notifications/notificationStore';
 
 const recentCancelNotifs = new Map<string, number>();
 const recentConfirmNotifs = new Map<string, number>();
+const recentCompletedNotifs = new Map<string, number>();
 const DEDUPE_MS = 8_000;
 
 /**
@@ -58,6 +59,35 @@ export function notifyAppointmentConfirmed(
     href: appointmentId
       ? `/health-service/appointment/${appointmentId}`
       : '/appointments',
+    source: 'Health Service',
+    notificationType: 'success',
+  });
+}
+
+/**
+ * Notify the patient that the consultation / visit is completed.
+ * Prefer DB trigger (`Visit Completed`); this is a client fallback with dedupe.
+ */
+export function notifyAppointmentCompleted(
+  userId: string | null | undefined,
+  opts: { appointmentId?: string; doctorName?: string } = {},
+): void {
+  if (!userId) return;
+
+  const key = opts.appointmentId ?? `completed-${Date.now()}`;
+  const now = Date.now();
+  const prev = recentCompletedNotifs.get(key);
+  if (prev != null && now - prev < DEDUPE_MS) return;
+  recentCompletedNotifs.set(key, now);
+
+  const name = opts.doctorName?.trim() || 'your campus provider';
+  const appointmentId = opts.appointmentId;
+
+  useNotificationStore.getState().notifySelf(userId, {
+    category: 'health',
+    title: 'Visit Completed',
+    body: `Your consultation with ${name} is done. You can review this visit anytime.`,
+    href: appointmentId ? `/visit-completed?id=${appointmentId}` : '/appointments',
     source: 'Health Service',
     notificationType: 'success',
   });

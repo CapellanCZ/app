@@ -20,6 +20,10 @@ const STATUS_BY_TITLE: Record<string, NotificationStatusType> = {
   'visit in 30 minutes': 'warning',
   "it's your turn": 'info',
   'its your turn': 'info',
+  "you're next": 'warning',
+  'youre next': 'warning',
+  '5th in queue': 'info',
+  '3rd in queue': 'warning',
   'visit completed': 'success',
   'appointment cancelled': 'error',
   'please pick a new time': 'warning',
@@ -32,9 +36,9 @@ const STATUS_BY_TITLE: Record<string, NotificationStatusType> = {
 /** Ordered keyword rules — first match wins (most specific first). */
 const TITLE_KEYWORD_RULES: readonly { test: RegExp; status: NotificationStatusType }[] = [
   { test: /\bcancel/, status: 'error' },
-  { test: /\b(missed|unavailable|pick a new|reschedul|30 minute|starts soon)\b/, status: 'warning' },
+  { test: /\b(missed|unavailable|pick a new|reschedul|30 minute|starts soon|3rd in queue|you.?re next)\b/, status: 'warning' },
   { test: /\b(confirm|all set|completed|certificate ready|ready)\b/, status: 'success' },
-  { test: /\b(pending|your turn|on break|advisory|submitted)\b/, status: 'info' },
+  { test: /\b(pending|your turn|5th in queue|on break|advisory|submitted|queue)\b/, status: 'info' },
 ];
 
 function normalizeTitle(title: string): string {

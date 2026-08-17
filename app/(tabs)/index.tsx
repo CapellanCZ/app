@@ -27,6 +27,10 @@ import {
 import { useProfileStore } from '@/lib/profile/profileStore';
 import { ROUTES } from '@/lib/routes';
 import { Inter } from '@/lib/typography/inter';
+import {
+  fetchLatestVitalsForPatient,
+  type LatestVitals,
+} from '@/lib/vitals/vitalsApi';
 
 const PRESENCE_POLL_MS = 45_000;
 
@@ -71,10 +75,31 @@ export default function HealthServiceScreen() {
   const avatarUrl = profile?.avatar_url ?? null;
 
   const [refreshing, setRefreshing] = useState(false);
+  const [vitals, setVitals] = useState<LatestVitals>({
+    bloodPressure: null,
+    heartRate: null,
+    updatedAt: null,
+  });
 
   const { appointments, staff, loadAppointments, loadStaff, refreshData, subscribeAppointments } =
     useHealthServiceStore();
   const loadAnnouncements = useAnnouncementStore((s) => s.load);
+
+  const loadVitals = useCallback(async () => {
+    if (!patient?.student_id && !patient?.employee_id) {
+      setVitals({ bloodPressure: null, heartRate: null, updatedAt: null });
+      return;
+    }
+    try {
+      const next = await fetchLatestVitalsForPatient({
+        studentId: patient.student_id,
+        employeeId: patient.employee_id,
+      });
+      setVitals(next);
+    } catch (error) {
+      console.error('Failed to load vitals:', error);
+    }
+  }, [patient?.student_id, patient?.employee_id]);
 
   useEffect(() => {
     // Prefetch announcements as soon as Home mounts (overlaps skeleton).
@@ -83,6 +108,10 @@ export default function HealthServiceScreen() {
     if (!appointments.length) loadAppointments();
     return subscribeAppointments();
   }, []);
+
+  useEffect(() => {
+    void loadVitals();
+  }, [loadVitals]);
 
   const userName = useMemo(() => {
     const full =
@@ -147,6 +176,7 @@ export default function HealthServiceScreen() {
       await Promise.all([
         refreshData(),
         loadAnnouncements({ force: true }),
+        loadVitals(),
         upcomingStaffId ? loadUpcomingPresence(upcomingStaffId) : Promise.resolve(),
       ]);
     } catch (e) {
@@ -154,7 +184,7 @@ export default function HealthServiceScreen() {
     } finally {
       setRefreshing(false);
     }
-  }, [refreshData, loadAnnouncements, upcomingStaffId, loadUpcomingPresence]);
+  }, [refreshData, loadAnnouncements, loadVitals, upcomingStaffId, loadUpcomingPresence]);
 
   const timeLabel = upcomingItem?.startLabel ?? '';
 
@@ -248,7 +278,10 @@ export default function HealthServiceScreen() {
         {/* Vitals */}
         <View style={{ gap: 12 }}>
           <SectionTitle>Your Vitals</SectionTitle>
-          <HomeVitalsRow />
+          <HomeVitalsRow
+            bloodPressure={vitals.bloodPressure}
+            heartRate={vitals.heartRate}
+          />
         </View>
 
         {/* Announcements */}

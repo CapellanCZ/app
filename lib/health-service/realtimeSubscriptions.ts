@@ -111,11 +111,21 @@ export function acquireAppointmentsSubscription(get: HealthStoreGet): () => void
 
           if (becameCompleted) {
             // Only open if this appointment is in the patient's loaded list (owns it).
+            // Toast/inbox: DB trigger inserts "Visit Completed" → notifications realtime.
             const appointment = get().appointments.find((a) => a.id === appointmentId);
             if (appointment?.status === 'completed') {
               openVisitCompletedScreen(appointment, staffMember);
             }
           }
+        },
+      )
+      // Queue ticket status/position changes (called, standing moves) — refresh ticket UI.
+      // Patient notifications/toasts for 5th/3rd/next/called come from DB → notifications realtime.
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'health_queue_tickets' },
+        () => {
+          void get().loadAppointments();
         },
       )
       .subscribe((status) => {

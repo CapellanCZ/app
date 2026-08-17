@@ -3,16 +3,29 @@ import { Text, View } from 'react-native';
 
 import { FigmaDropletIcon, FigmaHeartRateIcon } from '@/components/home/FigmaHomeIcons';
 import { Inter } from '@/lib/typography/inter';
+import {
+  classifyBloodPressureStatus,
+  classifyHeartRateStatus,
+  vitalStatusColor,
+} from '@/lib/vitals/vitalsStatus';
 
 type VitalCardProps = {
   label: string;
   value: string;
   status: string;
+  statusColor: string;
   backgroundColor: string;
   icon: ReactNode;
 };
 
-function VitalCard({ label, value, status, backgroundColor, icon }: VitalCardProps) {
+function VitalCard({
+  label,
+  value,
+  status,
+  statusColor,
+  backgroundColor,
+  icon,
+}: VitalCardProps) {
   return (
     <View
       style={{
@@ -55,7 +68,7 @@ function VitalCard({ label, value, status, backgroundColor, icon }: VitalCardPro
           style={{
             fontFamily: Inter.regular,
             fontSize: 12,
-            color: '#373636',
+            color: statusColor,
             letterSpacing: -0.4,
           }}>
           {status}
@@ -71,22 +84,27 @@ type Props = {
 };
 
 /**
- * Figma "Your Vitals" dual cards. Values optional — em dash when unavailable.
+ * Figma "Your Vitals" dual cards. Status from clinic ranges (AHA BP / resting HR).
  */
 export function HomeVitalsRow({ bloodPressure, heartRate }: Props) {
+  const bpStatus = classifyBloodPressureStatus(bloodPressure);
+  const hrStatus = classifyHeartRateStatus(heartRate);
+
   return (
     <View style={{ flexDirection: 'row', gap: 10, width: '100%' }}>
       <VitalCard
         label="Blood Pressure"
         value={bloodPressure?.trim() || '—'}
-        status={bloodPressure ? 'Good' : 'No recent reading'}
+        status={bpStatus.label}
+        statusColor={vitalStatusColor(bpStatus.tone)}
         backgroundColor="#F4EDD6"
         icon={<FigmaDropletIcon size={22} />}
       />
       <VitalCard
         label="Avg. Heart Rate"
         value={heartRate?.trim() || '—'}
-        status={heartRate ? 'Good' : 'No recent reading'}
+        status={hrStatus.label}
+        statusColor={vitalStatusColor(hrStatus.tone)}
         backgroundColor="#F4E2FC"
         icon={<FigmaHeartRateIcon size={22} />}
       />
