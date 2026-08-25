@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ActivityIndicator, Platform, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import Animated, {
   interpolate,
   useAnimatedStyle,
@@ -10,7 +10,7 @@ import Animated, {
 import { BookingChevronIcon } from '@/components/booking/BookingIcons';
 import { IconsaxArrowDownIcon } from '@/components/icons/IconsaxArrowDownIcon';
 import { Inter } from '@/lib/typography/inter';
-import { ANDROID_MIN_TOUCH, androidPressProps } from '@/lib/ui/androidPress';
+import { androidPressProps } from '@/lib/ui/androidPress';
 
 const SELECTED_DAY_BG = '#F3F3F3';
 const SELECTED_DAY_BORDER = '#D8D8D8';
@@ -65,7 +65,7 @@ export function BookingDayChip({
         style={[
           animStyle,
           {
-            minHeight: Platform.OS === 'android' ? 68 : 64,
+            minHeight: 64,
             borderRadius: 14,
             backgroundColor: isSelected ? SELECTED_DAY_BG : 'transparent',
             borderWidth: 1,
@@ -141,9 +141,8 @@ export function BookingSlotChip({ label, selected, booked = false, onPress }: Sl
         style={{
           borderRadius: 16,
           backgroundColor: selected ? '#0F0E0E' : '#F4F4F4',
-          paddingVertical: Platform.OS === 'android' ? 16 : 14,
+          paddingVertical: 14,
           paddingHorizontal: 10,
-          minHeight: Platform.OS === 'android' ? 48 : undefined,
           alignItems: 'center',
           justifyContent: 'center',
           overflow: 'hidden',
@@ -210,9 +209,9 @@ function BookingNavCircle({
         style={[
           animStyle,
           {
-            width: Platform.OS === 'android' ? ANDROID_MIN_TOUCH : 36,
-            height: Platform.OS === 'android' ? ANDROID_MIN_TOUCH : 36,
-            borderRadius: 999,
+            width: 36,
+            height: 36,
+            borderRadius: 18,
             backgroundColor,
             alignItems: 'center',
             justifyContent: 'center',
@@ -391,7 +390,7 @@ export function BookingPrimaryButton({ disabled, loading, onPress }: BookButtonP
           inactive ? null : animStyle,
           {
             width: '100%',
-            height: Platform.OS === 'android' ? 52 : 48,
+            height: 48,
             borderRadius: 48,
             overflow: 'hidden',
             backgroundColor: '#000000',

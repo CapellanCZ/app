@@ -1,7 +1,8 @@
 import { useId } from 'react';
 import Svg, { ClipPath, Defs, G, Path, Rect } from 'react-native-svg';
 
-export const HOME_TAB_ICON_INACTIVE = '#0C0C0C';
+/** Matches Android tab label inactive color (`#B0B3B8`). */
+export const HOME_TAB_ICON_INACTIVE = '#B0B3B8';
 export const HOME_TAB_ICON_ACTIVE = '#2970FF';
 
 type Props = {

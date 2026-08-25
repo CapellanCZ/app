@@ -1,4 +1,4 @@
-import { Platform, Pressable, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { LogoutIcon } from '@/components/icons/LogoutIcon';
 import { androidPressProps } from '@/lib/ui/androidPress';
 
@@ -22,7 +22,6 @@ export function LogoutRow({ onPress }: LogoutRowProps) {
         justifyContent: 'center',
         gap: 8,
         paddingVertical: 16,
-        minHeight: Platform.OS === 'android' ? 56 : undefined,
         backgroundColor: '#FAFAFA',
         borderRadius: 16,
         overflow: 'hidden',

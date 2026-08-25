@@ -9,7 +9,7 @@ import {
 import { Inter } from '@/lib/typography/inter';
 import { androidPressProps } from '@/lib/ui/androidPress';
 
-const TILE_HEIGHT = Platform.OS === 'android' ? 92 : 88;
+const TILE_HEIGHT = 88;
 const ICON_SIZE = 24;
 /** Reserved for up to 2 lines so single- and two-line labels share the same footprint. */
 const LABEL_SLOT_HEIGHT = 28;

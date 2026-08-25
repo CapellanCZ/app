@@ -1,14 +1,15 @@
 import { useNavigation, useRouter } from 'expo-router';
-import { Platform, Pressable, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { IconsaxArrowLeftIcon } from '@/components/icons/IconsaxArrowLeftIcon';
 import { IconsaxMenuIcon } from '@/components/icons/IconsaxMenuIcon';
-import { ANDROID_MIN_TOUCH, androidPressProps } from '@/lib/ui/androidPress';
+import { androidPressProps } from '@/lib/ui/androidPress';
 
 const TITLE_COLOR = '#181D27';
 const DEFAULT_ICON_SIZE = 24;
-const NAV_HIT = Platform.OS === 'android' ? ANDROID_MIN_TOUCH : DEFAULT_ICON_SIZE;
+/** Keep icon visual at 24; hitSlop expands the tap area on Android. */
+const NAV_HIT = 40;
 
 export type ScreenNavbarProps = {
   /** Screen title (Figma: Heading/H2, 18px bold). */

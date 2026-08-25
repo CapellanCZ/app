@@ -209,8 +209,9 @@ export function AndroidFloatingTabBar({ state, descriptors, navigation }: Bottom
           hitSlop={12}
           style={({ pressed }) => ({
             alignItems: 'center',
-            minWidth: 64,
-            minHeight: 72,
+            justifyContent: 'center',
+            width: FAB_SIZE + 16,
+            height: FAB_SIZE + 16,
             opacity: pressed ? 0.9 : 1,
           })}
           android_ripple={{ color: 'rgba(255,255,255,0.25)', borderless: true, radius: 40 }}>
@@ -230,16 +231,6 @@ export function AndroidFloatingTabBar({ state, descriptors, navigation }: Bottom
             }}>
             <PlusIcon color="#FFFFFF" size={28} />
           </View>
-          <Text
-            style={{
-              marginTop: 4,
-              fontFamily: Inter.medium,
-              fontSize: 12,
-              color: bookFocused ? ACTIVE : INACTIVE,
-              letterSpacing: -0.2,
-            }}>
-            Book
-          </Text>
         </Pressable>
       </View>
     </View>

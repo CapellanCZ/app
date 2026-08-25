@@ -336,7 +336,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.08)',
   },
   face: {
-    height: Platform.OS === 'android' ? 52 : 50,
+    height: 50,
     borderRadius: 999,
     overflow: 'hidden',
     justifyContent: 'center',

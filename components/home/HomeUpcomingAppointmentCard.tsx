@@ -1,4 +1,4 @@
-import { Image, Platform, Pressable, Text, View } from 'react-native';
+import { Image, Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { IconsaxCalendarIcon } from '@/components/icons/IconsaxCalendarIcon';
@@ -7,7 +7,7 @@ import { IconsaxTimerIcon } from '@/components/icons/IconsaxTimerIcon';
 import { StaffPresenceDot } from '@/components/ui/StaffPresenceDot';
 import type { DoctorPresenceDotStatus } from '@/lib/health-service/staffPresenceDot';
 import { Inter } from '@/lib/typography/inter';
-import { ANDROID_MIN_TOUCH, androidPressProps } from '@/lib/ui/androidPress';
+import { androidPressProps } from '@/lib/ui/androidPress';
 
 const CARD_BG = '#D3E9FA';
 const MUTED = '#3F3F3F';
@@ -153,8 +153,8 @@ export function HomeUpcomingAppointmentCard({
               onPress={() => onCallPress?.()}
               {...androidPressProps({ borderless: true, hitSlop: 8 })}
               style={({ pressed }) => ({
-                width: Platform.OS === 'android' ? ANDROID_MIN_TOUCH : 42,
-                height: Platform.OS === 'android' ? ANDROID_MIN_TOUCH : 42,
+                width: 42,
+                height: 42,
                 borderRadius: 999,
                 backgroundColor: 'rgba(255,255,255,0.51)',
                 alignItems: 'center',

@@ -78,8 +78,8 @@ export function AppButton({
 
 const styles = StyleSheet.create({
   base: {
-    minHeight: Platform.OS === 'android' ? 52 : 50,
-    height: Platform.OS === 'android' ? 52 : 50,
+    minHeight: 50,
+    height: 50,
     borderRadius: 26,
     alignItems: 'center',
     justifyContent: 'center',
@@ -119,6 +119,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     letterSpacing: -0.32,
+    ...(Platform.OS === 'android' ? { includeFontPadding: false } : null),
   },
   labelPrimary: {
     color: '#FFFFFF',

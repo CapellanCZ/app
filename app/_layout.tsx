@@ -16,8 +16,10 @@ import { NotificationHandler } from '@/components/notifications/NotificationHand
 import { NotificationSubscription } from '@/components/notifications/NotificationSubscription';
 import { AppToastBinder } from '@/components/ui/AppToastBinder';
 import { FeedbackSoundHost } from '@/components/ui/FeedbackSoundHost';
+import { configureAndroidText } from '@/lib/ui/configureAndroidText';
 import { tamaguiConfig } from '../tamagui.config';
 
+configureAndroidText();
 void SplashScreen.preventAutoHideAsync();
 
 export const unstable_settings = {

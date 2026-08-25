@@ -1,12 +1,12 @@
 import { memo } from 'react';
-import { Platform, View } from 'react-native';
+import { View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Pressable } from 'react-native-gesture-handler';
 
 import { IconsaxNotificationIcon } from '@/components/icons/IconsaxNotificationIcon';
 import { useNotificationStore } from '@/lib/notifications/notificationStore';
 import { ROUTES } from '@/lib/routes';
-import { ANDROID_MIN_TOUCH, androidPressProps } from '@/lib/ui/androidPress';
+import { androidPressProps } from '@/lib/ui/androidPress';
 
 type Props = {
   size?: number;
@@ -17,6 +17,7 @@ type Props = {
 
 /**
  * Isolated bell so unread badge updates don’t re-render the surrounding header.
+ * Visual size matches iOS; Android uses hitSlop for a larger tap area.
  */
 export const NotificationBellButton = memo(function NotificationBellButton({
   size = 48,
@@ -26,7 +27,6 @@ export const NotificationBellButton = memo(function NotificationBellButton({
 }: Props) {
   const { push } = useRouter();
   const hasUnread = useNotificationStore((s) => s.unreadCount > 0);
-  const touchSize = Platform.OS === 'android' ? Math.max(size, ANDROID_MIN_TOUCH) : size;
 
   return (
     <Pressable
@@ -36,9 +36,9 @@ export const NotificationBellButton = memo(function NotificationBellButton({
       className={className}
       {...androidPressProps({ borderless: true, hitSlop: 8 })}
       style={({ pressed }) => ({
-        width: touchSize,
-        height: touchSize,
-        borderRadius: touchSize / 2,
+        width: size,
+        height: size,
+        borderRadius: size / 2,
         backgroundColor,
         alignItems: 'center',
         justifyContent: 'center',
@@ -52,8 +52,8 @@ export const NotificationBellButton = memo(function NotificationBellButton({
           pointerEvents="none"
           style={{
             position: 'absolute',
-            top: touchSize * 0.25,
-            right: touchSize * 0.25,
+            top: size * 0.25,
+            right: size * 0.25,
             width: 8,
             height: 8,
             borderRadius: 4,

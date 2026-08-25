@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Animated, Easing, Modal, Platform, Pressable, Text, View } from 'react-native';
+import { Animated, Easing, Modal, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { androidPressProps } from '@/lib/ui/androidPress';
@@ -131,7 +131,6 @@ export function LogoutModal({ visible, onConfirm, onCancel }: LogoutModalProps) 
               borderColor: BORDER_COLOR,
               borderRadius: 28,
               paddingVertical: 16,
-              minHeight: Platform.OS === 'android' ? 52 : undefined,
               alignItems: 'center',
               marginBottom: 16,
               overflow: 'hidden',
@@ -150,8 +149,7 @@ export function LogoutModal({ visible, onConfirm, onCancel }: LogoutModalProps) 
             {...androidPressProps({ borderless: true, hitSlop: 8 })}
             style={({ pressed }) => ({
               alignItems: 'center',
-              paddingVertical: Platform.OS === 'android' ? 14 : 8,
-              minHeight: Platform.OS === 'android' ? 48 : undefined,
+              paddingVertical: 8,
               justifyContent: 'center',
               opacity: pressed ? 0.65 : 1,
             })}>

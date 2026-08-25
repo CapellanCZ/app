@@ -1,5 +1,5 @@
 import { ReactNode } from 'react';
-import { Platform, Pressable, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { IconsaxArrowRightIcon } from '@/components/icons/IconsaxArrowRightIcon';
 import { androidPressProps } from '@/lib/ui/androidPress';
 
@@ -40,7 +40,6 @@ export function ProfileMenuRow({
           backgroundColor: '#FAFAFA',
           borderRadius: 16,
           padding: 16,
-          minHeight: Platform.OS === 'android' ? 56 : undefined,
           gap: 12,
         }}>
         <View style={{ width: 24, height: 24 }}>{icon}</View>
