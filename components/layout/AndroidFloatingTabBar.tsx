@@ -1,7 +1,13 @@
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { Pressable, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated';
 import Svg, { Path } from 'react-native-svg';
+import * as Haptics from 'expo-haptics';
 
 import { IconsaxHomeTabIcon } from '@/components/icons/IconsaxHomeTabIcon';
 import { IconsaxProfileTabIcon } from '@/components/icons/IconsaxProfileTabIcon';
@@ -20,13 +26,13 @@ const NOTCH_RADIUS = FAB_SIZE / 2 + FAB_GAP;
 const LIP_R = 11;
 /** Soft sky blue — matches home “Upcoming Appointments” card (`#D3E9FA`). */
 const SOFT_BLUE = '#D3E9FA';
-/** Slightly deeper soft blue for focused middle button. */
-const SOFT_BLUE_FOCUSED = '#8FC4E8';
 /** Readable soft blue for active Home / Profile. */
 const ACTIVE = '#6BAED6';
 const INACTIVE = '#B0B3B8';
 /** Plus mark on the light FAB — mid soft blue (between dark navy and white). */
 const FAB_ICON = '#5A9BC4';
+const PRESS_IN = { damping: 18, stiffness: 420, mass: 0.35 } as const;
+const PRESS_OUT = { damping: 16, stiffness: 280, mass: 0.4 } as const;
 
 function PlusIcon({ color = '#FFFFFF', size = 28 }: { color?: string; size?: number }) {
   const stroke = Math.max(2, size * 0.075);
@@ -98,6 +104,20 @@ export function AndroidFloatingTabBar({ state, descriptors, navigation }: Bottom
     if (!isFocused && !event.defaultPrevented) {
       navigation.navigate(routeName);
     }
+  };
+
+  const fabPressed = useSharedValue(0);
+  const fabStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: 1 - fabPressed.get() * 0.1 }],
+  }));
+
+  const onFabPressIn = () => {
+    fabPressed.set(withSpring(1, PRESS_IN));
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+
+  const onFabPressOut = () => {
+    fabPressed.set(withSpring(0, PRESS_OUT));
   };
 
   return (
@@ -216,26 +236,29 @@ export function AndroidFloatingTabBar({ state, descriptors, navigation }: Bottom
           accessibilityState={{ selected: bookFocused }}
           accessibilityLabel="Book"
           onPress={() => book && go('book', book.key, bookFocused)}
+          onPressIn={onFabPressIn}
+          onPressOut={onFabPressOut}
           hitSlop={14}
-          style={({ pressed }) => ({
+          style={{
             alignItems: 'center',
             justifyContent: 'center',
             width: FAB_SIZE,
             height: FAB_SIZE,
-            opacity: pressed ? 0.9 : 1,
-          })}
-          android_ripple={{ color: 'rgba(47,111,154,0.18)', borderless: true, radius: 40 }}>
-          <View
-            style={{
-              width: FAB_SIZE,
-              height: FAB_SIZE,
-              borderRadius: FAB_SIZE / 2,
-              backgroundColor: bookFocused ? SOFT_BLUE_FOCUSED : SOFT_BLUE,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}>
+          }}>
+          <Animated.View
+            style={[
+              {
+                width: FAB_SIZE,
+                height: FAB_SIZE,
+                borderRadius: FAB_SIZE / 2,
+                backgroundColor: SOFT_BLUE,
+                alignItems: 'center',
+                justifyContent: 'center',
+              },
+              fabStyle,
+            ]}>
             <PlusIcon color={FAB_ICON} size={28} />
-          </View>
+          </Animated.View>
         </Pressable>
       </View>
     </View>

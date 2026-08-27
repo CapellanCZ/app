@@ -1,20 +1,25 @@
 import { create } from 'zustand';
 
 import { healthServiceApi } from '@/lib/health-service/healthServiceApi';
+import { useHealthServiceStore } from '@/lib/health-service/healthServiceStore';
 import {
   mapStaffPresenceToDotStatus,
   type DoctorPresenceDotStatus,
 } from '@/lib/health-service/staffPresenceDot';
 
 type PresenceState = {
-  /** staffId → latest known presence (boot + home). */
+  /** staffId → latest known presence (boot + home + book). */
   byStaffId: Record<string, DoctorPresenceDotStatus>;
   loadOne: (staffId: string) => Promise<DoctorPresenceDotStatus>;
+  /** Prefetch presence for many staff ids in parallel. */
+  loadMany: (staffIds: string[]) => Promise<void>;
+  /** Prefetch presence for every loaded staff member. */
+  loadAllStaff: () => Promise<void>;
   reset: () => void;
 };
 
 /**
- * Staff presence cache — warmed during splash for the upcoming appointment doctor.
+ * Staff presence cache — warmed after login / splash for all clinic staff.
  */
 export const useStaffPresenceStore = create<PresenceState>((set, get) => ({
   byStaffId: {},
@@ -31,6 +36,17 @@ export const useStaffPresenceStore = create<PresenceState>((set, get) => ({
       set((s) => ({ byStaffId: { ...s.byStaffId, [staffId]: status } }));
       return status;
     }
+  },
+
+  loadMany: async (staffIds) => {
+    const unique = [...new Set(staffIds.filter(Boolean))];
+    if (!unique.length) return;
+    await Promise.all(unique.map((id) => get().loadOne(id)));
+  },
+
+  loadAllStaff: async () => {
+    const staff = useHealthServiceStore.getState().staff;
+    await get().loadMany(staff.map((s) => s.id));
   },
 
   reset: () => set({ byStaffId: {} }),

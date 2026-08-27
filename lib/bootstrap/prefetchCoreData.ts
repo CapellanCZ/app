@@ -1,9 +1,6 @@
 import { useAnnouncementStore } from '@/lib/announcements/announcementStore';
 import { useHealthServiceStore } from '@/lib/health-service/healthServiceStore';
-import {
-  pickUpcomingConfirmedStaffId,
-  useStaffPresenceStore,
-} from '@/lib/health-service/staffPresenceStore';
+import { useStaffPresenceStore } from '@/lib/health-service/staffPresenceStore';
 import { useNotificationStore } from '@/lib/notifications/notificationStore';
 import { usePatientStore } from '@/lib/patients/patientStore';
 import { useProfileStore } from '@/lib/profile/profileStore';
@@ -87,13 +84,8 @@ export async function prefetchCoreData(
           }),
         ]);
 
-        // After appointments hydrate, warm presence for the next visit.
-        const staffId = pickUpcomingConfirmedStaffId(
-          useHealthServiceStore.getState().appointments,
-        );
-        if (staffId) {
-          await useStaffPresenceStore.getState().loadOne(staffId);
-        }
+        // Warm presence for every staff member after login (home + book).
+        await useStaffPresenceStore.getState().loadAllStaff();
       })(),
       PREFETCH_TIMEOUT_MS,
     );

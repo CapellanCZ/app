@@ -93,8 +93,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { loadStaff, loadAppointments, reset: resetHealthService } = useHealthServiceStore();
   useEffect(() => {
     if (session?.user?.id && enrollmentStatus === 'enrolled') {
-      loadStaff();
-      loadAppointments();
+      void (async () => {
+        await Promise.all([loadStaff(), loadAppointments()]);
+        // Always warm staff presence right after login / session restore.
+        await useStaffPresenceStore.getState().loadAllStaff();
+      })();
     } else if (session === null && !isLoading) {
       resetHealthService();
       useStaffPresenceStore.getState().reset();
@@ -108,7 +111,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         hasLoaded: false,
       });
     }
-  }, [session?.user?.id, enrollmentStatus]);
+  }, [session?.user?.id, enrollmentStatus, isLoading, loadStaff, loadAppointments, resetHealthService]);
 
   const { fetchProfile, setFromPatient, reset: resetProfile } = useProfileStore();
   useEffect(() => {

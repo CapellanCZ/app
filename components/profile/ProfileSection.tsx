@@ -1,27 +1,29 @@
 import { Text, View } from 'react-native';
 
+import { Inter } from '@/lib/typography/inter';
+
 type ProfileSectionProps = {
   title: string;
   children: React.ReactNode;
 };
 
 /**
- * Section wrapper with label and gap container.
- * Groups related menu items with a consistent label above.
+ * Section label + stacked rows — matches home section hierarchy.
  */
 export function ProfileSection({ title, children }: ProfileSectionProps) {
   return (
-    <View style={{ marginBottom: 24 }}>
+    <View style={{ gap: 12 }}>
       <Text
         style={{
-          fontSize: 14,
-          fontWeight: '400',
-          color: '#717680',
-          marginBottom: 12,
+          fontFamily: Inter.medium,
+          fontSize: 16,
+          letterSpacing: -0.64,
+          lineHeight: 22,
+          color: '#727272',
         }}>
         {title}
       </Text>
-      <View style={{ gap: 16 }}>{children}</View>
+      <View style={{ gap: 10 }}>{children}</View>
     </View>
   );
 }

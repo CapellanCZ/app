@@ -1,37 +1,44 @@
 import { Pressable, Text, View } from 'react-native';
 import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 
+import { IconsaxArrowRightIcon } from '@/components/icons/IconsaxArrowRightIcon';
 import { GreyAvatar } from '@/components/profile/GreyAvatar';
+import { Inter } from '@/lib/typography/inter';
 import { androidPressProps } from '@/lib/ui/androidPress';
 
 type UserInfoCardProps = {
   name: string;
   email: string;
   avatarUrl: string | null;
+  onPress: () => void;
   onAvatarPress: () => void;
 };
 
 /**
- * User info card with avatar, name, email, and blue glow.
+ * User info card — tap opens Edit Profile; avatar still changes photo.
  */
 export function UserInfoCard({
   name,
   email,
   avatarUrl,
+  onPress,
   onAvatarPress,
 }: UserInfoCardProps) {
   return (
-    <View
-      style={{
-        backgroundColor: '#FAFAFA',
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`Edit profile, ${name}`}
+      onPress={onPress}
+      {...androidPressProps({ hitSlop: 2 })}
+      style={({ pressed }) => ({
+        backgroundColor: '#FFFFFF',
         borderRadius: 16,
-        paddingHorizontal: 8,
-        paddingVertical: 12,
-        marginBottom: 24,
-        gap: 12,
+        paddingHorizontal: 16,
+        paddingVertical: 16,
         overflow: 'hidden',
-      }}>
-      {/* Blue glow — top right */}
+        opacity: pressed ? 0.92 : 1,
+      })}>
+      {/* Soft blue glow — same family as Upcoming Appointments */}
       <View
         pointerEvents="none"
         style={{
@@ -50,59 +57,54 @@ export function UserInfoCard({
               r="100%"
               fx="100%"
               fy="0%">
-              <Stop offset="0%" stopColor="#2970FF" stopOpacity={0.35} />
-              <Stop offset="50%" stopColor="#2970FF" stopOpacity={0.08} />
-              <Stop offset="100%" stopColor="#2970FF" stopOpacity={0} />
-            </RadialGradient>
-            <RadialGradient
-              id="whiteSpot"
-              cx="100%"
-              cy="0%"
-              r="45%"
-              fx="100%"
-              fy="0%">
-              <Stop offset="0%" stopColor="#FFFFFF" stopOpacity={1} />
-              <Stop offset="30%" stopColor="#FFFFFF" stopOpacity={0.5} />
-              <Stop offset="100%" stopColor="#FFFFFF" stopOpacity={0} />
+              <Stop offset="0%" stopColor="#D3E9FA" stopOpacity={0.95} />
+              <Stop offset="45%" stopColor="#D3E9FA" stopOpacity={0.35} />
+              <Stop offset="100%" stopColor="#D3E9FA" stopOpacity={0} />
             </RadialGradient>
           </Defs>
           <Rect x="0" y="0" width="200" height="200" fill="url(#blueGlow)" />
-          <Rect x="0" y="0" width="200" height="200" fill="url(#whiteSpot)" />
         </Svg>
       </View>
 
-      {/* Avatar + Name row */}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
         <Pressable
-          onPress={onAvatarPress}
+          onPress={(e) => {
+            // Keep avatar as change-photo; don’t open Edit Profile.
+            e?.stopPropagation?.();
+            onAvatarPress();
+          }}
           accessibilityRole="button"
           accessibilityLabel="Change profile photo"
           {...androidPressProps({ borderless: true, hitSlop: 8 })}
           style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}>
           <GreyAvatar size={52} name={name} avatarUrl={avatarUrl} />
         </Pressable>
-        <View style={{ flex: 1, gap: 4 }}>
+        <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
           <Text
             numberOfLines={1}
             style={{
-              fontSize: 20,
-              fontWeight: '500',
-              color: '#000',
+              fontFamily: Inter.medium,
+              fontSize: 18,
               letterSpacing: -0.8,
+              lineHeight: 24,
+              color: '#222222',
             }}>
             {name}
           </Text>
           <Text
             numberOfLines={1}
             style={{
-              fontSize: 12,
-              color: '#717680',
-              letterSpacing: -0.2,
+              fontFamily: Inter.regular,
+              fontSize: 14,
+              letterSpacing: -0.28,
+              lineHeight: 20,
+              color: '#727272',
             }}>
             {email}
           </Text>
         </View>
+        <IconsaxArrowRightIcon size={20} color="#A7A7A7" />
       </View>
-    </View>
+    </Pressable>
   );
 }

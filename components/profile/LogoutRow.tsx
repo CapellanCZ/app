@@ -1,5 +1,7 @@
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, Text } from 'react-native';
+
 import { LogoutIcon } from '@/components/icons/LogoutIcon';
+import { Inter } from '@/lib/typography/inter';
 import { androidPressProps } from '@/lib/ui/androidPress';
 
 type LogoutRowProps = {
@@ -7,7 +9,7 @@ type LogoutRowProps = {
 };
 
 /**
- * Centered logout row with red icon and text.
+ * Centered logout row — same chip surface as other profile rows.
  */
 export function LogoutRow({ onPress }: LogoutRowProps) {
   return (
@@ -22,13 +24,21 @@ export function LogoutRow({ onPress }: LogoutRowProps) {
         justifyContent: 'center',
         gap: 8,
         paddingVertical: 16,
-        backgroundColor: '#FAFAFA',
+        minHeight: 56,
+        backgroundColor: '#FFFFFF',
         borderRadius: 16,
         overflow: 'hidden',
-        opacity: pressed ? 0.7 : 1,
+        opacity: pressed ? 0.88 : 1,
       })}>
-      <LogoutIcon size={24} color="#D92D20" />
-      <Text style={{ fontSize: 16, fontWeight: '400', color: '#D92D20' }}>
+      <LogoutIcon size={22} color="#D92D20" />
+      <Text
+        style={{
+          fontFamily: Inter.medium,
+          fontSize: 16,
+          letterSpacing: -0.64,
+          lineHeight: 22,
+          color: '#D92D20',
+        }}>
         Logout
       </Text>
     </Pressable>
