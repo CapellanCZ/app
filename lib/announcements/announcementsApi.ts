@@ -4,7 +4,8 @@ import type { Announcement } from './types';
 
 const ATTACHMENT_BUCKET = 'announcement-attachments';
 const SIGNED_URL_TTL_SEC = 60 * 60; // 1 hour
-const MAX_SLIDES = 3;
+/** Home carousel + store: only keep the newest posts. */
+export const MAX_ANNOUNCEMENT_SLIDES = 3;
 const MAX_SENTENCES = 3;
 
 /** Keep at most N sentences for the card preview. */
@@ -26,6 +27,7 @@ type AnnouncementRow = {
   title: string;
   body: string;
   published_at: string | null;
+  created_at?: string | null;
   announcement_attachments:
     | {
         file_path: string;
@@ -57,7 +59,8 @@ async function signedImageUrl(filePath: string): Promise<string | null> {
 }
 
 /**
- * Published campus-wide announcements for the logged-in patient (audience = All).
+ * Latest published campus-wide announcements for the patient (audience = All).
+ * Always returns at most 3 — newest by `created_at` (recently added), then drops older posts.
  */
 export async function fetchPublishedAnnouncements(): Promise<Announcement[]> {
   if (!isSupabaseConfigured || !supabase) return [];
@@ -70,6 +73,7 @@ export async function fetchPublishedAnnouncements(): Promise<Announcement[]> {
       title,
       body,
       published_at,
+      created_at,
       announcement_attachments (
         file_path,
         kind,
@@ -79,15 +83,17 @@ export async function fetchPublishedAnnouncements(): Promise<Announcement[]> {
     )
     .eq('status', 'published')
     .eq('audience', 'All')
+    // Recently added first; fall back to publish time if created_at ties.
+    .order('created_at', { ascending: false })
     .order('published_at', { ascending: false })
-    .limit(MAX_SLIDES);
+    .limit(MAX_ANNOUNCEMENT_SLIDES);
 
   if (error) {
     console.error('[announcements] fetchPublishedAnnouncements:', error.message);
     return [];
   }
 
-  const rows = (data as AnnouncementRow[] | null) ?? [];
+  const rows = ((data as AnnouncementRow[] | null) ?? []).slice(0, MAX_ANNOUNCEMENT_SLIDES);
 
   return Promise.all(
     rows.map(async (row) => {

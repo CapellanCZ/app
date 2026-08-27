@@ -163,7 +163,7 @@ export function HomeUpcomingAppointmentCard({
                 overflow: 'hidden',
                 opacity: pressed ? 0.85 : 1,
               })}>
-              <IconsaxCallFilledIcon size={16} color="#1F2024" />
+              <IconsaxCallFilledIcon size={18} color="#6C6C6C" />
             </Pressable>
           </View>
 

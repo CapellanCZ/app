@@ -1,8 +1,8 @@
 import { Platform } from 'react-native';
 
-/** Shared text-field focus tokens (home brand blue). */
-export const INPUT_BRAND = '#2970FF';
-export const INPUT_BRAND_RING = 'rgba(41, 112, 255, 0.12)';
+/** Shared text-field focus tokens — matches bottom-nav active blue. */
+export const INPUT_BRAND = '#6BAED6';
+export const INPUT_BRAND_RING = 'rgba(107, 174, 214, 0.18)';
 export const INPUT_ERROR = '#EF4444';
 export const INPUT_ERROR_RING = 'rgba(239, 68, 68, 0.12)';
 export const INPUT_FIELD_BG = '#F9F9F9';

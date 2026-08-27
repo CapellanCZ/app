@@ -24,6 +24,7 @@ import { useProfileStore } from '@/lib/profile/profileStore';
 import { ROUTES } from '@/lib/routes';
 import { Inter } from '@/lib/typography/inter';
 import { showAppToast } from '@/lib/ui/toastBridge';
+import { openClinicCall } from '@/lib/health-service/clinicContact';
 import { useVitalsStore } from '@/lib/vitals/vitalsStore';
 
 const PRESENCE_POLL_MS = 45_000;
@@ -241,7 +242,7 @@ export default function HealthServiceScreen() {
                 })
               }
               onCallPress={() => {
-                // Clinic contact — wire to real number when available.
+                openClinicCall();
               }}
             />
           ) : (

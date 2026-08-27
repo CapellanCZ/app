@@ -213,6 +213,9 @@ export default function AppointmentsScreen() {
   return (
     <HealthServiceScreenShell>
       <View style={{ flex: 1, paddingTop: insets.top }}>
+        <View style={{ paddingHorizontal: 20, paddingTop: 12, zIndex: 2 }}>
+          <CircleBackButton onPress={() => router.back()} />
+        </View>
         <GestureDetector gesture={pan}>
           <Animated.View style={[{ flex: 1, overflow: 'visible' }, dragStyle]}>
             <ScrollView
@@ -238,7 +241,6 @@ export default function AppointmentsScreen() {
                 gap: 20,
               }}>
               <View style={{ gap: 16 }}>
-                <CircleBackButton onPress={() => router.back()} />
                 <View>
                   <Text
                     style={{

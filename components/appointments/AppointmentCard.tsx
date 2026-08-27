@@ -1,4 +1,4 @@
-import { Image, Linking, Pressable, Text, View } from 'react-native';
+import { Image, Pressable, Text, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useReducedMotion,
@@ -16,6 +16,7 @@ import { IconsaxCallFilledIcon } from '@/components/icons/IconsaxCallFilledIcon'
 import { IconsaxClockIcon } from '@/components/icons/IconsaxClockIcon';
 import { IconsaxTickCircleIcon } from '@/components/icons/IconsaxTickCircleIcon';
 import { fadeSlideUpEntering, fadeSlideUpExiting } from '@/lib/animations/fadeSlideUp';
+import { openClinicCall } from '@/lib/health-service/clinicContact';
 import type { AppointmentStatus } from '@/lib/health-service/types';
 import { Inter } from '@/lib/typography/inter';
 import { androidPressProps } from '@/lib/ui/androidPress';
@@ -87,9 +88,7 @@ export function AppointmentCard({
   }));
 
   const onCall = () => {
-    const digits = phoneNumber?.replace(/[^\d+]/g, '');
-    if (!digits) return;
-    void Linking.openURL(`tel:${digits}`);
+    openClinicCall(phoneNumber);
   };
 
   const showCall = variant === 'upcoming' || variant === 'cancelled';
@@ -226,8 +225,7 @@ export function AppointmentCard({
               {showCall ? (
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel={phoneNumber ? `Call ${staffName}` : 'Call unavailable'}
-                  disabled={!phoneNumber}
+                  accessibilityLabel={`Call ${staffName}`}
                   onPress={onCall}
                   {...androidPressProps({ borderless: true, hitSlop: 8 })}
               style={({ pressed }) => ({
@@ -239,15 +237,20 @@ export function AppointmentCard({
                 justifyContent: 'center',
                 flexShrink: 0,
                 overflow: 'hidden',
-                opacity: !phoneNumber ? 0.55 : pressed ? 0.85 : 1,
+                opacity: pressed ? 0.85 : 1,
               })}>
-                  <IconsaxCallFilledIcon size={16} color="#1F2024" />
+                  <IconsaxCallFilledIcon size={18} color="#6C6C6C" />
                 </Pressable>
               ) : null}
 
               {showChevron ? (
-                <View
-                  style={{
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`View past visit with ${staffName}`}
+                  disabled={!canPress}
+                  onPress={onPress}
+                  {...androidPressProps({ borderless: true, hitSlop: 8 })}
+                  style={({ pressed }) => ({
                     width: 42,
                     height: 42,
                     borderRadius: 999,
@@ -255,9 +258,11 @@ export function AppointmentCard({
                     alignItems: 'center',
                     justifyContent: 'center',
                     flexShrink: 0,
-                  }}>
+                    overflow: 'hidden',
+                    opacity: pressed ? 0.85 : 1,
+                  })}>
                   <BookingChevronIcon size={24} color="#6C6C6C" />
-                </View>
+                </Pressable>
               ) : null}
             </View>
 

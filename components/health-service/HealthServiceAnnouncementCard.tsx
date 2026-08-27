@@ -182,7 +182,7 @@ function AnnouncementSlide({ item, width, index, total, onReadMore }: SlideProps
               style={{
                 fontFamily: Inter.regular,
                 fontSize: 14,
-                color: '#3C74FF',
+                color: '#6BAED6',
                 letterSpacing: -0.48,
               }}>
               Read More →

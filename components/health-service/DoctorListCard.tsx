@@ -20,14 +20,17 @@ const UNAVAILABLE = '#D1D2D1';
 
 const PRESS_SPRING = { damping: 18, stiffness: 380, mass: 0.35 } as const;
 
+/** Display name only — strip credentials (MD, DMD, …); keep Dr. for clinicians. */
 function formatDoctorName(name: string, role: StaffRole): string {
-  const cleaned = name.replace(/^Dr\.?\s*/i, '').trim();
+  const cleaned = name
+    .replace(/^Dr\.?\s*/i, '')
+    .replace(/,?\s*\b(MD|DMD|DDS|DDM|DO|DPM|PhD|RN|NP|PA-?C?)\b\.?/gi, '')
+    .replace(/\s*,\s*$/g, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
   if (!cleaned) return 'CampusCare Provider';
-  if (role === 'doctor') {
-    return cleaned.match(/,\s*MD\b/i) ? `Dr. ${cleaned}` : `Dr. ${cleaned}, MD`;
-  }
-  if (role === 'dentist') {
-    return cleaned.match(/,\s*DMD\b/i) ? `Dr. ${cleaned}` : `Dr. ${cleaned}, DMD`;
+  if (role === 'doctor' || role === 'dentist') {
+    return `Dr. ${cleaned}`;
   }
   return cleaned;
 }

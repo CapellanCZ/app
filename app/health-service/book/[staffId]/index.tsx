@@ -136,17 +136,18 @@ function resolveSpecialty(role: StaffRole, _specialty: string): string {
   return 'Clinic Staff';
 }
 
-/** Figma-style display name: "Dr. Catherine Capellan, MD" */
+/** Figma-style display name on booking hero: "Dr. Name, MD" / "Dr. Name, DMD". */
 function formatDoctorDisplayName(name: string, role: StaffRole): string {
-  const cleaned = name.replace(/^Dr\.?\s*/i, '').trim();
+  const cleaned = name
+    .replace(/^Dr\.?\s*/i, '')
+    .replace(/,?\s*\b(MD|DMD|DDS|DDM|DO|DPM|PhD|RN|NP|PA-?C?)\b\.?/gi, '')
+    .replace(/\s*,\s*$/g, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
   if (!cleaned) return 'CampusCare Provider';
 
-  if (role === 'doctor') {
-    return cleaned.match(/,\s*MD\b/i) ? `Dr. ${cleaned}` : `Dr. ${cleaned}, MD`;
-  }
-  if (role === 'dentist') {
-    return cleaned.match(/,\s*DMD\b/i) ? `Dr. ${cleaned}` : `Dr. ${cleaned}`;
-  }
+  if (role === 'doctor') return `Dr. ${cleaned}, MD`;
+  if (role === 'dentist') return `Dr. ${cleaned}, DMD`;
   return cleaned;
 }
 
