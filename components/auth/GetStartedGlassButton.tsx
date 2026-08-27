@@ -8,9 +8,9 @@ import Animated, {
   interpolate,
   useAnimatedProps,
   useAnimatedStyle,
+  useReducedMotion,
   useSharedValue,
   withRepeat,
-  withSequence,
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
@@ -19,7 +19,11 @@ import Svg, { Path, Rect } from 'react-native-svg';
 import { Inter } from '@/lib/typography/inter';
 
 const AnimatedRect = Animated.createAnimatedComponent(Rect);
-const AnimatedLinearGradient = Animated.createAnimatedComponent(LinearGradient);
+
+/** Soft ease — no abrupt start/stop on looping pulses. */
+const SMOOTH = Easing.bezier(0.4, 0.0, 0.2, 1);
+const PULSE_MS = 3600;
+const ORBIT_MS = 6400;
 
 type Props = {
   label?: string;
@@ -63,13 +67,13 @@ function CirclingBorderGlow({ width, height }: { width: number; height: number }
   const rh = Math.max(height - stroke, 0);
   const radius = rh / 2;
   const peri = stadiumPerimeter(rw, rh);
-  const coreLen = Math.max(peri * 0.16, 28);
-  const softLen = Math.max(peri * 0.28, 48);
+  const coreLen = Math.max(peri * 0.14, 26);
+  const softLen = Math.max(peri * 0.32, 52);
 
   useEffect(() => {
     progress.set(0);
     progress.set(
-      withRepeat(withTiming(1, { duration: 5200, easing: Easing.linear }), -1, false),
+      withRepeat(withTiming(1, { duration: ORBIT_MS, easing: Easing.linear }), -1, false),
     );
     return () => cancelAnimation(progress);
   }, [progress, peri]);
@@ -94,8 +98,8 @@ function CirclingBorderGlow({ width, height }: { width: number; height: number }
           rx={radius}
           ry={radius}
           fill="none"
-          stroke="rgba(255,255,255,0.28)"
-          strokeWidth={stroke + 3}
+          stroke="rgba(255,255,255,0.22)"
+          strokeWidth={stroke + 4}
           strokeLinecap="round"
           strokeDasharray={`${softLen} ${Math.max(peri - softLen, 1)}`}
           animatedProps={softProps}
@@ -108,7 +112,7 @@ function CirclingBorderGlow({ width, height }: { width: number; height: number }
           rx={radius}
           ry={radius}
           fill="none"
-          stroke="rgba(255,255,255,0.95)"
+          stroke="rgba(255,255,255,0.88)"
           strokeWidth={stroke}
           strokeLinecap="round"
           strokeDasharray={`${coreLen} ${Math.max(peri - coreLen, 1)}`}
@@ -127,83 +131,71 @@ export function GetStartedGlassButton({
   onPress,
   disabled = false,
 }: Props) {
+  const reduceMotion = useReducedMotion();
   const [ringSize, setRingSize] = useState({ w: 0, h: 0 });
   const press = useSharedValue(0);
   const pulse = useSharedValue(0);
-  const pulseB = useSharedValue(0);
-  const sparkle = useSharedValue(0);
+  const sparkle = useSharedValue(0.7);
 
   useEffect(() => {
-    // Primary expanding pulse (~2.8s cycle)
+    if (reduceMotion) {
+      pulse.set(0);
+      sparkle.set(0.85);
+      return;
+    }
+
+    // Fade fully out before loop reset so the scale jump is invisible.
+    pulse.set(0);
     pulse.set(
-      withRepeat(
-        withTiming(1, { duration: 2800, easing: Easing.out(Easing.cubic) }),
-        -1,
-        false,
-      ),
-    );
-    // Second wave — offset so they never peak together
-    pulseB.set(
-      withRepeat(
-        withSequence(
-          withTiming(0, { duration: 900 }),
-          withTiming(1, { duration: 2800, easing: Easing.out(Easing.cubic) }),
-        ),
-        -1,
-        false,
-      ),
+      withRepeat(withTiming(1, { duration: PULSE_MS, easing: SMOOTH }), -1, false),
     );
     sparkle.set(
       withRepeat(
-        withSequence(
-          withTiming(1, { duration: 1600, easing: Easing.inOut(Easing.sin) }),
-          withTiming(0.6, { duration: 1600, easing: Easing.inOut(Easing.sin) }),
-        ),
+        withTiming(1, { duration: 2200, easing: Easing.inOut(Easing.sin) }),
         -1,
-        false,
+        true,
       ),
     );
+
     return () => {
       cancelAnimation(pulse);
-      cancelAnimation(pulseB);
       cancelAnimation(sparkle);
     };
-  }, [pulse, pulseB, sparkle]);
+  }, [pulse, sparkle, reduceMotion]);
 
   const rootStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: interpolate(press.get(), [0, 1], [1, 0.975]) }],
+    transform: [{ scale: interpolate(press.get(), [0, 1], [1, 0.97]) }],
   }));
 
-  /** Expanding soft ring — grows out + fades (pro CTA pulse). */
-  const pulseRingAStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(pulse.get(), [0, 0.15, 0.7, 1], [0, 0.4, 0.12, 0]),
-    transform: [{ scale: interpolate(pulse.get(), [0, 1], [1, 1.12]) }],
-  }));
-
-  const pulseRingBStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(pulseB.get(), [0, 0.15, 0.7, 1], [0, 0.28, 0.08, 0]),
-    transform: [{ scale: interpolate(pulseB.get(), [0, 1], [1, 1.1]) }],
-  }));
-
-  /** Inner fill glow that softens in sync with the pulse head. */
-  const innerGlowStyle = useAnimatedStyle(() => {
-    const head = Math.max(
-      interpolate(pulse.get(), [0, 0.2, 0.55, 1], [0, 1, 0.35, 0]),
-      interpolate(pulseB.get(), [0, 0.2, 0.55, 1], [0, 0.7, 0.25, 0]),
-    );
+  /** Expanding soft ring — opacity hits 0 at the end so the loop reset is seamless. */
+  const pulseRingStyle = useAnimatedStyle(() => {
+    const t = pulse.get();
     return {
-      opacity: 0.12 + head * 0.22,
+      opacity: interpolate(t, [0, 0.12, 0.55, 0.92, 1], [0, 0.32, 0.14, 0.04, 0]),
+      transform: [{ scale: interpolate(t, [0, 1], [1, 1.08]) }],
     };
   });
 
-  const specularStyle = useAnimatedStyle(() => {
-    const head = interpolate(pulse.get(), [0, 0.25, 0.6, 1], [0.65, 1, 0.8, 0.65]);
-    return { opacity: head };
+  const pulseHaloStyle = useAnimatedStyle(() => {
+    const t = pulse.get();
+    return {
+      opacity: interpolate(t, [0, 0.18, 0.6, 1], [0, 0.1, 0.04, 0]),
+      transform: [{ scale: interpolate(t, [0, 1], [1, 1.14]) }],
+    };
   });
 
+  /** Inner fill glow — gentle breathe, no hard peaks. */
+  const innerGlowStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(pulse.get(), [0, 0.2, 0.5, 0.85, 1], [0.1, 0.2, 0.26, 0.14, 0.1]),
+  }));
+
+  const specularStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(pulse.get(), [0, 0.35, 0.7, 1], [0.55, 0.78, 0.62, 0.55]),
+  }));
+
   const sparkleStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(sparkle.get(), [0, 1], [0.6, 1]),
-    transform: [{ scale: interpolate(sparkle.get(), [0, 1], [0.94, 1.05]) }],
+    opacity: interpolate(sparkle.get(), [0, 1], [0.72, 1]),
+    transform: [{ scale: interpolate(sparkle.get(), [0, 1], [0.97, 1.03]) }],
   }));
 
   const onRingLayout = (e: LayoutChangeEvent) => {
@@ -215,11 +207,11 @@ export function GetStartedGlassButton({
 
   const handlePressIn = () => {
     if (disabled) return;
-    press.set(withSpring(1, { damping: 22, stiffness: 420 }));
+    press.set(withSpring(1, { damping: 24, stiffness: 380, mass: 0.6 }));
   };
 
   const handlePressOut = () => {
-    press.set(withSpring(0, { damping: 18, stiffness: 280 }));
+    press.set(withSpring(0, { damping: 20, stiffness: 260, mass: 0.7 }));
   };
 
   const handlePress = () => {
@@ -239,93 +231,105 @@ export function GetStartedGlassButton({
       accessibilityState={{ disabled }}
       android_ripple={
         Platform.OS === 'android'
-          ? { color: 'rgba(255,255,255,0.18)', borderless: false, foreground: true }
+          ? { color: 'rgba(255,255,255,0.14)', borderless: false, foreground: true }
           : undefined
       }
-      hitSlop={Platform.OS === 'android' ? 6 : undefined}
-      style={{ overflow: 'hidden', borderRadius: 999 }}>
-      <Animated.View style={[styles.outerGlow, rootStyle]}>
-        {/* Dual expanding pulse rings */}
-        <Animated.View pointerEvents="none" style={[styles.pulseRing, pulseRingAStyle]} />
-        <Animated.View pointerEvents="none" style={[styles.pulseRingSoft, pulseRingBStyle]} />
-
-        <View style={styles.ring} onLayout={onRingLayout}>
-          {ringSize.w > 0 ? (
-            <CirclingBorderGlow width={ringSize.w} height={ringSize.h} />
+      hitSlop={Platform.OS === 'android' ? 6 : undefined}>
+      {/* Extra padding so expanding glow isn't clipped. */}
+      <View style={styles.glowPad}>
+        <Animated.View style={[styles.outerGlow, rootStyle]}>
+          {!reduceMotion ? (
+            <>
+              <Animated.View pointerEvents="none" style={[styles.pulseHalo, pulseHaloStyle]} />
+              <Animated.View pointerEvents="none" style={[styles.pulseRing, pulseRingStyle]} />
+            </>
           ) : null}
 
-          <View style={styles.face}>
-            <LinearGradient
-              colors={['#3A3A3A', '#1A1A1A', '#0A0A0A']}
-              locations={[0, 0.42, 1]}
-              start={{ x: 0.5, y: 0 }}
-              end={{ x: 0.5, y: 1 }}
-              style={StyleSheet.absoluteFill}
-            />
+          <View style={styles.ring} onLayout={onRingLayout}>
+            {!reduceMotion && ringSize.w > 0 ? (
+              <CirclingBorderGlow width={ringSize.w} height={ringSize.h} />
+            ) : null}
 
-            <Animated.View pointerEvents="none" style={[styles.innerGlow, innerGlowStyle]} />
+            <View style={styles.face}>
+              <LinearGradient
+                colors={['#3A3A3A', '#1A1A1A', '#0A0A0A']}
+                locations={[0, 0.42, 1]}
+                start={{ x: 0.5, y: 0 }}
+                end={{ x: 0.5, y: 1 }}
+                style={StyleSheet.absoluteFill}
+              />
 
-            <AnimatedLinearGradient
-              colors={['rgba(255,255,255,0.55)', 'rgba(255,255,255,0.12)', 'transparent']}
-              locations={[0, 0.22, 0.7]}
-              start={{ x: 0.5, y: 0 }}
-              end={{ x: 0.5, y: 1 }}
-              style={[styles.topBevel, specularStyle]}
-            />
+              <Animated.View pointerEvents="none" style={[styles.innerGlow, innerGlowStyle]} />
 
-            <LinearGradient
-              colors={['transparent', 'rgba(0,0,0,0.55)']}
-              start={{ x: 0.5, y: 0.5 }}
-              end={{ x: 0.5, y: 1 }}
-              style={StyleSheet.absoluteFill}
-            />
-
-            <View style={styles.content}>
-              <Animated.View style={sparkleStyle}>
-                <SparkleIcon size={15} />
+              <Animated.View pointerEvents="none" style={[styles.topBevel, specularStyle]}>
+                <LinearGradient
+                  colors={['rgba(255,255,255,0.5)', 'rgba(255,255,255,0.1)', 'transparent']}
+                  locations={[0, 0.28, 0.75]}
+                  start={{ x: 0.5, y: 0 }}
+                  end={{ x: 0.5, y: 1 }}
+                  style={StyleSheet.absoluteFill}
+                />
               </Animated.View>
-              <Text style={styles.label}>{label}</Text>
+
+              <LinearGradient
+                colors={['transparent', 'rgba(0,0,0,0.55)']}
+                start={{ x: 0.5, y: 0.5 }}
+                end={{ x: 0.5, y: 1 }}
+                style={StyleSheet.absoluteFill}
+              />
+
+              <View style={styles.content}>
+                <Animated.View style={sparkleStyle}>
+                  <SparkleIcon size={15} />
+                </Animated.View>
+                <Text style={styles.label}>{label}</Text>
+              </View>
             </View>
           </View>
-        </View>
-      </Animated.View>
+        </Animated.View>
+      </View>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
+  glowPad: {
+    // Room for pulse scale without clipping against parent overflow.
+    paddingVertical: 10,
+    paddingHorizontal: 6,
+    marginVertical: -10,
+    marginHorizontal: -6,
+  },
   outerGlow: {
     borderRadius: 999,
     ...Platform.select({
       ios: {
         shadowColor: '#000000',
         shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.2,
-        shadowRadius: 14,
+        shadowOpacity: 0.18,
+        shadowRadius: 16,
       },
       android: {
-        elevation: 6,
+        elevation: 5,
       },
       default: {},
     }),
   },
+  pulseHalo: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+  },
   pulseRing: {
     ...StyleSheet.absoluteFillObject,
     borderRadius: 999,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.55)',
+    borderWidth: 1.25,
+    borderColor: 'rgba(255,255,255,0.45)',
     backgroundColor: 'transparent',
-  },
-  pulseRingSoft: {
-    ...StyleSheet.absoluteFillObject,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.35)',
-    backgroundColor: 'rgba(255,255,255,0.04)',
   },
   innerGlow: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: 'rgba(255,255,255,0.18)',
   },
   ring: {
     borderRadius: 999,
@@ -353,6 +357,7 @@ const styles = StyleSheet.create({
     height: 14,
     borderTopLeftRadius: 999,
     borderTopRightRadius: 999,
+    overflow: 'hidden',
   },
   content: {
     flexDirection: 'row',

@@ -23,6 +23,7 @@ import { useStaffPresenceStore } from '@/lib/health-service/staffPresenceStore';
 import { useProfileStore } from '@/lib/profile/profileStore';
 import { ROUTES } from '@/lib/routes';
 import { Inter } from '@/lib/typography/inter';
+import { showAppToast } from '@/lib/ui/toastBridge';
 import { useVitalsStore } from '@/lib/vitals/vitalsStore';
 
 const PRESENCE_POLL_MS = 45_000;
@@ -250,7 +251,15 @@ export default function HealthServiceScreen() {
           <HomeQuickActions
             onBookings={() => router.push(ROUTES.appointments)}
             onVitals={() => router.push(ROUTES.appointments)}
-            onMore={() => router.push(ROUTES.profile)}
+            onMore={() =>
+              showAppToast({
+                variant: 'accent',
+                status: 'info',
+                placement: 'top',
+                duration: 2800,
+                label: 'Launch soon',
+              })
+            }
           />
         </View>
 

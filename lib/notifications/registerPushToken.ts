@@ -1,6 +1,7 @@
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 
+import { isNotificationsAvailable } from '@/lib/notifications/isNotificationsAvailable';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 
 /**
@@ -9,10 +10,12 @@ import { supabase, isSupabaseConfigured } from '@/lib/supabase';
  *
  * Requires `expo-notifications` to be installed. This function lazy-imports it
  * so the app still builds if the package is missing in dev.
+ * Skipped on Android Expo Go (remote push removed in SDK 53+).
  */
 export async function registerPushToken(userId: string): Promise<void> {
   if (!isSupabaseConfigured || !supabase) return;
   if (!Device.isDevice) return; // Skip on simulator — can't get a real token
+  if (!isNotificationsAvailable()) return;
 
   try {
     // Lazy-import so the app doesn't crash on missing optional dep.

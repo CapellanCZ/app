@@ -50,6 +50,7 @@ export default function AppointmentBookedScreen() {
     dateKey,
     status,
     reason,
+    queueNumber,
   } = useLocalSearchParams<{
     id?: string;
     doctorName?: string;
@@ -60,6 +61,7 @@ export default function AppointmentBookedScreen() {
     dateKey?: string;
     status?: string;
     reason?: string;
+    queueNumber?: string;
   }>();
 
   const appointments = useHealthServiceStore((s) => s.appointments);
@@ -72,6 +74,10 @@ export default function AppointmentBookedScreen() {
   }, [appointments, id]);
 
   const storeReason = storeAppointment?.reason ?? null;
+  const routeQueueLabel = queueNumber?.trim() || null;
+  const prefetchedQueueLabel = storeAppointment?.arrivalTicket
+    ? `${storeAppointment.arrivalTicket.position}#`
+    : routeQueueLabel;
 
   const visitReason = useMemo(
     () => formatVisitReasonDisplay(reason || storeReason),
@@ -85,6 +91,9 @@ export default function AppointmentBookedScreen() {
     storeAppointment?.status === 'confirmed' ||
     statusNorm === 'confirmed' ||
     statusNorm === 'in_progress';
+
+  // Prefer prefetched ticket from appointments load; keep local state for refresh.
+  const displayQueueLabel = queueNumberLabel ?? prefetchedQueueLabel;
 
   useEffect(() => {
     // Keep status/queue in sync when admin confirms while this screen is open.
@@ -108,21 +117,27 @@ export default function AppointmentBookedScreen() {
       setQueueNumberLabel(null);
       return;
     }
+
+    // Seed from store immediately when available (splash / list prefetch).
+    if (prefetchedQueueLabel) {
+      setQueueNumberLabel(prefetchedQueueLabel);
+    }
+
     let cancelled = false;
     void (async () => {
       try {
         const ticket = await healthServiceApi.getQueueTicketForAppointment(appointmentId);
         if (cancelled) return;
-        setQueueNumberLabel(ticket ? `${ticket.position}#` : null);
+        setQueueNumberLabel(ticket ? `${ticket.position}#` : prefetchedQueueLabel);
       } catch (error) {
         console.warn('[queue] fetch failed:', error);
-        if (!cancelled) setQueueNumberLabel(null);
+        if (!cancelled && !prefetchedQueueLabel) setQueueNumberLabel(null);
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [id, isConfirmed, storeAppointment?.status]);
+  }, [id, isConfirmed, storeAppointment?.status, prefetchedQueueLabel]);
 
   const name = doctorName?.trim() || 'Clinic staff';
   const specialty = specialtyLabel?.trim() || 'Campus Clinic';
@@ -278,25 +293,30 @@ export default function AppointmentBookedScreen() {
         !Number.isNaN(notifyAt.getTime()) && notifyAt.getTime() > Date.now() ? notifyAt : fireAt;
 
       try {
-        const Notifications = await import('expo-notifications');
-        const settings = await Notifications.getPermissionsAsync();
-        let permission = settings.status;
-        if (permission !== 'granted') {
-          const req = await Notifications.requestPermissionsAsync();
-          permission = req.status;
-        }
-        if (permission === 'granted') {
-          await Notifications.scheduleNotificationAsync({
-            content: {
-              title: `Appointment in ${REMINDER_MINUTES_BEFORE} minutes`,
-              body: `Your visit with ${name} is at ${time} on ${dateLabel}. Bring your school ID.`,
-              data: { href: `/health-service/appointment/${appointmentId}` },
-            },
-            trigger: {
-              type: Notifications.SchedulableTriggerInputTypes.DATE,
-              date: notifyInstant,
-            },
-          });
+        const { isNotificationsAvailable } = await import(
+          '@/lib/notifications/isNotificationsAvailable'
+        );
+        if (isNotificationsAvailable()) {
+          const Notifications = await import('expo-notifications');
+          const settings = await Notifications.getPermissionsAsync();
+          let permission = settings.status;
+          if (permission !== 'granted') {
+            const req = await Notifications.requestPermissionsAsync();
+            permission = req.status;
+          }
+          if (permission === 'granted') {
+            await Notifications.scheduleNotificationAsync({
+              content: {
+                title: `Appointment in ${REMINDER_MINUTES_BEFORE} minutes`,
+                body: `Your visit with ${name} is at ${time} on ${dateLabel}. Bring your school ID.`,
+                data: { href: `/health-service/appointment/${appointmentId}` },
+              },
+              trigger: {
+                type: Notifications.SchedulableTriggerInputTypes.DATE,
+                date: notifyInstant,
+              },
+            });
+          }
         }
       } catch (localErr) {
         console.warn('[reminder] local schedule skipped:', localErr);
@@ -400,7 +420,7 @@ export default function AppointmentBookedScreen() {
                 timeLabel={time}
                 estDoneLabel={estDoneLabel}
                 showQueueRow
-                queueNumberLabel={queueNumberLabel}
+                queueNumberLabel={displayQueueLabel}
                 visitReason={visitReason}
               />
 

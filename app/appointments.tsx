@@ -361,6 +361,11 @@ export default function AppointmentsScreen() {
                           ? formatCancellationLabel(item.cancellationReason)
                           : formatVisitReasonDisplay(item.reason) || 'Consultation';
 
+                    const queueParam =
+                      item.arrivalTicket != null
+                        ? `${item.arrivalTicket.position}#`
+                        : undefined;
+
                     return (
                       <AppointmentCard
                         key={`${panelKey}-${item.id}`}
@@ -423,6 +428,7 @@ export default function AppointmentsScreen() {
                                       dateKey: item.dateKey,
                                       status: item.status,
                                       reason: item.reason ?? '',
+                                      ...(queueParam ? { queueNumber: queueParam } : {}),
                                     },
                                   })
                         }

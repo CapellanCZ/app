@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 
 import { supabase } from '@/lib/supabase';
 import { notifyAppointmentCancelled } from '@/lib/notifications/appointmentNotifications';
+import { handleOwnedQueueTicketChange } from '@/lib/notifications/queueTurnNotifications';
 import { openVisitCompletedScreen } from '@/lib/health-service/visitCompletedNavigation';
 import type { Appointment, Staff } from '@/lib/health-service/types';
 
@@ -119,13 +120,33 @@ export function acquireAppointmentsSubscription(get: HealthStoreGet): () => void
           }
         },
       )
-      // Queue ticket status/position changes (called, standing moves) — refresh ticket UI.
-      // Patient notifications/toasts for 5th/3rd/next/called come from DB → notifications realtime.
+      // Queue ticket status/position changes (called, standing moves).
+      // Patient "It's Your Turn" toast: DB notification + client fallback below.
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'health_queue_tickets' },
-        () => {
+        (payload: {
+          eventType: string;
+          old?: {
+            status?: string;
+            patient_id?: string | null;
+          };
+          new?: {
+            id?: string;
+            status?: string;
+            patient_id?: string | null;
+            appointment_id?: string | null;
+            station?: string | null;
+            queue_position?: number | null;
+            queue_number?: number | null;
+          };
+        }) => {
           void get().loadAppointments();
+          handleOwnedQueueTicketChange({
+            eventType: payload.eventType,
+            next: payload.new,
+            prev: payload.old,
+          });
         },
       )
       .subscribe((status) => {

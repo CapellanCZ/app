@@ -82,6 +82,100 @@ function mapDbStatus(status: string): AppointmentStatus {
   return 'confirmed';
 }
 
+function mapQueueTicketRow(row: {
+  ticket_code?: string | null;
+  queue_position?: number | null;
+  queue_number?: number | null;
+  estimated_wait_minutes?: number | null;
+  status?: string | null;
+}): QueueTicket | null {
+  const position =
+    typeof row.queue_number === 'number'
+      ? row.queue_number
+      : typeof row.queue_position === 'number'
+        ? row.queue_position
+        : null;
+  if (position == null) return null;
+
+  const statusRaw = String(row.status ?? 'idle');
+  const status: QueueTicket['status'] =
+    statusRaw === 'waiting' || statusRaw === 'called' || statusRaw === 'idle'
+      ? statusRaw
+      : 'idle';
+
+  return {
+    code: String(row.ticket_code ?? `${position}#`),
+    position,
+    estimatedMinutes: Number(row.estimated_wait_minutes ?? 0),
+    status,
+  };
+}
+
+/**
+ * Attach `arrivalTicket` for confirmed visits so the booked screen can show
+ * Queue / Patient Number immediately (no post-navigation fetch flash).
+ */
+async function attachArrivalTickets(
+  patientId: string,
+  appointments: Appointment[],
+): Promise<Appointment[]> {
+  if (!supabase || appointments.length === 0) return appointments;
+
+  const needsTicket = appointments.filter(
+    (a) => a.status === 'confirmed' || a.status === 'completed',
+  );
+  if (needsTicket.length === 0) return appointments;
+
+  const appointmentIds = needsTicket.map((a) => a.id);
+  const serviceDates = [...new Set(needsTicket.map((a) => a.dateKey))];
+
+  const filters: string[] = [];
+  if (appointmentIds.length) {
+    filters.push(`appointment_id.in.(${appointmentIds.join(',')})`);
+  }
+  if (serviceDates.length) {
+    filters.push(`service_date.in.(${serviceDates.join(',')})`);
+  }
+  if (filters.length === 0) return appointments;
+
+  const { data: tickets, error } = await supabase
+    .from('health_queue_tickets')
+    .select(
+      'id, appointment_id, ticket_code, queue_position, queue_number, estimated_wait_minutes, status, service_date',
+    )
+    .eq('patient_id', patientId)
+    .or(filters.join(','))
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.warn('[appointments] attachArrivalTickets failed:', error.message);
+    return appointments;
+  }
+
+  const byAppointmentId = new Map<string, QueueTicket>();
+  const byServiceDate = new Map<string, QueueTicket>();
+
+  for (const row of tickets ?? []) {
+    const mapped = mapQueueTicketRow(row);
+    if (!mapped) continue;
+    const apptId = row.appointment_id as string | null;
+    if (apptId && !byAppointmentId.has(apptId)) {
+      byAppointmentId.set(apptId, mapped);
+    }
+    const serviceDate = row.service_date as string | null;
+    if (serviceDate && !byServiceDate.has(serviceDate)) {
+      byServiceDate.set(serviceDate, mapped);
+    }
+  }
+
+  return appointments.map((appt) => {
+    if (appt.status !== 'confirmed' && appt.status !== 'completed') return appt;
+    const ticket =
+      byAppointmentId.get(appt.id) ?? byServiceDate.get(appt.dateKey) ?? undefined;
+    return ticket ? { ...appt, arrivalTicket: ticket } : appt;
+  });
+}
+
 async function requireLinkedPatient(): Promise<{
   userId: string;
   patientId: string;
@@ -543,7 +637,7 @@ function createSupabaseHealthServiceApi(): HealthServiceApi {
 
       if (error) throw error;
 
-      return (appointments ?? []).map((appt) => ({
+      const mapped: Appointment[] = (appointments ?? []).map((appt) => ({
         id: appt.id as string,
         staffId: appt.doctor_id as string,
         dateKey: dateKeyInClinicTz(appt.starts_at as string),
@@ -554,6 +648,8 @@ function createSupabaseHealthServiceApi(): HealthServiceApi {
         status: mapDbStatus(String(appt.status)),
         createdAt: appt.created_at as string,
       }));
+
+      return attachArrivalTickets(patientId, mapped);
     },
 
     async bookAppointment(input) {
@@ -652,36 +748,6 @@ function createSupabaseHealthServiceApi(): HealthServiceApi {
       if (!supabase) throw new Error('Supabase not configured');
       const { patientId } = await requireLinkedPatient();
 
-      const mapTicketRow = (row: {
-        ticket_code?: string | null;
-        queue_position?: number | null;
-        queue_number?: number | null;
-        estimated_wait_minutes?: number | null;
-        status?: string | null;
-      }): QueueTicket | null => {
-        // Patient-facing number is `queue_number` when present (admin queue #).
-        const position =
-          typeof row.queue_number === 'number'
-            ? row.queue_number
-            : typeof row.queue_position === 'number'
-              ? row.queue_position
-              : null;
-        if (position == null) return null;
-
-        const statusRaw = String(row.status ?? 'idle');
-        const status: QueueTicket['status'] =
-          statusRaw === 'waiting' || statusRaw === 'called' || statusRaw === 'idle'
-            ? statusRaw
-            : 'idle';
-
-        return {
-          code: String(row.ticket_code ?? `${position}#`),
-          position,
-          estimatedMinutes: Number(row.estimated_wait_minutes ?? 0),
-          status,
-        };
-      };
-
       // 1) Ticket linked by appointment_id
       const { data: byAppointment, error } = await supabase
         .from('health_queue_tickets')
@@ -691,7 +757,7 @@ function createSupabaseHealthServiceApi(): HealthServiceApi {
         .limit(1)
         .maybeSingle();
       if (error) throw error;
-      const fromAppointment = byAppointment ? mapTicketRow(byAppointment) : null;
+      const fromAppointment = byAppointment ? mapQueueTicketRow(byAppointment) : null;
       if (fromAppointment) return fromAppointment;
 
       // 2) Appointment row: queue_ticket_id / queue_number (admin may set these on confirm)
@@ -710,7 +776,7 @@ function createSupabaseHealthServiceApi(): HealthServiceApi {
           .eq('id', appt.queue_ticket_id as string)
           .maybeSingle();
         if (byIdError) throw byIdError;
-        const fromTicketId = byId ? mapTicketRow(byId) : null;
+        const fromTicketId = byId ? mapQueueTicketRow(byId) : null;
         if (fromTicketId) return fromTicketId;
       }
 
@@ -719,7 +785,7 @@ function createSupabaseHealthServiceApi(): HealthServiceApi {
           code: `${appt.queue_number}#`,
           position: appt.queue_number,
           estimatedMinutes: 0,
-          status: 'waiting',
+          status: 'waiting' as const,
         };
       }
 
@@ -736,7 +802,7 @@ function createSupabaseHealthServiceApi(): HealthServiceApi {
           .limit(1)
           .maybeSingle();
         if (byPatientError) throw byPatientError;
-        const fromPatientDay = byPatient ? mapTicketRow(byPatient) : null;
+        const fromPatientDay = byPatient ? mapQueueTicketRow(byPatient) : null;
         if (fromPatientDay) return fromPatientDay;
       }
 

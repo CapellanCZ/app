@@ -7,6 +7,16 @@ import { Inter } from '@/lib/typography/inter';
 
 const BG = '#F9F9F9';
 
+/** Clamp headline size so it fits small phones and still looks bold on larger ones. */
+function headlineMetrics(screenW: number) {
+  // Reference: 390pt ≈ iPhone 14 → 42px. Scale gently by width.
+  const raw = Math.round(screenW * (42 / 390));
+  const fontSize = Math.min(44, Math.max(32, raw));
+  const lineHeight = Math.round(fontSize * 1.1);
+  const letterSpacing = -Math.min(3.2, Math.max(1.6, fontSize * 0.07));
+  return { fontSize, lineHeight, letterSpacing };
+}
+
 export type GetStartedHeroProps = {
   onSignIn: () => void;
   onTerms?: () => void;
@@ -16,6 +26,13 @@ export type GetStartedHeroProps = {
 export function GetStartedHero({ onSignIn, onTerms, onPrivacy }: GetStartedHeroProps) {
   const insets = useSafeAreaInsets();
   const { width: screenW } = useWindowDimensions();
+  const headline = headlineMetrics(screenW);
+
+  // Narrow phones: break earlier so "Shaping the Future of" doesn't overflow.
+  const headlineCopy =
+    screenW < 360
+      ? 'Shaping the\nFuture of\nHealth Care'
+      : 'Shaping the Future of\nHealth Care';
 
   return (
     <View style={styles.root}>
@@ -45,7 +62,20 @@ export function GetStartedHero({ onSignIn, onTerms, onPrivacy }: GetStartedHeroP
         />
         <View style={styles.panel}>
           <View style={styles.textBlock}>
-            <Text style={styles.headline}>Shaping the Future of{'\n'}Health Care</Text>
+            <Text
+              style={[
+                styles.headline,
+                {
+                  fontSize: headline.fontSize,
+                  lineHeight: headline.lineHeight,
+                  letterSpacing: headline.letterSpacing,
+                },
+              ]}
+              adjustsFontSizeToFit
+              minimumFontScale={0.85}
+              numberOfLines={screenW < 360 ? 3 : 2}>
+              {headlineCopy}
+            </Text>
             <Text style={styles.subtitle}>
               Book your appointments visits faster with the Health Service Office.
             </Text>
@@ -130,15 +160,15 @@ const styles = StyleSheet.create({
   textBlock: {
     gap: 10,
     alignItems: 'center',
+    width: '100%',
+    paddingHorizontal: 4,
   },
   headline: {
     // Weight lives in the font file — don't set fontWeight or iOS/Android may ignore Inter-Medium.
     fontFamily: Inter.medium,
-    fontSize: 42,
     color: '#111111',
-    letterSpacing: -3,
     textAlign: 'center',
-    lineHeight: 46,
+    width: '100%',
   },
   subtitle: {
     fontFamily: Inter.regular,

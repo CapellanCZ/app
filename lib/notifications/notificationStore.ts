@@ -191,7 +191,14 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
       onInsert: (row) => {
         const item = toNotificationItem(row);
         get().prependItem(item);
-        toastFromNotification(item);
+        // Queue milestones also raise a local OS banner (in + out of app when allowed).
+        toastFromNotification(item, {
+          alsoLocalOsAlert:
+            item.title.toLowerCase().includes('your turn') ||
+            item.title.toLowerCase().includes("you're next") ||
+            item.title.toLowerCase().includes('youre next') ||
+            item.title.toLowerCase().includes('in queue'),
+        });
       },
     }),
 

@@ -3,19 +3,11 @@
 /**
  * send-push — Supabase Edge Function
  *
- * Triggered by a Database Webhook on INSERT into `public.notifications`.
- * Fetches all device tokens for the row's user and sends an Expo push.
+ * Triggered by a DB trigger (pg_net) or Database Webhook on INSERT into
+ * `public.notifications`. Sends Expo push to all device tokens for that user.
  *
- * Dashboard setup:
- *   1. Deploy:  supabase functions deploy send-push --no-verify-jwt
- *   2. Add secrets:
- *        supabase secrets set SUPABASE_SERVICE_ROLE_KEY=...
- *        supabase secrets set SUPABASE_URL=https://<ref>.supabase.co
- *   3. Database → Webhooks → Create
- *        - Table: notifications
- *        - Events: Insert
- *        - HTTP POST to:  https://<ref>.functions.supabase.co/send-push
- *        - HTTP Headers:  Authorization: Bearer <anon-or-service-key>
+ * Deploy with verify_jwt disabled so pg_net can call it without a user JWT
+ * (same pattern as send-appointment-email).
  */
 
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
@@ -24,19 +16,22 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 type NotificationRow = {
   id: string;
   user_id: string;
-  category: string;
+  type?: string;
+  category?: string;
   title: string;
   body: string;
-  href: string;
-  read_at: string | null;
-  created_at: string;
+  href?: string | null;
+  read_at?: string | null;
+  metadata?: Record<string, unknown> | null;
+  created_at?: string;
 };
 
 type WebhookPayload = {
   type: 'INSERT' | 'UPDATE' | 'DELETE';
   table: string;
   record: NotificationRow;
-  old_record: NotificationRow | null;
+  old_record?: NotificationRow | null;
+  schema?: string;
 };
 
 type ExpoPushMessage = {
@@ -48,6 +43,12 @@ type ExpoPushMessage = {
   priority?: 'default' | 'high';
   channelId?: string;
 };
+
+function resolveCategory(row: NotificationRow): string {
+  const meta = row.metadata ?? {};
+  const fromMeta = typeof meta.category === 'string' ? meta.category : null;
+  return fromMeta ?? row.category ?? row.type ?? 'health';
+}
 
 Deno.serve(async (req: Request) => {
   if (req.method !== 'POST') {
@@ -74,6 +75,11 @@ Deno.serve(async (req: Request) => {
   }
 
   const row = payload.record;
+  if (!row.user_id || !row.title) {
+    return new Response(JSON.stringify({ skipped: true, reason: 'incomplete row' }), {
+      headers: { 'content-type': 'application/json' },
+    });
+  }
 
   const admin = createClient(SUPABASE_URL, SERVICE_ROLE, {
     auth: { autoRefreshToken: false, persistSession: false },
@@ -95,17 +101,23 @@ Deno.serve(async (req: Request) => {
     });
   }
 
+  const category = resolveCategory(row);
   const messages: ExpoPushMessage[] = tokens.map((t: any) => ({
     to: t.expo_token,
     title: row.title,
     body: row.body,
-    data: { href: row.href, notificationId: row.id, category: row.category },
+    data: {
+      href: row.href ?? null,
+      notificationId: row.id,
+      category,
+      type: row.type ?? null,
+      queue_milestone: row.metadata?.queue_milestone ?? null,
+    },
     sound: 'default',
     priority: 'high',
     channelId: 'default',
   }));
 
-  // Expo accepts batches of up to 100 messages.
   const batches: ExpoPushMessage[][] = [];
   for (let i = 0; i < messages.length; i += 100) batches.push(messages.slice(i, i + 100));
 
@@ -115,7 +127,7 @@ Deno.serve(async (req: Request) => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Accept': 'application/json',
+        Accept: 'application/json',
         'Accept-Encoding': 'gzip, deflate',
       },
       body: JSON.stringify(batch),
@@ -123,7 +135,6 @@ Deno.serve(async (req: Request) => {
     const json = await res.json().catch(() => null);
     results.push(json);
 
-    // Clean up dead tokens reported by Expo.
     if (Array.isArray(json?.data)) {
       for (let i = 0; i < json.data.length; i++) {
         const ticket = json.data[i];

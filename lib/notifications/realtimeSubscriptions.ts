@@ -7,12 +7,15 @@ type RefCountedSubscription = {
   count: number;
   cleanup: (() => void) | null;
   userId: string | null;
+  /** Always point at the latest handlers — first acquire must not freeze stale closures. */
+  handlers: NotificationsRealtimeHandlers | null;
 };
 
 const notificationsSubscription: RefCountedSubscription = {
   count: 0,
   cleanup: null,
   userId: null,
+  handlers: null,
 };
 
 function removeStaleChannel(client: SupabaseClient, channelName: string) {
@@ -30,6 +33,7 @@ function releaseSlot(slot: RefCountedSubscription) {
     slot.cleanup();
     slot.cleanup = null;
     slot.userId = null;
+    slot.handlers = null;
   }
 }
 
@@ -56,8 +60,8 @@ export function acquireNotificationsSubscription(
   handlers: NotificationsRealtimeHandlers | (() => void),
 ): () => void {
   // Back-compat: older callers passed a bare onChange function.
-  const onChange = typeof handlers === 'function' ? handlers : handlers.onChange;
-  const onInsert = typeof handlers === 'function' ? undefined : handlers.onInsert;
+  const normalized: NotificationsRealtimeHandlers =
+    typeof handlers === 'function' ? { onChange: handlers } : handlers;
 
   if (!isSupabaseConfigured || !supabase) {
     return () => {};
@@ -71,17 +75,22 @@ export function acquireNotificationsSubscription(
     notificationsSubscription.cleanup();
     notificationsSubscription.cleanup = null;
     notificationsSubscription.count = 0;
+    notificationsSubscription.handlers = null;
   }
 
   notificationsSubscription.count += 1;
   notificationsSubscription.userId = userId;
+  // Keep latest handlers so toast/onInsert never sticks to a dead acquire.
+  notificationsSubscription.handlers = normalized;
 
   if (!notificationsSubscription.cleanup) {
     const client = supabase;
     const channelName = `notifications:${userId}`;
     removeStaleChannel(client, channelName);
 
-    const debouncedChange = debounce(onChange, 350);
+    const debouncedChange = debounce(() => {
+      notificationsSubscription.handlers?.onChange();
+    }, 350);
 
     const channel = client
       .channel(channelName, {
@@ -99,8 +108,8 @@ export function acquireNotificationsSubscription(
         },
         (payload) => {
           const row = payload.new as NotificationRow | undefined;
-          if (row?.id && onInsert) {
-            onInsert(row);
+          if (row?.id) {
+            notificationsSubscription.handlers?.onInsert?.(row);
           }
           debouncedChange();
         },
@@ -125,7 +134,13 @@ export function acquireNotificationsSubscription(
         },
         () => debouncedChange(),
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('[notifications] realtime subscribed');
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.warn('[notifications] realtime status:', status);
+        }
+      });
 
     notificationsSubscription.cleanup = () => {
       void client.removeChannel(channel);
