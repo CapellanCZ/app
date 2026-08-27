@@ -1,12 +1,5 @@
 import { forwardRef, ReactNode, useCallback, useImperativeHandle, useState } from 'react';
-import {
-  KeyboardAvoidingView,
-  LayoutChangeEvent,
-  Platform,
-  Pressable,
-  StyleSheet,
-  View,
-} from 'react-native';
+import { LayoutChangeEvent, Pressable, StyleSheet, View } from 'react-native';
 import Animated, {
   Easing,
   runOnJS,
@@ -15,6 +8,7 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
+import { useReanimatedKeyboardAnimation } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type Props = {
@@ -37,6 +31,9 @@ export type BottomSheetModalHandle = {
  * Custom bottom sheet modal powered by react-native-reanimated.
  * All animations run on the UI thread so a heavy React tree won't drop frames.
  *
+ * Keyboard: rides above the soft keyboard on iOS + Android via
+ * `useReanimatedKeyboardAnimation` (same approach as the booking sheet).
+ *
  * Flow:
  * 1. Sheet mounts hidden (opacity 0) while offscreen at translateY 1000.
  * 2. onLayout fires with the real height → translateY snaps to that height
@@ -54,10 +51,13 @@ export const BottomSheetModal = forwardRef<BottomSheetModalHandle, Props>(functi
   ref,
 ) {
   const insets = useSafeAreaInsets();
+  const { height: keyboardHeight } = useReanimatedKeyboardAnimation();
   const translateY = useSharedValue(1000);
   const sheetOpacity = useSharedValue(0);
   const backdropOpacity = useSharedValue(0);
   const [measured, setMeasured] = useState(false);
+
+  const closedBottomPad = Math.max(insets.bottom, 12) + bottomPadding;
 
   const handleLayout = useCallback(
     (e: LayoutChangeEvent) => {
@@ -97,28 +97,17 @@ export const BottomSheetModal = forwardRef<BottomSheetModalHandle, Props>(functi
 
   useImperativeHandle(ref, () => ({ dismiss: handleDismiss }), [handleDismiss]);
 
-  const sheetStyle = useAnimatedStyle(() => ({
-    opacity: sheetOpacity.value,
-    transform: [{ translateY: translateY.value }],
-  }));
+  const sheetStyle = useAnimatedStyle(() => {
+    // `height` is ≤ 0 while the keyboard is open (library convention).
+    const kbLift = -keyboardHeight.value;
+    return {
+      opacity: sheetOpacity.value,
+      paddingBottom: kbLift > 10 ? 12 : closedBottomPad,
+      transform: [{ translateY: translateY.value - Math.max(0, kbLift) }],
+    };
+  });
 
   const backdropStyle = useAnimatedStyle(() => ({ opacity: backdropOpacity.value }));
-
-  const sheet = (
-    <Animated.View
-      onLayout={handleLayout}
-      style={[
-        styles.sheet,
-        {
-          backgroundColor,
-          paddingBottom: Math.max(insets.bottom, 12) + bottomPadding,
-        },
-        sheetStyle,
-      ]}>
-      <View style={styles.handle} />
-      {children}
-    </Animated.View>
-  );
 
   return (
     <View style={styles.root}>
@@ -131,16 +120,18 @@ export const BottomSheetModal = forwardRef<BottomSheetModalHandle, Props>(functi
         />
       </Animated.View>
 
-      {/* Keep a stable wrapper so children (e.g. check animation) don’t remount mid-open. */}
-      {Platform.OS === 'ios' ? (
-        <KeyboardAvoidingView behavior="padding" pointerEvents="box-none" style={styles.keyboardWrap}>
-          {sheet}
-        </KeyboardAvoidingView>
-      ) : (
-        <View pointerEvents="box-none" style={styles.keyboardWrap}>
-          {sheet}
-        </View>
-      )}
+      <View pointerEvents="box-none" style={styles.keyboardWrap}>
+        <Animated.View
+          onLayout={handleLayout}
+          style={[
+            styles.sheet,
+            { backgroundColor },
+            sheetStyle,
+          ]}>
+          <View style={styles.handle} />
+          {children}
+        </Animated.View>
+      </View>
     </View>
   );
 });
