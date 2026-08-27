@@ -2,7 +2,7 @@ import { Platform } from 'react-native';
 
 /** Visible white bar height on Android (excludes safe-area inset). */
 export const ANDROID_TAB_BAR_HEIGHT = 64;
-/** How far the center FAB sticks above the Android bar top. */
+/** How far the center FAB sticks above the Android bar top (centers on the cutout). */
 export const ANDROID_TAB_FAB_OVERHANG = 28;
 
 /**

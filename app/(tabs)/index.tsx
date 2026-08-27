@@ -265,7 +265,7 @@ export default function HealthServiceScreen() {
 
         {/* Vitals */}
         <View style={{ gap: 12 }}>
-          <SectionTitle>Your Vitals</SectionTitle>
+          <SectionTitle>Your Recent Vitals</SectionTitle>
           <HomeVitalsRow
             bloodPressure={vitals.bloodPressure}
             heartRate={vitals.heartRate}

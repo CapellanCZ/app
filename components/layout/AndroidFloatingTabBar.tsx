@@ -12,12 +12,24 @@ import {
 import { Inter } from '@/lib/typography/inter';
 
 const FAB_SIZE = 56;
-const NOTCH_RADIUS = 38;
-const ACTIVE = '#2970FF';
+/** Clear gap between the FAB edge and the circular cutout. */
+const FAB_GAP = 12;
+/** Circular notch radius = button radius + breathing room. */
+const NOTCH_RADIUS = FAB_SIZE / 2 + FAB_GAP;
+/** Softens only the sharp lip where the flat top meets the cutout. */
+const LIP_R = 11;
+/** Soft sky blue — matches home “Upcoming Appointments” card (`#D3E9FA`). */
+const SOFT_BLUE = '#D3E9FA';
+/** Slightly deeper soft blue for focused middle button. */
+const SOFT_BLUE_FOCUSED = '#8FC4E8';
+/** Readable soft blue for active Home / Profile. */
+const ACTIVE = '#6BAED6';
 const INACTIVE = '#B0B3B8';
+/** Plus mark on the light FAB — mid soft blue (between dark navy and white). */
+const FAB_ICON = '#5A9BC4';
 
 function PlusIcon({ color = '#FFFFFF', size = 28 }: { color?: string; size?: number }) {
-  const stroke = Math.max(2.5, size * 0.1);
+  const stroke = Math.max(2, size * 0.075);
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Path
@@ -31,7 +43,30 @@ function PlusIcon({ color = '#FFFFFF', size = 28 }: { color?: string; size?: num
 }
 
 /**
- * Android floating tab bar — white bar with center notch + blue FAB (+).
+ * Dock silhouette: flat outer edges + circular FAB cutout with smooth lips only.
+ */
+function buildDockPath(width: number, height: number, cx: number): string {
+  const r = NOTCH_RADIUS;
+  const lip = LIP_R;
+
+  return [
+    `M0,0`,
+    `H${cx - r - lip}`,
+    // Left lip — rounds the sharp join into the cutout
+    `A${lip} ${lip} 0 0 1 ${cx - r},${lip}`,
+    // Main circular cutout
+    `A${r} ${r} 0 0 0 ${cx + r},${lip}`,
+    // Right lip
+    `A${lip} ${lip} 0 0 1 ${cx + r + lip},0`,
+    `H${width}`,
+    `V${height}`,
+    `H0`,
+    `Z`,
+  ].join(' ');
+}
+
+/**
+ * Android floating tab bar — white bar with smooth center notch + blue FAB (+).
  * Matches the common cutout dock pattern (Home · Book · Profile).
  */
 export function AndroidFloatingTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
@@ -42,17 +77,7 @@ export function AndroidFloatingTabBar({ state, descriptors, navigation }: Bottom
   const totalHeight = barHeight + ANDROID_TAB_FAB_OVERHANG;
 
   const cx = width / 2;
-  const nr = NOTCH_RADIUS;
-  // Circular concave notch along the top edge (reference dock shape).
-  const notchPath = `
-    M0 0
-    H${cx - nr}
-    A${nr} ${nr} 0 0 0 ${cx + nr} 0
-    H${width}
-    V${barHeight}
-    H0
-    Z
-  `;
+  const notchPath = buildDockPath(width, barHeight, cx);
 
   const routes = state.routes;
   const home = routes.find((r) => r.name === 'index');
@@ -85,7 +110,7 @@ export function AndroidFloatingTabBar({ state, descriptors, navigation }: Bottom
         bottom: 0,
         height: totalHeight,
       }}>
-      {/* White dock with center cutout */}
+      {/* White dock with smooth cutout */}
       <View
         style={{
           position: 'absolute',
@@ -102,25 +127,10 @@ export function AndroidFloatingTabBar({ state, descriptors, navigation }: Bottom
           <Path
             d={notchPath}
             fill="#FFFFFF"
+            stroke="#E5E5E5"
+            strokeWidth={1}
           />
         </Svg>
-        {/* Shadow layer behind SVG (Android elevation needs opaque view) */}
-        <View
-          pointerEvents="none"
-          style={{
-            position: 'absolute',
-            left: 0,
-            right: 0,
-            top: 0,
-            bottom: 0,
-            backgroundColor: 'transparent',
-            elevation: 16,
-            shadowColor: '#000',
-            shadowOpacity: 0.12,
-            shadowRadius: 12,
-            shadowOffset: { width: 0, height: -4 },
-          }}
-        />
 
         {/* Side tabs */}
         <View
@@ -146,7 +156,7 @@ export function AndroidFloatingTabBar({ state, descriptors, navigation }: Bottom
               gap: 4,
               opacity: pressed ? 0.85 : 1,
             })}
-            android_ripple={{ color: 'rgba(41,112,255,0.12)', borderless: true, radius: 36 }}>
+            android_ripple={{ color: 'rgba(107,174,214,0.18)', borderless: true, radius: 36 }}>
             <IconsaxHomeTabIcon focused={homeFocused} size={24} />
             <Text
               style={{
@@ -159,8 +169,8 @@ export function AndroidFloatingTabBar({ state, descriptors, navigation }: Bottom
             </Text>
           </Pressable>
 
-          {/* Spacer for FAB / notch */}
-          <View style={{ width: NOTCH_RADIUS * 2 + 24 }} pointerEvents="none" />
+          {/* Spacer matches circular cutout + lips */}
+          <View style={{ width: (NOTCH_RADIUS + LIP_R) * 2 + 8 }} pointerEvents="none" />
 
           <Pressable
             accessibilityRole="button"
@@ -176,7 +186,7 @@ export function AndroidFloatingTabBar({ state, descriptors, navigation }: Bottom
               gap: 4,
               opacity: pressed ? 0.85 : 1,
             })}
-            android_ripple={{ color: 'rgba(41,112,255,0.12)', borderless: true, radius: 36 }}>
+            android_ripple={{ color: 'rgba(107,174,214,0.18)', borderless: true, radius: 36 }}>
             <IconsaxProfileTabIcon focused={profileFocused} size={24} />
             <Text
               style={{
@@ -191,14 +201,14 @@ export function AndroidFloatingTabBar({ state, descriptors, navigation }: Bottom
         </View>
       </View>
 
-      {/* Center floating + */}
+      {/* Center floating + — sits slightly below the bar top inside the cutout */}
       <View
         pointerEvents="box-none"
         style={{
           position: 'absolute',
           left: 0,
           right: 0,
-          top: 0,
+          top: ANDROID_TAB_FAB_OVERHANG - FAB_SIZE / 2 + 8,
           alignItems: 'center',
         }}>
         <Pressable
@@ -206,30 +216,25 @@ export function AndroidFloatingTabBar({ state, descriptors, navigation }: Bottom
           accessibilityState={{ selected: bookFocused }}
           accessibilityLabel="Book"
           onPress={() => book && go('book', book.key, bookFocused)}
-          hitSlop={12}
+          hitSlop={14}
           style={({ pressed }) => ({
             alignItems: 'center',
             justifyContent: 'center',
-            width: FAB_SIZE + 16,
-            height: FAB_SIZE + 16,
+            width: FAB_SIZE,
+            height: FAB_SIZE,
             opacity: pressed ? 0.9 : 1,
           })}
-          android_ripple={{ color: 'rgba(255,255,255,0.25)', borderless: true, radius: 40 }}>
+          android_ripple={{ color: 'rgba(47,111,154,0.18)', borderless: true, radius: 40 }}>
           <View
             style={{
               width: FAB_SIZE,
               height: FAB_SIZE,
               borderRadius: FAB_SIZE / 2,
-              backgroundColor: ACTIVE,
+              backgroundColor: bookFocused ? SOFT_BLUE_FOCUSED : SOFT_BLUE,
               alignItems: 'center',
               justifyContent: 'center',
-              elevation: 8,
-              shadowColor: ACTIVE,
-              shadowOpacity: 0.35,
-              shadowRadius: 10,
-              shadowOffset: { width: 0, height: 4 },
             }}>
-            <PlusIcon color="#FFFFFF" size={28} />
+            <PlusIcon color={FAB_ICON} size={28} />
           </View>
         </Pressable>
       </View>
