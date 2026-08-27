@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { Pressable, Text, TextInput, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import Animated, {
   FadeInLeft,
   FadeInRight,
@@ -10,6 +10,7 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 
+import { FocusableTextInput } from '@/components/ui/FocusableTextInput';
 import { SCHEDULE_PARTNER } from '../../lib/health-service/bookingScheduleTheme';
 import { IconsaxArrowLeftIcon } from '../icons/IconsaxArrowLeftIcon';
 import { IconsaxArrowRightIcon } from '../icons/IconsaxArrowRightIcon';
@@ -393,16 +394,14 @@ export function HealthBookingFeelingGroup({
       </View>
 
       <Text className="mt-6 text-lg font-semibold text-[#1F2024]">Additional comments</Text>
-      <TextInput
+      <FocusableTextInput
         accessibilityLabel="Additional comments for your visit"
         value={comments}
         onChangeText={onCommentsChange}
         placeholder="Anything else we should know before your visit?"
-        placeholderTextColor="#8F9098"
         multiline
         textAlignVertical="top"
-        className="mt-2 rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm text-[#1F2024]"
-        style={{ minHeight: 104 }}
+        style={{ marginTop: 8, minHeight: 104 }}
       />
     </View>
   );

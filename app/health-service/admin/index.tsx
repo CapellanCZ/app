@@ -1,5 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View, RefreshControl } from 'react-native';
+import {
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+  RefreshControl,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 
@@ -10,10 +19,19 @@ import { IconsaxTimerIcon } from '../../../components/icons/IconsaxTimerIcon';
 import { healthServiceApi } from '../../../lib/health-service/healthServiceApi';
 import { supabase } from '../../../lib/supabase';
 import type { QueueTicket, Appointment } from '../../../lib/health-service/types';
+import {
+  INPUT_BRAND,
+  INPUT_FIELD_BG,
+  INPUT_PLACEHOLDER,
+  INPUT_TEXT,
+  inputFieldBase,
+  inputFieldFocused,
+} from '../../../lib/ui/inputFocus';
 
 export default function HealthServiceAdminScreen() {
   const insets = useSafeAreaInsets();
   const [ticketCode, setTicketCode] = useState('');
+  const [codeFocused, setCodeFocused] = useState(false);
   const [activeTickets, setActiveTickets] = useState<QueueTicket[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -168,17 +186,25 @@ export default function HealthServiceAdminScreen() {
           </Text>
           
           <View style={styles.checkInContainer}>
-            <View style={styles.inputContainer}>
-              <IconsaxSearchIcon size={20} color="#6B7280" />
+            <View
+              style={[
+                styles.inputContainer,
+                codeFocused ? inputFieldFocused : null,
+              ]}>
+              <IconsaxSearchIcon size={20} color={codeFocused ? INPUT_BRAND : '#6B7280'} />
               <TextInput
                 style={styles.input}
                 placeholder="Enter check-in code"
+                placeholderTextColor={INPUT_PLACEHOLDER}
+                selectionColor={INPUT_BRAND}
                 value={ticketCode}
                 onChangeText={setTicketCode}
                 autoCapitalize="none"
                 autoCorrect={false}
                 returnKeyType="done"
                 onSubmitEditing={handleCheckIn}
+                onFocus={() => setCodeFocused(true)}
+                onBlur={() => setCodeFocused(false)}
               />
             </View>
             
@@ -289,18 +315,18 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F9FAFB',
-    borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
     gap: 12,
+    ...inputFieldBase,
+    backgroundColor: INPUT_FIELD_BG,
+    borderRadius: 16,
   },
   input: {
     flex: 1,
     fontSize: 16,
-    color: '#1F2937',
+    color: INPUT_TEXT,
+    padding: 0,
   },
   checkInButton: {
     flexDirection: 'row',

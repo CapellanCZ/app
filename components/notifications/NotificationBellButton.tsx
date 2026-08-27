@@ -1,7 +1,6 @@
 import { memo } from 'react';
-import { View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Pressable } from 'react-native-gesture-handler';
 
 import { IconsaxNotificationIcon } from '@/components/icons/IconsaxNotificationIcon';
 import { useNotificationStore } from '@/lib/notifications/notificationStore';
@@ -12,7 +11,6 @@ type Props = {
   size?: number;
   iconColor?: string;
   backgroundColor?: string;
-  className?: string;
 };
 
 /**
@@ -23,7 +21,6 @@ export const NotificationBellButton = memo(function NotificationBellButton({
   size = 48,
   iconColor = '#090808',
   backgroundColor = '#FFFFFF',
-  className,
 }: Props) {
   const { push } = useRouter();
   const hasUnread = useNotificationStore((s) => s.unreadCount > 0);
@@ -33,7 +30,6 @@ export const NotificationBellButton = memo(function NotificationBellButton({
       accessibilityRole="button"
       accessibilityLabel="Notifications"
       onPress={() => push(ROUTES.notifications)}
-      className={className}
       {...androidPressProps({ borderless: true, hitSlop: 8 })}
       style={({ pressed }) => ({
         width: size,

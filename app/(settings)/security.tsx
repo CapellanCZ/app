@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { ScreenNavbar } from '@/components/ScreenNavbar';
+import { FocusableTextInput } from '@/components/ui/FocusableTextInput';
 import { SCHEDULE_PARTNER } from '@/lib/health-service/bookingScheduleTheme';
 
 const BRAND = SCHEDULE_PARTNER.brand;
@@ -31,21 +32,14 @@ function PasswordField({
         }}>
         {label}
       </Text>
-      <TextInput
+      <FocusableTextInput
         value={value}
         onChangeText={onChange}
         secureTextEntry
         placeholder={placeholder ?? '••••••••'}
-        placeholderTextColor={SCHEDULE_PARTNER.textDisabled}
         style={{
-          backgroundColor: SCHEDULE_PARTNER.surface,
-          borderWidth: 1,
-          borderColor: SCHEDULE_PARTNER.borderCell,
-          borderRadius: 10,
           paddingVertical: 12,
-          paddingHorizontal: 14,
           fontSize: 15,
-          color: SCHEDULE_PARTNER.textPrimary,
         }}
       />
     </View>

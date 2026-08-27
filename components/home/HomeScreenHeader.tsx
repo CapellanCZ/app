@@ -56,7 +56,6 @@ export function HomeScreenHeader({
       <NotificationBellButton
         iconColor={ICON_MUTED}
         backgroundColor="#FDFDFD"
-        className="active:opacity-70"
       />
 
       <Pressable

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  Keyboard,
   Pressable,
   StyleSheet,
   Text,
@@ -15,7 +16,14 @@ import { AppButton } from '@/components/ui/AppButton';
 import { AppInput } from '@/components/ui/AppInput';
 import { BottomSheetModal, type BottomSheetModalHandle } from '@/components/ui/BottomSheetModal';
 import { IconsaxEnvelopeIcon } from '@/components/icons/IconsaxEnvelopeIcon';
-import { isValidEmail, RESEND_COOLDOWN_SECONDS } from '@/lib/auth/constants';
+import { EmailDomainSuggestions } from '@/components/auth/EmailDomainSuggestions';
+import {
+  applySchoolEmailDomain,
+  isValidEmail,
+  matchingSchoolEmailDomains,
+  RESEND_COOLDOWN_SECONDS,
+} from '@/lib/auth/constants';
+import { Inter } from '@/lib/typography/inter';
 
 type Step = 'email' | 'verify';
 
@@ -34,6 +42,7 @@ export default function Login() {
   const [verifying, setVerifying] = useState(false);
   const [otpError, setOtpError] = useState(false);
   const [otpCode, setOtpCode] = useState('');
+  const otpCodeRef = useRef('');
   const [cooldown, setCooldown] = useState(0);
   const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -72,6 +81,7 @@ export default function Login() {
     const trimmed = email.trim().toLowerCase();
     if (!trimmed) { setFieldError('Please enter your school email.'); return; }
     if (!isValidEmail(trimmed)) { setFieldError('Please enter a valid email address.'); return; }
+    Keyboard.dismiss();
     setLoading(true);
     const result = await apiSendOtp(trimmed);
     setLoading(false);
@@ -80,17 +90,49 @@ export default function Login() {
     setCooldown(RESEND_COOLDOWN_SECONDS);
   }, [email]);
 
+  const handleOtpChange = useCallback((code: string) => {
+    otpCodeRef.current = code;
+    setOtpCode(code);
+  }, []);
+
   const handleVerify = useCallback(async (code: string) => {
     if (!isMountedRef.current) return;
+    const token = code.replace(/\D/g, '').slice(0, 6);
+    if (token.length !== 6) {
+      setError({ tone: 'warning', message: 'Enter the 6-digit code from your email.' });
+      return;
+    }
+
     setVerifying(true);
     setOtpError(false);
     setError(null);
-    const result = await apiVerifyOtp(email.trim().toLowerCase(), code);
-    if (!isMountedRef.current) return;
-    setVerifying(false);
-    if (!result.ok) { setOtpError(true); setError({ tone: 'error', message: result.message }); }
+    Keyboard.dismiss();
+    try {
+      const result = await apiVerifyOtp(email.trim().toLowerCase(), token);
+      if (!isMountedRef.current) return;
+      if (!result.ok) {
+        setVerifying(false);
+        setOtpError(true);
+        otpCodeRef.current = '';
+        setOtpCode('');
+        setError({ tone: 'error', message: result.message });
+        return;
+      }
+      // Keep loading until AuthProvider redirects after session + enrollment resolve.
+    } catch {
+      if (!isMountedRef.current) return;
+      setVerifying(false);
+      setOtpError(true);
+      otpCodeRef.current = '';
+      setOtpCode('');
+      setError({ tone: 'error', message: 'Something went wrong. Please try again.' });
+    }
   }, [email]);
 
+  const handleContinue = useCallback(() => {
+    const code = otpCodeRef.current || otpCode;
+    void handleVerify(code);
+  }, [handleVerify, otpCode]);
   const handleResend = useCallback(async () => {
     if (cooldown > 0) return;
     setError(null);
@@ -98,6 +140,16 @@ export default function Login() {
     setCooldown(RESEND_COOLDOWN_SECONDS);
     await apiSendOtp(email.trim().toLowerCase());
   }, [email, cooldown]);
+
+  const domainSuggestions = matchingSchoolEmailDomains(email);
+
+  const handleDomainSelect = useCallback((domain: string) => {
+    const next = applySchoolEmailDomain(email, domain);
+    if (!next) return;
+    setEmail(next);
+    setError(null);
+    setFieldError(null);
+  }, [email]);
 
   return (
     <BottomSheetModal
@@ -117,29 +169,32 @@ export default function Login() {
 
               {error ? <AuthErrorBanner message={error.message} tone={error.tone} /> : null}
 
-              <AppInput
-                error={fieldError ?? undefined}
-                inputType="email"
-                placeholder="johndoe@students.nu-dasma.edu.ph"
-                autoCapitalize="none"
-                autoCorrect={false}
-                autoComplete="email"
-                textContentType="emailAddress"
-                importantForAutofill="yes"
-                clearButtonMode="while-editing"
-                keyboardType="email-address"
-                value={email}
-                onChangeText={(v) => { setEmail(v); setError(null); setFieldError(null); }}
-                prefix={<IconsaxEnvelopeIcon size={20} color="#717680" />}
-                prefixDivider
-                fieldStyle={{ paddingRight: 8 }}
-              />
-
+              <View style={styles.emailField}>
+                <AppInput
+                  error={fieldError ?? undefined}
+                  inputType="email"
+                  placeholder="johndoe@students.nu-dasma.edu.ph"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  autoComplete="email"
+                  textContentType="emailAddress"
+                  importantForAutofill="yes"
+                  clearButtonMode="while-editing"
+                  keyboardType="email-address"
+                  value={email}
+                  onChangeText={(v) => { setEmail(v); setError(null); setFieldError(null); }}
+                  prefix={<IconsaxEnvelopeIcon size={18} color="#6C6C6C" />}
+                />
+                <EmailDomainSuggestions
+                  domains={domainSuggestions}
+                  onSelect={handleDomainSelect}
+                />
+              </View>
               <AppButton
                 label="Send One-Time Password"
                 onPress={handleSend}
                 loading={loading}
-                variant="primary"
+                variant="dark"
                 disabled={!email.trim()}
               />
             </View>
@@ -152,7 +207,7 @@ export default function Login() {
                 <Text style={styles.title}>Check your email or spam to continue</Text>
                 <Text style={styles.subtitle}>
                   {'We sent a temporary login code to '}
-                  <Text style={{ fontWeight: '500', color: '#181D27' }}>
+                  <Text style={styles.subtitleEmphasis}>
                     {email.trim().toLowerCase()}
                   </Text>
                 </Text>
@@ -163,7 +218,7 @@ export default function Login() {
               <View style={styles.otpBlock}>
                 <OtpCodeInput
                   onComplete={handleVerify}
-                  onChange={setOtpCode}
+                  onChange={handleOtpChange}
                   disabled={verifying}
                   hasError={otpError}
                 />
@@ -172,13 +227,19 @@ export default function Login() {
               <View style={{ gap: 4 }}>
                 <AppButton
                   label="Continue"
-                  onPress={() => { if (otpCode.length === 6) handleVerify(otpCode); }}
+                  onPress={handleContinue}
                   loading={verifying}
-                  variant="primary"
-                  disabled={otpCode.length !== 6}
+                  variant="dark"
+                  disabled={otpCode.length !== 6 || verifying}
                 />
                 <Pressable
-                  onPress={() => { setStep('email'); setError(null); setOtpError(false); setOtpCode(''); }}
+                  onPress={() => {
+                    setStep('email');
+                    setError(null);
+                    setOtpError(false);
+                    otpCodeRef.current = '';
+                    setOtpCode('');
+                  }}
                   style={styles.notMeBtn}
                   hitSlop={8}>
                   <Text style={styles.notMeLabel}>Not me</Text>
@@ -209,61 +270,62 @@ const styles = StyleSheet.create({
   content: {
     gap: 20,
     paddingHorizontal: 4,
-    paddingTop: 20,
+    paddingTop: 8,
+  },
+  emailField: {
+    gap: 10,
   },
   textBlock: {
     gap: 8,
     marginBottom: 4,
   },
   title: {
-    fontSize: 32,
-    fontWeight: '700',
-    letterSpacing: -0.64,
-    color: '#181D27',
-    lineHeight: 40,
+    fontFamily: Inter.semiBold,
+    fontSize: 22,
+    letterSpacing: -1.2,
+    color: '#111111',
+    lineHeight: 28,
   },
   subtitle: {
+    fontFamily: Inter.regular,
     fontSize: 16,
-    fontWeight: '400',
-    letterSpacing: -0.32,
-    color: '#717680',
-    lineHeight: 24,
+    letterSpacing: -0.64,
+    color: '#6C6C6C',
+    lineHeight: 22,
+  },
+  subtitleEmphasis: {
+    fontFamily: Inter.medium,
+    color: '#111111',
   },
   otpBlock: {
     alignItems: 'center',
     paddingVertical: 4,
   },
-  verifyingRow: {
-    alignItems: 'center',
-    paddingVertical: 8,
-    gap: 6,
-  },
-  verifyingLabel: {
-    fontSize: 13,
-    color: '#535862',
-  },
   resendRow: {
     alignItems: 'center',
   },
   resendCountdown: {
-    fontSize: 12,
-    color: '#A4A7AE',
-    letterSpacing: -0.24,
-    lineHeight: 14,
+    fontFamily: Inter.regular,
+    fontSize: 14,
+    color: '#A7A7A7',
+    letterSpacing: -0.28,
+    lineHeight: 20,
   },
   resendCountdownTimer: {
-    color: '#535862',
+    fontFamily: Inter.medium,
+    color: '#6C6C6C',
   },
   resendFooter: {
-    fontSize: 12,
-    color: '#A4A7AE',
-    letterSpacing: -0.24,
-    lineHeight: 14,
+    fontFamily: Inter.regular,
+    fontSize: 14,
+    color: '#A7A7A7',
+    letterSpacing: -0.28,
+    lineHeight: 20,
   },
   resendLink: {
-    fontSize: 12,
-    color: '#535862',
-    textDecorationLine: 'underline',
+    fontFamily: Inter.medium,
+    fontSize: 14,
+    color: '#2970FF',
   },
   notMeBtn: {
     height: 48,
@@ -271,9 +333,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   notMeLabel: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#528BFF',
-    letterSpacing: -0.32,
+    fontFamily: Inter.medium,
+    fontSize: 15,
+    color: '#111111',
+    letterSpacing: -0.3,
   },
 });

@@ -4,10 +4,12 @@ import {
   Image,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
+  Platform,
   Pressable,
   ScrollView,
   Text,
   View,
+  type ViewStyle,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -16,10 +18,25 @@ import { useAnnouncementStore } from '@/lib/announcements/announcementStore';
 import { formatDateLabel, limitSentences } from '@/lib/announcements/announcementsApi';
 import type { Announcement } from '@/lib/announcements/types';
 import { Inter } from '@/lib/typography/inter';
+import { androidPressProps } from '@/lib/ui/androidPress';
 
 const AUTO_MS = 5500;
 /** Figma image frame aspect (306×204). */
 const IMAGE_ASPECT = 306 / 204;
+
+/** Soft ambient shadow — Android elevation is too hard against #F9F9F9. */
+const CARD_SOFT_SHADOW: ViewStyle =
+  Platform.OS === 'android'
+    ? {
+        elevation: 0,
+        boxShadow: '0 6px 20px rgba(0, 0, 0, 0.05)',
+      }
+    : {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.06,
+        shadowRadius: 14,
+      };
 
 /** Fixed copy block so slides never resize with shorter/longer text. */
 const DATE_LINE_HEIGHT = 16;
@@ -55,7 +72,17 @@ function AnnouncementSlide({ item, width, index, total, onReadMore }: SlideProps
   const previewBody = limitSentences(item.body ?? '');
 
   return (
-    <View style={{ width, backgroundColor: '#FFFFFF' }}>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${title}. Read more`}
+      accessibilityHint="Opens the full announcement"
+      onPress={() => onReadMore(item)}
+      {...androidPressProps({ hitSlop: 0 })}
+      style={({ pressed }) => ({
+        width,
+        backgroundColor: '#FFFFFF',
+        opacity: pressed ? 0.92 : 1,
+      })}>
       {/* Hero — full poster visible (contain), Figma 2240:291 */}
       <View
         style={{
@@ -150,23 +177,20 @@ function AnnouncementSlide({ item, width, index, total, onReadMore }: SlideProps
               justifyContent: 'space-between',
               height: FOOTER_HEIGHT,
             }}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Read more"
-              onPress={() => onReadMore(item)}
-              hitSlop={8}>
-              <Text
-                style={{
-                  fontFamily: Inter.regular,
-                  fontSize: 14,
-                  color: '#3C74FF',
-                  letterSpacing: -0.48,
-                }}>
-                Read More →
-              </Text>
-            </Pressable>
+            {/* Visual affordance only — whole card opens the announcement */}
+            <Text
+              style={{
+                fontFamily: Inter.regular,
+                fontSize: 14,
+                color: '#3C74FF',
+                letterSpacing: -0.48,
+              }}>
+              Read More →
+            </Text>
 
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <View
+              pointerEvents="none"
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               {Array.from({ length: Math.max(total, 1) }).map((_, i) => (
                 <View
                   key={`dot-${i}`}
@@ -182,7 +206,7 @@ function AnnouncementSlide({ item, width, index, total, onReadMore }: SlideProps
           </View>
         </View>
       </View>
-    </View>
+    </Pressable>
   );
 }
 
@@ -255,11 +279,7 @@ export function HealthServiceAnnouncementCard() {
           borderRadius: 16,
           backgroundColor: '#FFFFFF',
           padding: 20,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.06,
-          shadowRadius: 12,
-          elevation: 3,
+          ...CARD_SOFT_SHADOW,
         }}>
         <Text style={{ fontFamily: Inter.regular, fontSize: 13, color: '#6C6C6C' }}>
           No announcements right now. Check back soon.
@@ -277,34 +297,32 @@ export function HealthServiceAnnouncementCard() {
       style={{
         borderRadius: 16,
         backgroundColor: '#FFFFFF',
-        overflow: 'hidden',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.08,
-        shadowRadius: 14,
-        elevation: 4,
+        ...CARD_SOFT_SHADOW,
       }}>
-      {width > 0 ? (
-        <ScrollView
-          ref={scrollRef}
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          decelerationRate="fast"
-          onMomentumScrollEnd={onMomentumScrollEnd}
-          keyboardShouldPersistTaps="handled">
-          {items.map((item) => (
-            <AnnouncementSlide
-              key={item.id}
-              item={item}
-              width={width}
-              index={index}
-              total={items.length}
-              onReadMore={onReadMore}
-            />
-          ))}
-        </ScrollView>
-      ) : null}
+      {/* Inner clip so soft shadow isn’t cut off by overflow:hidden */}
+      <View style={{ borderRadius: 16, overflow: 'hidden', backgroundColor: '#FFFFFF' }}>
+        {width > 0 ? (
+          <ScrollView
+            ref={scrollRef}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            decelerationRate="fast"
+            onMomentumScrollEnd={onMomentumScrollEnd}
+            keyboardShouldPersistTaps="handled">
+            {items.map((item) => (
+              <AnnouncementSlide
+                key={item.id}
+                item={item}
+                width={width}
+                index={index}
+                total={items.length}
+                onReadMore={onReadMore}
+              />
+            ))}
+          </ScrollView>
+        ) : null}
+      </View>
     </View>
   );
 }

@@ -4,7 +4,6 @@ import {
   Pressable,
   ScrollView,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import Animated, {
@@ -16,6 +15,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { FocusableTextInput } from '@/components/ui/FocusableTextInput';
 import { IconsaxArrowDownIcon } from '@/components/icons/IconsaxArrowDownIcon';
 import { Inter } from '@/lib/typography/inter';
 
@@ -300,26 +300,16 @@ export function BookingCommentsField({ value, onChange, onFocus, onBlur }: Comme
         Additional comments
         <Text style={{ fontFamily: Inter.regular, color: '#A7A7A7' }}> (optional)</Text>
       </Text>
-      <TextInput
+      <FocusableTextInput
         value={value}
         onChangeText={onChange}
         onFocus={onFocus}
         onBlur={onBlur}
         placeholder="Share symptoms, concerns, or notes for the clinic…"
-        placeholderTextColor="#A7A7A7"
         multiline
         textAlignVertical="top"
         style={{
           minHeight: 96,
-          backgroundColor: CHIP_BG,
-          borderRadius: 16,
-          paddingHorizontal: 14,
-          paddingTop: 14,
-          paddingBottom: 14,
-          fontFamily: Inter.regular,
-          fontSize: 16,
-          color: '#111111',
-          letterSpacing: -0.64,
           lineHeight: 22,
         }}
       />

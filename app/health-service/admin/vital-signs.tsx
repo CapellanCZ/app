@@ -1,11 +1,13 @@
 import { useCallback, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 
 import { ScreenNavbar } from '../../../components/ScreenNavbar';
+import { FocusableTextInput } from '../../../components/ui/FocusableTextInput';
 import { IconsaxHeartIcon } from '../../../components/icons/IconsaxHeartIcon';
 import { healthServiceApi } from '../../../lib/health-service/healthServiceApi';
+import { INPUT_PLACEHOLDER } from '../../../lib/ui/inputFocus';
 
 type VitalSignsForm = {
   bloodPressureSystolic: string;
@@ -116,18 +118,20 @@ export default function VitalSignsScreen() {
           <View style={styles.formGroup}>
             <Text style={styles.label}>Blood Pressure (mmHg) *</Text>
             <View style={styles.bloodPressureContainer}>
-              <TextInput
+              <FocusableTextInput
                 style={[styles.input, styles.bloodPressureInput]}
                 placeholder="120"
+                placeholderTextColor={INPUT_PLACEHOLDER}
                 value={form.bloodPressureSystolic}
                 onChangeText={(value) => updateForm('bloodPressureSystolic', value)}
                 keyboardType="numeric"
                 maxLength={3}
               />
               <Text style={styles.bloodPressureSeparator}>/</Text>
-              <TextInput
+              <FocusableTextInput
                 style={[styles.input, styles.bloodPressureInput]}
                 placeholder="80"
+                placeholderTextColor={INPUT_PLACEHOLDER}
                 value={form.bloodPressureDiastolic}
                 onChangeText={(value) => updateForm('bloodPressureDiastolic', value)}
                 keyboardType="numeric"
@@ -139,7 +143,7 @@ export default function VitalSignsScreen() {
           {/* Heart Rate */}
           <View style={styles.formGroup}>
             <Text style={styles.label}>Heart Rate (bpm) *</Text>
-            <TextInput
+            <FocusableTextInput
               style={styles.input}
               placeholder="72"
               value={form.heartRate}
@@ -152,7 +156,7 @@ export default function VitalSignsScreen() {
           {/* Temperature */}
           <View style={styles.formGroup}>
             <Text style={styles.label}>Temperature (°C)</Text>
-            <TextInput
+            <FocusableTextInput
               style={styles.input}
               placeholder="36.5"
               value={form.temperature}
@@ -165,7 +169,7 @@ export default function VitalSignsScreen() {
           {/* Weight */}
           <View style={styles.formGroup}>
             <Text style={styles.label}>Weight (kg)</Text>
-            <TextInput
+            <FocusableTextInput
               style={styles.input}
               placeholder="65.0"
               value={form.weight}
@@ -178,7 +182,7 @@ export default function VitalSignsScreen() {
           {/* Height */}
           <View style={styles.formGroup}>
             <Text style={styles.label}>Height (cm)</Text>
-            <TextInput
+            <FocusableTextInput
               style={styles.input}
               placeholder="170"
               value={form.height}
@@ -191,7 +195,7 @@ export default function VitalSignsScreen() {
           {/* Oxygen Saturation */}
           <View style={styles.formGroup}>
             <Text style={styles.label}>Oxygen Saturation (%)</Text>
-            <TextInput
+            <FocusableTextInput
               style={styles.input}
               placeholder="98"
               value={form.oxygenSaturation}
@@ -204,7 +208,7 @@ export default function VitalSignsScreen() {
           {/* Notes */}
           <View style={styles.formGroup}>
             <Text style={styles.label}>Additional Notes</Text>
-            <TextInput
+            <FocusableTextInput
               style={[styles.input, styles.notesInput]}
               placeholder="Any additional observations or notes..."
               value={form.notes}
@@ -274,14 +278,8 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   input: {
-    backgroundColor: '#F9FAFB',
-    borderRadius: 8,
-    paddingHorizontal: 12,
+    // Surface/focus come from FocusableTextInput; keep sizing only.
     paddingVertical: 12,
-    fontSize: 16,
-    color: '#1F2937',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
   },
   bloodPressureContainer: {
     flexDirection: 'row',
@@ -298,7 +296,7 @@ const styles = StyleSheet.create({
     color: '#6B7280',
   },
   notesInput: {
-    height: 100,
+    minHeight: 100,
     paddingTop: 12,
   },
   buttonContainer: {

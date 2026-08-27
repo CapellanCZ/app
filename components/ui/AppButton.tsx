@@ -7,6 +7,7 @@ import {
 } from 'react-native';
 
 import { androidPressProps } from '@/lib/ui/androidPress';
+import { Inter } from '@/lib/typography/inter';
 
 const BRAND = '#2970FF';
 const BRAND_DARK = '#155EEF';
@@ -51,8 +52,9 @@ export function AppButton({
       style={({ pressed }) => [
         styles.base,
         isDark ? styles.dark : isPrimary ? styles.primary : styles.secondary,
-        isDisabled &&
-          (isDark || isPrimary ? styles.primaryDisabled : styles.secondaryDisabled),
+        isDisabled && isPrimary ? styles.primaryDisabled : null,
+        isDisabled && isDark ? styles.darkDisabled : null,
+        isDisabled && !isPrimary && !isDark ? styles.secondaryDisabled : null,
         pressed &&
           !isDisabled &&
           (isDark
@@ -62,13 +64,14 @@ export function AppButton({
               : styles.secondaryPressed),
       ]}>
       {loading ? (
-        <ActivityIndicator color={isPrimary || isDark ? '#FFFFFF' : BRAND_DARK} size="small" />
+        <ActivityIndicator color="#FFFFFF" size="small" />
       ) : (
         <Text
           style={[
             styles.label,
-            isDark || isPrimary ? styles.labelPrimary : styles.labelSecondary,
-          ]}>
+            isDark || isPrimary ? styles.labelOnDark : styles.labelSecondary,
+          ]}
+          numberOfLines={1}>
           {label}
         </Text>
       )}
@@ -78,17 +81,18 @@ export function AppButton({
 
 const styles = StyleSheet.create({
   base: {
-    minHeight: 50,
-    height: 50,
-    borderRadius: 26,
+    minHeight: 48,
+    height: 48,
+    borderRadius: 48,
     alignItems: 'center',
     justifyContent: 'center',
-    overflow: 'hidden',
+    paddingHorizontal: 16,
   },
   primary: {
     backgroundColor: BRAND,
     borderWidth: 1,
     borderColor: 'rgba(0,18,41,0.10)',
+    overflow: 'hidden',
   },
   primaryPressed: {
     backgroundColor: '#1D65F5',
@@ -96,10 +100,24 @@ const styles = StyleSheet.create({
   },
   dark: {
     backgroundColor: BLACK,
+    ...(Platform.OS === 'ios'
+      ? {
+          shadowColor: '#C8C8C8',
+          shadowOffset: { width: 0, height: 6 },
+          shadowOpacity: 0.5,
+          shadowRadius: 14,
+        }
+      : { elevation: 0 }),
   },
   darkPressed: {
     backgroundColor: '#222222',
     opacity: Platform.OS === 'android' ? 0.92 : 1,
+  },
+  darkDisabled: {
+    backgroundColor: '#B0B0B0',
+    opacity: 1,
+    shadowOpacity: 0,
+    elevation: 0,
   },
   primaryDisabled: {
     backgroundColor: DISABLED,
@@ -107,6 +125,7 @@ const styles = StyleSheet.create({
   },
   secondary: {
     backgroundColor: BRAND_SOFT,
+    overflow: 'hidden',
   },
   secondaryPressed: {
     backgroundColor: '#EBF0FF',
@@ -116,12 +135,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#F0F0F0',
   },
   label: {
+    fontFamily: Inter.medium,
     fontSize: 16,
-    fontWeight: '600',
     letterSpacing: -0.32,
     ...(Platform.OS === 'android' ? { includeFontPadding: false } : null),
   },
-  labelPrimary: {
+  labelOnDark: {
     color: '#FFFFFF',
   },
   labelSecondary: {

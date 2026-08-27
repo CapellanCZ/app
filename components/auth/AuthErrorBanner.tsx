@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 
 import { IconsaxDangerIcon } from '@/components/icons/IconsaxDangerIcon';
+import { Inter } from '@/lib/typography/inter';
 
 type Tone = 'error' | 'warning';
 
@@ -57,7 +58,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    borderRadius: 12,
+    borderRadius: 16,
     paddingVertical: 12,
     paddingHorizontal: 12,
   },
@@ -70,9 +71,9 @@ const styles = StyleSheet.create({
   },
   message: {
     flex: 1,
-    fontSize: 13,
-    fontWeight: '500',
-    lineHeight: 18,
-    letterSpacing: -0.13,
+    fontFamily: Inter.medium,
+    fontSize: 14,
+    lineHeight: 20,
+    letterSpacing: -0.28,
   },
 });

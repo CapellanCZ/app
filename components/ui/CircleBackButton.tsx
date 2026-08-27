@@ -31,7 +31,7 @@ export function CircleBackButton({ onPress, style }: Props) {
           alignItems: 'center',
           justifyContent: 'center',
           opacity: pressed ? 0.85 : 1,
-          elevation: Platform.OS === 'android' ? 2 : 0,
+          elevation: 0,
         },
         style,
       ]}>

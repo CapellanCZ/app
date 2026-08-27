@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Platform, Pressable, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
 import {
   FigmaBookingsIcon,
@@ -53,7 +53,6 @@ function ActionTile({ label, icon, onPress }: Omit<Action, 'key'>) {
         gap: ICON_LABEL_GAP,
         overflow: 'hidden',
         opacity: pressed ? 0.88 : 1,
-        elevation: Platform.OS === 'android' ? 1 : 0,
       })}>
       <View
         style={{

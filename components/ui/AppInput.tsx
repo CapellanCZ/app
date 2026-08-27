@@ -9,13 +9,19 @@ import {
   ViewStyle,
 } from 'react-native';
 
-const BRAND   = '#2970FF';
-const ERROR   = '#F04438';
-const BORDER  = '#E9EAEB';
-const TEXT    = '#252B37';
-const MUTED   = '#717680';
-const LABEL   = '#414651';
-const BG      = '#FFFFFF';
+import {
+  INPUT_BRAND,
+  INPUT_ERROR,
+  INPUT_PLACEHOLDER,
+  INPUT_TEXT,
+  inputFieldBase,
+  inputFieldError,
+  inputFieldFocused,
+} from '@/lib/ui/inputFocus';
+import { Inter } from '@/lib/typography/inter';
+
+const LABEL = '#6C6C6C';
+const MUTED = INPUT_PLACEHOLDER;
 
 /**
  * Character set presets for the input:
@@ -63,8 +69,7 @@ export type AppInputProps = Omit<TextInputProps, 'style'> & {
 };
 
 /**
- * Reusable text input with prefix/suffix slots, optional dividers,
- * description/error text, and polished focus UX.
+ * Reusable text input — soft chip surface matching booking fields.
  */
 export const AppInput = forwardRef<TextInput, AppInputProps>(function AppInput(
   {
@@ -121,8 +126,8 @@ export const AppInput = forwardRef<TextInput, AppInputProps>(function AppInput(
           ref={ref}
           {...rest}
           editable={isEditable}
-          placeholderTextColor={placeholderTextColor ?? '#A4A7AE'}
-          selectionColor={BRAND}
+          placeholderTextColor={placeholderTextColor ?? INPUT_PLACEHOLDER}
+          selectionColor={INPUT_BRAND}
           style={styles.input}
           onChangeText={handleChangeText}
           onFocus={(e) => {
@@ -176,71 +181,64 @@ export function AppInputSlotButton({
 
 const styles = StyleSheet.create({
   container: {
-    gap: 6,
+    gap: 8,
   },
   label: {
+    fontFamily: Inter.medium,
     fontSize: 14,
-    fontWeight: '500',
     color: LABEL,
-    letterSpacing: -0.14,
+    letterSpacing: -0.28,
   },
   field: {
     flexDirection: 'row',
     alignItems: 'center',
     minHeight: 52,
-    borderWidth: 1,
-    borderColor: BORDER,
-    borderRadius: 12,
-    backgroundColor: BG,
-    paddingHorizontal: 16,
-    gap: 12,
+    paddingHorizontal: 14,
+    gap: 10,
+    ...inputFieldBase,
   },
   fieldFocused: {
-    borderColor: BRAND,
-    borderWidth: 1.5,
-    boxShadow: '0 0 0 3px rgba(41, 112, 255, 0.12)',
+    ...inputFieldFocused,
   },
   fieldError: {
-    borderColor: ERROR,
-    boxShadow: '0 0 0 3px rgba(240, 68, 56, 0.12)',
+    ...inputFieldError,
   },
   fieldDisabled: {
-    backgroundColor: '#F5F5F5',
-    opacity: 0.7,
+    opacity: 0.65,
   },
   slot: {
     alignItems: 'center',
     justifyContent: 'center',
   },
   divider: {
-    width: 1,
+    width: StyleSheet.hairlineWidth,
     alignSelf: 'stretch',
-    marginVertical: 10,
-    backgroundColor: BORDER,
+    marginVertical: 12,
+    backgroundColor: 'rgba(0,0,0,0.08)',
   },
   input: {
     flex: 1,
+    fontFamily: Inter.regular,
     fontSize: 16,
-    fontWeight: '400',
-    lineHeight: 20,
-    color: TEXT,
-    letterSpacing: -0.16,
+    lineHeight: 22,
+    color: INPUT_TEXT,
+    letterSpacing: -0.64,
     padding: 0,
     margin: 0,
     textAlignVertical: 'center',
   },
   description: {
+    fontFamily: Inter.regular,
     fontSize: 14,
-    fontWeight: '400',
     color: MUTED,
-    letterSpacing: -0.14,
+    letterSpacing: -0.28,
     lineHeight: 20,
   },
   error: {
+    fontFamily: Inter.regular,
     fontSize: 14,
-    fontWeight: '400',
-    color: ERROR,
-    letterSpacing: -0.14,
+    color: INPUT_ERROR,
+    letterSpacing: -0.28,
     lineHeight: 20,
   },
 });

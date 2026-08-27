@@ -190,8 +190,9 @@ export default function NotificationsScreen() {
   const pan = useMemo(
     () =>
       Gesture.Pan()
-        .activeOffsetX([-24, 24])
-        .failOffsetY([-12, 12])
+        // Wait for clear horizontal intent so Android row taps / scrolls win first.
+        .activeOffsetX([-28, 28])
+        .failOffsetY([-10, 10])
         .onUpdate((e) => {
           if (reduceMotionSV.value) return;
           dragX.value = e.translationX * 0.35;
