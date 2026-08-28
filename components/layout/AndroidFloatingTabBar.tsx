@@ -15,6 +15,7 @@ import {
   ANDROID_TAB_BAR_HEIGHT,
   ANDROID_TAB_FAB_OVERHANG,
 } from '@/components/layout/BottomTabBar';
+import { openDefaultBooking } from '@/lib/health-service/openDefaultBooking';
 import { Inter } from '@/lib/typography/inter';
 
 const FAB_SIZE = 56;
@@ -87,12 +88,10 @@ export function AndroidFloatingTabBar({ state, descriptors, navigation }: Bottom
 
   const routes = state.routes;
   const home = routes.find((r) => r.name === 'index');
-  const book = routes.find((r) => r.name === 'book');
   const profile = routes.find((r) => r.name === 'profiles');
 
   const focusedName = routes[state.index]?.name;
   const homeFocused = focusedName === 'index';
-  const bookFocused = focusedName === 'book';
   const profileFocused = focusedName === 'profiles';
 
   const go = (routeName: string, routeKey: string, isFocused: boolean) => {
@@ -233,9 +232,8 @@ export function AndroidFloatingTabBar({ state, descriptors, navigation }: Bottom
         }}>
         <Pressable
           accessibilityRole="button"
-          accessibilityState={{ selected: bookFocused }}
           accessibilityLabel="Book"
-          onPress={() => book && go('book', book.key, bookFocused)}
+          onPress={() => void openDefaultBooking()}
           onPressIn={onFabPressIn}
           onPressOut={onFabPressOut}
           hitSlop={14}

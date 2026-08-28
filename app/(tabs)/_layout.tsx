@@ -3,6 +3,7 @@ import { Tabs } from 'expo-router';
 import { NativeTabs, Icon, Label } from 'expo-router/unstable-native-tabs';
 
 import { AndroidFloatingTabBar } from '@/components/layout/AndroidFloatingTabBar';
+import { openDefaultBooking } from '@/lib/health-service/openDefaultBooking';
 
 /**
  * Tabs — Home · Book (+) center · Profile.
@@ -52,7 +53,16 @@ export default function TabLayout() {
       }}
       tabBar={(props) => <AndroidFloatingTabBar {...props} />}>
       <Tabs.Screen name="index" options={{ title: 'Home' }} />
-      <Tabs.Screen name="book" options={{ title: 'Book' }} />
+      <Tabs.Screen
+        name="book"
+        options={{ title: 'Book' }}
+        listeners={{
+          tabPress: (e) => {
+            e.preventDefault();
+            void openDefaultBooking();
+          },
+        }}
+      />
       <Tabs.Screen name="profiles" options={{ title: 'Profile' }} />
     </Tabs>
   );

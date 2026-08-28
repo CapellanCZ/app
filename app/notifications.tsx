@@ -67,14 +67,13 @@ export default function NotificationsScreen() {
   const fetchAll = useNotificationStore((s) => s.fetchAll);
   const markAllRead = useNotificationStore((s) => s.markAllRead);
   const archiveNotification = useNotificationStore((s) => s.archive);
+  const archiveIds = useNotificationStore((s) => s.archiveIds);
   const archiveAll = useNotificationStore((s) => s.archiveAll);
   const markRead = useNotificationStore((s) => s.markRead);
   const [readFilter, setReadFilter] = useState<ReadFilter>('all');
   const [panelKey, setPanelKey] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const [menuItem, setMenuItem] = useState<NotificationItem | null>(null);
-  /** Bottom→top slide-left delays while clearing all. */
-  const [clearExitDelays, setClearExitDelays] = useState<Record<string, number> | null>(null);
   const clearingRef = useRef(false);
   const directionRef = useRef<'forward' | 'back'>('forward');
   /** Stagger enter only on the first list paint this visit. */
@@ -232,33 +231,23 @@ export default function NotificationsScreen() {
             const list = readFilter === 'unread' ? items.filter((n) => !n.read) : items;
             if (!list.length) return;
 
-            if (reduceMotion) {
-              void archiveAll();
-              return;
-            }
-
             clearingRef.current = true;
-            const staggerMs = 55;
-            const exitMs = 260;
-            const delays: Record<string, number> = {};
-            // Bottom card first → top card last.
-            list.forEach((item, index) => {
-              const fromBottom = list.length - 1 - index;
-              delays[item.id] = fromBottom * staggerMs;
-            });
-            setClearExitDelays(delays);
-
-            const totalMs = (list.length - 1) * staggerMs + exitMs + 40;
-            setTimeout(() => {
-              void archiveAll();
-              setClearExitDelays(null);
-              clearingRef.current = false;
-            }, totalMs);
+            void (async () => {
+              try {
+                if (readFilter === 'unread') {
+                  await archiveIds(list.map((item) => item.id));
+                } else {
+                  await archiveAll();
+                }
+              } finally {
+                clearingRef.current = false;
+              }
+            })();
           },
         },
       ],
     );
-  }, [archiveAll, items, readFilter, reduceMotion]);
+  }, [archiveAll, archiveIds, items, readFilter]);
 
   const handleBack = useCallback(() => {
     if (navigation.canGoBack()) {
@@ -288,15 +277,13 @@ export default function NotificationsScreen() {
         <NotificationListRow
           item={item}
           enterIndex={enterIndex}
-          animateOutDelay={clearExitDelays?.[item.id]}
-          onExitComplete={clearExitDelays ? () => undefined : undefined}
           onArchive={archiveNotification}
           onMarkRead={markRead}
           onOpenMenu={openMenu}
         />
       );
     },
-    [archiveNotification, clearExitDelays, liveEnterIds, markRead, openMenu],
+    [archiveNotification, liveEnterIds, markRead, openMenu],
   );
 
   const keyExtractor = useCallback((item: NotificationItem) => item.id, []);
@@ -374,13 +361,13 @@ export default function NotificationsScreen() {
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Clear all notifications"
-            accessibilityState={{ disabled: items.length === 0 || Boolean(clearExitDelays) }}
-            disabled={items.length === 0 || Boolean(clearExitDelays)}
+            accessibilityState={{ disabled: items.length === 0 }}
+            disabled={items.length === 0}
             hitSlop={12}
             onPress={handleClearAll}
             style={{
               padding: 4,
-              opacity: items.length === 0 || clearExitDelays ? 0.35 : 1,
+              opacity: items.length === 0 ? 0.35 : 1,
             }}>
             <IconsaxTickDoubleIcon size={26} color="#222222" />
           </Pressable>

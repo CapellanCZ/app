@@ -30,6 +30,8 @@ interface NotificationState {
   /** Cached unread count — prefer selecting this over filtering `items`. */
   unreadCount: number;
   error: string | null;
+  /** IDs removed locally while the delete request is in flight — blocks ghost refetches. */
+  pendingDeleteIds: Set<string>;
 
   /** Initial fetch (call on screen mount or app launch). */
   fetchAll: (userId: string, opts?: { silent?: boolean }) => Promise<void>;
@@ -42,6 +44,9 @@ interface NotificationState {
 
   /** Mark a single notification as read. */
   markRead: (id: string) => Promise<void>;
+
+  /** Remove one or more notifications by ID (optimistic). */
+  archiveIds: (ids: string[]) => Promise<void>;
 
   /** Remove a notification by ID. */
   archive: (id: string) => Promise<void>;
@@ -81,6 +86,7 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
   hasLoaded: false,
   unreadCount: 0,
   error: null,
+  pendingDeleteIds: new Set<string>(),
 
   fetchAll: async (userId, opts) => {
     if (!isSupabaseConfigured || !supabase) {
@@ -102,7 +108,11 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
       return;
     }
     const rows = (data ?? []) as NotificationRow[];
-    const items = rows.filter((r) => isWithinDays(r.created_at, 30)).map(toNotificationItem);
+    const pendingDeleteIds = get().pendingDeleteIds;
+    const items = rows
+      .filter((r) => isWithinDays(r.created_at, 30))
+      .map(toNotificationItem)
+      .filter((item) => !pendingDeleteIds.has(item.id));
     set({
       items,
       unreadCount: countUnread(items),
@@ -164,23 +174,46 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
     await supabase.from('notifications').update({ read_at: new Date().toISOString() }).eq('id', id);
   },
 
-  archive: async (id) => {
+  archiveIds: async (ids) => {
+    if (!ids.length) return;
+
+    const idSet = new Set(ids);
     set((s) => {
-      const items = s.items.filter((n) => n.id !== id);
-      return { items, unreadCount: countUnread(items) };
+      const pendingDeleteIds = new Set(s.pendingDeleteIds);
+      for (const id of idSet) pendingDeleteIds.add(id);
+      const items = s.items.filter((n) => !idSet.has(n.id));
+      return { items, unreadCount: countUnread(items), pendingDeleteIds };
     });
-    if (!isSupabaseConfigured || !supabase) return;
-    await supabase.from('notifications').delete().eq('id', id);
+
+    if (!isSupabaseConfigured || !supabase) {
+      set((s) => {
+        const pendingDeleteIds = new Set(s.pendingDeleteIds);
+        for (const id of idSet) pendingDeleteIds.delete(id);
+        return { pendingDeleteIds };
+      });
+      return;
+    }
+
+    const { error } = await supabase.from('notifications').delete().in('id', ids);
+    set((s) => {
+      const pendingDeleteIds = new Set(s.pendingDeleteIds);
+      for (const id of idSet) pendingDeleteIds.delete(id);
+      return { pendingDeleteIds };
+    });
+    if (error) {
+      console.warn('[notifications] archiveIds failed:', error.message);
+      const userId = (await supabase.auth.getUser()).data.user?.id;
+      if (userId) void get().fetchAll(userId, { silent: true });
+    }
+  },
+
+  archive: async (id) => {
+    await get().archiveIds([id]);
   },
 
   archiveAll: async () => {
     const ids = get().items.map((n) => n.id);
-    if (!ids.length) return;
-
-    set({ items: [], unreadCount: 0 });
-
-    if (!isSupabaseConfigured || !supabase) return;
-    await supabase.from('notifications').delete().in('id', ids);
+    await get().archiveIds(ids);
   },
 
   subscribe: (userId) =>
@@ -198,6 +231,14 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
             item.title.toLowerCase().includes("you're next") ||
             item.title.toLowerCase().includes('youre next') ||
             item.title.toLowerCase().includes('in queue'),
+        });
+      },
+      onDelete: (row) => {
+        if (!row.id || get().pendingDeleteIds.has(row.id)) return;
+        set((s) => {
+          if (!s.items.some((n) => n.id === row.id)) return s;
+          const items = s.items.filter((n) => n.id !== row.id);
+          return { items, unreadCount: countUnread(items) };
         });
       },
     }),

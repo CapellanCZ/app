@@ -52,8 +52,8 @@ export function NotificationItemMenu({ item, onClose, onMarkRead, onArchive }: P
           {item ? (
             <Pressable
               onPress={() => {
-                onClose();
                 onArchive(item.id);
+                onClose();
               }}
               style={{ paddingVertical: 14 }}>
               <Text style={{ fontFamily: Inter.medium, fontSize: 15, color: '#EF4444' }}>

@@ -53,6 +53,8 @@ export type NotificationsRealtimeHandlers = {
   onChange: () => void;
   /** Fired for each new notification row (server or client insert). */
   onInsert?: (row: NotificationRow) => void;
+  /** Fired when a row is deleted — prefer local removal over refetching the list. */
+  onDelete?: (row: NotificationRow) => void;
 };
 
 export function acquireNotificationsSubscription(
@@ -132,7 +134,12 @@ export function acquireNotificationsSubscription(
           table: 'notifications',
           filter: `user_id=eq.${userId}`,
         },
-        () => debouncedChange(),
+        (payload) => {
+          const row = payload.old as NotificationRow | undefined;
+          if (row?.id) {
+            notificationsSubscription.handlers?.onDelete?.(row);
+          }
+        },
       )
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
