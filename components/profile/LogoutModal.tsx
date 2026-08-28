@@ -1,7 +1,17 @@
-import { useEffect, useRef } from 'react';
-import { Animated, Easing, Modal, Pressable, Text, View } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { Modal, Pressable, Text, View } from 'react-native';
+import Animated, {
+  Easing,
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { LogoutIcon } from '@/components/icons/LogoutIcon';
+import { AppButton } from '@/components/ui/AppButton';
+import { Inter } from '@/lib/typography/inter';
 import { androidPressProps } from '@/lib/ui/androidPress';
 
 export type LogoutModalProps = {
@@ -10,155 +20,181 @@ export type LogoutModalProps = {
   onCancel: () => void;
 };
 
-const SCRIM_BG = 'rgba(0,0,0,0.5)';
-const SHEET_BG = '#FFFFFF';
-const HANDLE_BG = '#D1D5DB';
-const TITLE_COLOR = '#000000';
-const DESC_COLOR = '#717680';
-const PRIMARY_BG = '#D92D20';
-const BORDER_COLOR = '#FECDCA';
-const PRIMARY_TEXT = '#FFFFFF';
-const SECONDARY_TEXT = '#717680';
+const SHEET_OFFSCREEN = 420;
 
 /**
- * Reusable bottom-sheet logout confirmation modal.
- * Manages its own enter/exit animations.
+ * Logout confirmation — CampusCare bottom sheet (Inter, white card, safe-action first).
  */
 export function LogoutModal({ visible, onConfirm, onCancel }: LogoutModalProps) {
   const insets = useSafeAreaInsets();
-  const scrimOpacity = useRef(new Animated.Value(0)).current;
-  const sheetTranslateY = useRef(new Animated.Value(400)).current;
+  const [mounted, setMounted] = useState(visible);
+  const sheetTranslateY = useSharedValue(SHEET_OFFSCREEN);
+
+  const finishClose = useCallback(
+    (action: 'confirm' | 'cancel') => {
+      if (action === 'confirm') {
+        onConfirm();
+      } else {
+        onCancel();
+      }
+    },
+    [onConfirm, onCancel],
+  );
+
+  const animateOut = useCallback(
+    (action: 'confirm' | 'cancel') => {
+      sheetTranslateY.value = withTiming(
+        SHEET_OFFSCREEN,
+        { duration: 240, easing: Easing.in(Easing.cubic) },
+        (finished) => {
+          if (finished) {
+            runOnJS(setMounted)(false);
+            runOnJS(finishClose)(action);
+          }
+        },
+      );
+    },
+    [sheetTranslateY, finishClose],
+  );
 
   useEffect(() => {
     if (visible) {
-      Animated.parallel([
-        Animated.timing(scrimOpacity, { toValue: 1, duration: 250, useNativeDriver: true }),
-        Animated.timing(sheetTranslateY, {
-          toValue: 0,
-          duration: 350,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }),
-      ]).start();
+      setMounted(true);
+      sheetTranslateY.value = SHEET_OFFSCREEN;
+      sheetTranslateY.value = withTiming(0, {
+        duration: 320,
+        easing: Easing.out(Easing.cubic),
+      });
     }
-  }, [visible]);
+  }, [visible, sheetTranslateY]);
 
-  const animateOut = (cb?: () => void) => {
-    Animated.parallel([
-      Animated.timing(scrimOpacity, { toValue: 0, duration: 180, useNativeDriver: true }),
-      Animated.timing(sheetTranslateY, { toValue: 400, duration: 220, useNativeDriver: true }),
-    ]).start(() => {
-      sheetTranslateY.setValue(400);
-      scrimOpacity.setValue(0);
-      cb?.();
-    });
-  };
+  const sheetStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: sheetTranslateY.value }],
+  }));
 
-  const handleConfirm = () => animateOut(onConfirm);
-  const handleCancel = () => animateOut(onCancel);
+  if (!mounted) return null;
 
   return (
-    <Modal visible={visible} transparent animationType="none" onRequestClose={handleCancel}>
-      <Animated.View
-        style={{
-          flex: 1,
-          justifyContent: 'flex-end',
-          backgroundColor: SCRIM_BG,
-          opacity: scrimOpacity,
-        }}>
+    <Modal
+      visible={mounted}
+      transparent
+      animationType="fade"
+      statusBarTranslucent
+      onRequestClose={() => animateOut('cancel')}>
+      <View style={{ flex: 1, justifyContent: 'flex-end' }}>
         <Pressable
-          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
-          onPress={handleCancel}
+          accessibilityRole="button"
+          accessibilityLabel="Dismiss"
+          onPress={() => animateOut('cancel')}
+          style={{
+            position: 'absolute',
+            top: 0,
+            right: 0,
+            bottom: 0,
+            left: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.45)',
+          }}
         />
 
         <Animated.View
-          style={{
-            transform: [{ translateY: sheetTranslateY }],
-            backgroundColor: SHEET_BG,
-            borderTopLeftRadius: 28,
-            borderTopRightRadius: 28,
-            paddingTop: 10,
-            paddingHorizontal: 20,
-            paddingBottom: Math.max(insets.bottom, 24) + 8,
-          }}>
-          {/* Drag handle */}
+          style={[
+            {
+              backgroundColor: '#FFFFFF',
+              borderTopLeftRadius: 20,
+              borderTopRightRadius: 20,
+              paddingTop: 12,
+              paddingHorizontal: 20,
+              paddingBottom: Math.max(insets.bottom, 16) + 12,
+            },
+            sheetStyle,
+          ]}>
           <View
             style={{
-              width: 40,
+              alignSelf: 'center',
+              width: 36,
               height: 4,
               borderRadius: 2,
-              backgroundColor: HANDLE_BG,
-              alignSelf: 'center',
-              marginBottom: 28,
+              backgroundColor: '#E3E3E3',
+              marginBottom: 20,
             }}
           />
 
-          {/* Title */}
-          <Text
-            style={{
-              fontSize: 24,
-              fontWeight: '700',
-              color: TITLE_COLOR,
-              textAlign: 'center',
-              letterSpacing: -0.3,
-              marginVertical: 20,
-            }}>
-            Are you sure?
-          </Text>
+          <View style={{ alignItems: 'center', gap: 12, marginBottom: 20 }}>
+            <View
+              style={{
+                width: 64,
+                height: 64,
+                borderRadius: 32,
+                backgroundColor: '#D3E9FA',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+              <LogoutIcon size={26} color="#4D7A9A" />
+            </View>
 
-          {/* Description */}
-          <Text
-            style={{
-              fontSize: 16,
-              color: DESC_COLOR,
-              textAlign: 'center',
-              lineHeight: 21,
-              paddingHorizontal: 24,
-              marginBottom: 32,
-            }}>
-            You&apos;ll need to use your One-Time Password to sign back in. This action will log you out of your account.
-          </Text>
+            <View style={{ alignItems: 'center', gap: 8, paddingHorizontal: 8 }}>
+              <Text
+                accessibilityRole="header"
+                style={{
+                  fontFamily: Inter.semiBold,
+                  fontSize: 22,
+                  color: '#222222',
+                  letterSpacing: -0.88,
+                  lineHeight: 28,
+                  textAlign: 'center',
+                }}>
+                Log out?
+              </Text>
+              <Text
+                style={{
+                  fontFamily: Inter.regular,
+                  fontSize: 15,
+                  color: 'rgba(114, 114, 114, 0.85)',
+                  letterSpacing: -0.3,
+                  lineHeight: 22,
+                  textAlign: 'center',
+                  maxWidth: 300,
+                }}>
+                You&apos;ll need to sign in again with a one-time password sent to your email.
+              </Text>
+            </View>
+          </View>
 
-          {/* Primary */}
-          <Pressable
-            onPress={handleConfirm}
-            accessibilityRole="button"
-            accessibilityLabel="Confirm log out"
-            {...androidPressProps({ light: true, hitSlop: 4 })}
-            style={({ pressed }) => ({
-              backgroundColor: PRIMARY_BG,
-              borderWidth: 1,
-              borderColor: BORDER_COLOR,
-              borderRadius: 28,
-              paddingVertical: 16,
-              alignItems: 'center',
-              marginBottom: 16,
-              overflow: 'hidden',
-              opacity: pressed ? 0.88 : 1,
-            })}>
-            <Text style={{ fontSize: 16, fontWeight: '600', color: PRIMARY_TEXT }}>
-              Yes, logout
-            </Text>
-          </Pressable>
+          <View style={{ gap: 12 }}>
+            <AppButton
+              label="Stay signed in"
+              variant="dark"
+              onPress={() => animateOut('cancel')}
+              accessibilityLabel="Stay signed in"
+            />
 
-          {/* Secondary */}
-          <Pressable
-            onPress={handleCancel}
-            accessibilityRole="button"
-            accessibilityLabel="Cancel"
-            {...androidPressProps({ borderless: true, hitSlop: 8 })}
-            style={({ pressed }) => ({
-              alignItems: 'center',
-              paddingVertical: 8,
-              justifyContent: 'center',
-              opacity: pressed ? 0.65 : 1,
-            })}>
-            <Text style={{ fontSize: 16, fontWeight: '500', color: SECONDARY_TEXT }}>
-              Nevermind
-            </Text>
-          </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Log out"
+              onPress={() => animateOut('confirm')}
+              {...androidPressProps({ hitSlop: 4 })}
+              style={({ pressed }) => ({
+                minHeight: 48,
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: 48,
+                backgroundColor: '#F9F9F9',
+                opacity: pressed ? 0.88 : 1,
+              })}>
+              <Text
+                style={{
+                  fontFamily: Inter.medium,
+                  fontSize: 16,
+                  color: '#C93B2E',
+                  letterSpacing: -0.32,
+                  lineHeight: 22,
+                }}>
+                Log out
+              </Text>
+            </Pressable>
+          </View>
         </Animated.View>
-      </Animated.View>
+      </View>
     </Modal>
   );
 }

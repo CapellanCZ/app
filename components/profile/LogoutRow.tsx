@@ -30,14 +30,14 @@ export function LogoutRow({ onPress }: LogoutRowProps) {
         overflow: 'hidden',
         opacity: pressed ? 0.88 : 1,
       })}>
-      <LogoutIcon size={22} color="#D92D20" />
+      <LogoutIcon size={22} color="#C93B2E" />
       <Text
         style={{
           fontFamily: Inter.medium,
           fontSize: 16,
           letterSpacing: -0.64,
           lineHeight: 22,
-          color: '#D92D20',
+          color: '#C93B2E',
         }}>
         Logout
       </Text>
