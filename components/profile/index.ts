@@ -1,5 +1,9 @@
 export { ProfileMenuRow, type ProfileMenuRowProps } from './ProfileMenuRow';
 export { ProfileSection } from './ProfileSection';
 export { UserInfoCard } from './UserInfoCard';
+export { PersonalInfoField } from './PersonalInfoField';
+export { PersonalInfoPhotoSection } from './PersonalInfoPhotoSection';
+export { PersonalInfoEmergencyContactSection } from './PersonalInfoEmergencyContactSection';
+export { PersonalInfoNoteCard } from './PersonalInfoNoteCard';
 export { LogoutModal, type LogoutModalProps } from './LogoutModal';
 export { LogoutRow } from './LogoutRow';

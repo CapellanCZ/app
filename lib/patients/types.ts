@@ -11,6 +11,9 @@ export type Patient = {
   employee_id: string | null;
   affiliation: string | null;
   phone: string | null;
+  emergency_contact_name: string | null;
+  emergency_contact_phone: string | null;
+  emergency_contact_relationship: string | null;
   /** Storage path or public URL in `avatars` bucket. */
   avatar_url: string | null;
 };

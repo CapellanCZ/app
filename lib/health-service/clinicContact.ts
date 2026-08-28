@@ -12,3 +12,10 @@ export function openClinicCall(phoneNumber?: string | null): void {
   if (!raw) return;
   void Linking.openURL(`tel:${raw}`);
 }
+
+/** Open the dialer for a user-provided number (no fallback). */
+export function openPhoneCall(phoneNumber: string): void {
+  const raw = phoneNumber.trim().replace(/[^\d+]/g, '');
+  if (!raw) return;
+  void Linking.openURL(`tel:${raw}`);
+}

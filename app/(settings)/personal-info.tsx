@@ -1,108 +1,169 @@
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
+import { useRouter, useFocusEffect } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { ScreenNavbar } from '@/components/ScreenNavbar';
+import { PersonalInfoEmergencyContactSection } from '@/components/profile/PersonalInfoEmergencyContactSection';
+import { PersonalInfoField } from '@/components/profile/PersonalInfoField';
+import { PersonalInfoNoteCard } from '@/components/profile/PersonalInfoNoteCard';
+import { PersonalInfoPhotoSection } from '@/components/profile/PersonalInfoPhotoSection';
+import { ProfileSection } from '@/components/profile/ProfileSection';
+import { CircleBackButton } from '@/components/ui/CircleBackButton';
 import { useAuth } from '@/lib/auth/AuthProvider';
-import { SCHEDULE_PARTNER } from '@/lib/health-service/bookingScheduleTheme';
+import { emergencyContactFromPatient } from '@/lib/patients/emergencyContact';
+import { usePatientStore } from '@/lib/patients/patientStore';
+import { displayNameWithoutMiddle } from '@/lib/profile/displayName';
+import { pickAndUploadAvatar } from '@/lib/profile/profileApi';
 import { useProfileStore } from '@/lib/profile/profileStore';
-
-function InfoRow({ label, value, isLast }: { label: string; value: string; isLast?: boolean }) {
-  return (
-    <View
-      style={{
-        paddingVertical: 12,
-        paddingHorizontal: 14,
-        borderBottomWidth: isLast ? 0 : 1,
-        borderBottomColor: SCHEDULE_PARTNER.divider,
-        backgroundColor: SCHEDULE_PARTNER.surface,
-        gap: 2,
-      }}>
-      <Text
-        style={{
-          fontSize: 11,
-          fontWeight: '600',
-          color: SCHEDULE_PARTNER.textMuted,
-          textTransform: 'uppercase',
-          letterSpacing: 0.4,
-        }}>
-        {label}
-      </Text>
-      <Text style={{ fontSize: 15, color: SCHEDULE_PARTNER.textPrimary }}>{value}</Text>
-    </View>
-  );
-}
-
+import { Inter } from '@/lib/typography/inter';
+import { SCHEDULE_PARTNER } from '@/lib/ui/theme';
 export default function PersonalInfoScreen() {
+  const insets = useSafeAreaInsets();
+  const router = useRouter();
   const { patient, session } = useAuth();
   const profile = useProfileStore((s) => s.profile);
+  const fetchProfile = useProfileStore((s) => s.fetchProfile);
+  const setAvatarUrl = useProfileStore((s) => s.setAvatarUrl);
+  const fetchPatient = usePatientStore((s) => s.fetchPatient);
+  const [avatarUploading, setAvatarUploading] = useState(false);
 
-  const fullName =
+  useEffect(() => {
+    if (!session?.user?.id) return;
+
+    const userId = session.user.id;
+    const cached = useProfileStore.getState().profile;
+    if (cached?.id === userId && (cached.full_name || cached.first_name)) {
+      return;
+    }
+
+    void fetchProfile(userId, {
+      email: session.user.email ?? undefined,
+      userMetadata: session.user.user_metadata,
+    });
+  }, [session?.user?.id, session?.user?.email, session?.user?.user_metadata, fetchProfile]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!session?.user?.id) return;
+      void fetchPatient(session.user.id);
+    }, [session?.user?.id, fetchPatient]),
+  );
+
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/');
+    }
+  };
+
+  const handleChangeAvatar = useCallback(async () => {
+    if (!session?.user?.id || avatarUploading) return;
+    setAvatarUploading(true);
+    const url = await pickAndUploadAvatar(session.user.id);
+    if (url) setAvatarUrl(url);
+    setAvatarUploading(false);
+  }, [session?.user?.id, avatarUploading, setAvatarUrl]);
+
+  const rawName =
     patient?.full_name?.trim() ||
     profile?.full_name?.trim() ||
     (profile ? `${profile.first_name} ${profile.last_name}`.trim() : '') ||
     '—';
+  const name = displayNameWithoutMiddle(rawName) || '—';
   const email = patient?.email ?? profile?.email ?? session?.user?.email ?? '—';
+  const avatarUrl = profile?.avatar_url ?? null;
+
   const patientType = patient?.patient_type ?? profile?.patient_type;
-  const idLabel = patientType === 'faculty' ? 'Employee ID' : 'Student ID';
+  const normalizedType =
+    patientType === 'faculty' || patientType === 'student' ? patientType : undefined;
+  const idLabel = normalizedType === 'faculty' ? 'Employee ID' : 'Student ID';
   const idValue =
-    (patientType === 'faculty'
+    (normalizedType === 'faculty'
       ? patient?.employee_id ?? profile?.employee_id
       : patient?.student_id ?? profile?.student_id) || '—';
-  const affiliation = patient?.affiliation ?? profile?.program ?? '—';
-  const typeLabel =
-    patientType === 'faculty' ? 'Faculty' : patientType === 'student' ? 'Student' : '—';
 
-  const fields = [
-    { label: 'Full Name', value: fullName },
+  const emergencyContact = useMemo(
+    () => emergencyContactFromPatient(patient ?? {}),
+    [patient],
+  );
+
+  const accountFields = [
+    { label: 'Full Name', value: rawName !== '—' ? rawName : name },
     { label: idLabel, value: idValue },
     { label: 'Email', value: email },
-    { label: 'Type', value: typeLabel },
-    { label: 'Affiliation', value: affiliation },
   ];
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#FDFDFD' }}>
-      <ScreenNavbar title="Personal Information" />
+    <View style={{ flex: 1, backgroundColor: '#F9F9F9' }}>
       <ScrollView
         showsVerticalScrollIndicator={false}
+        keyboardDismissMode="on-drag"
         contentContainerStyle={{
-          paddingHorizontal: 16,
-          paddingTop: 16,
-          paddingBottom: 40,
+          paddingTop: insets.top + 12,
+          paddingHorizontal: 20,
+          paddingBottom: Math.max(insets.bottom, 16) + 32,
+          gap: 20,
         }}>
-        <Text
-          style={{
-            marginBottom: 8,
-            marginLeft: 2,
-            fontSize: 12,
-            fontWeight: '600',
-            letterSpacing: 0.5,
-            textTransform: 'uppercase',
-            color: SCHEDULE_PARTNER.textMuted,
-          }}>
-          Patient Details
-        </Text>
-        <View
-          style={{
-            borderRadius: 12,
-            borderWidth: 1,
-            borderColor: SCHEDULE_PARTNER.cardBorder,
-            overflow: 'hidden',
-          }}>
-          {fields.map((f, i) => (
-            <InfoRow key={f.label} label={f.label} value={f.value} isLast={i === fields.length - 1} />
-          ))}
+        <View style={{ gap: 16 }}>
+          <CircleBackButton onPress={handleBack} />
+          <View style={{ gap: 6 }}>
+            <Text
+              accessibilityRole="header"
+              style={{
+                fontFamily: Inter.medium,
+                fontSize: 30,
+                color: '#222222',
+                letterSpacing: -2.24,
+                lineHeight: 38,
+              }}>
+              Personal Information
+            </Text>
+            <Text
+              style={{
+                fontFamily: Inter.regular,
+                fontSize: 18,
+                color: '#727272',
+                letterSpacing: -0.64,
+                lineHeight: 22,
+              }}>
+              Manage your photo and account details
+            </Text>
+          </View>
         </View>
 
-        <Text
-          style={{
-            marginTop: 16,
-            marginLeft: 2,
-            fontSize: 12,
-            lineHeight: 18,
-            color: SCHEDULE_PARTNER.textMuted,
-          }}>
-          To update your personal information, please contact the campus clinic admin.
-        </Text>
+        <PersonalInfoPhotoSection
+          name={name}
+          avatarUrl={avatarUrl}
+          uploading={avatarUploading}
+          onPress={handleChangeAvatar}
+        />
+
+        <ProfileSection title="Account Details">
+          <View
+            style={{
+              borderRadius: 16,
+              borderWidth: 1,
+              borderColor: SCHEDULE_PARTNER.cardBorder,
+              backgroundColor: '#FFFFFF',
+              overflow: 'hidden',
+            }}>
+            {accountFields.map((field, index) => (
+              <PersonalInfoField
+                key={field.label}
+                label={field.label}
+                value={field.value}
+                isLast={index === accountFields.length - 1}
+              />
+            ))}
+          </View>
+        </ProfileSection>
+
+        <ProfileSection title="Emergency Contact">
+          <PersonalInfoEmergencyContactSection contact={emergencyContact} />
+        </ProfileSection>
+
+        <PersonalInfoNoteCard message="To update your personal information, please contact the campus clinic admin." />
       </ScrollView>
     </View>
   );

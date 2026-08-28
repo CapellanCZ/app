@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 
+import type { EmergencyContact } from './emergencyContact';
 import { fetchPatientByAuthUserId } from './patientsApi';
 import type { EnrollmentStatus, Patient } from './types';
 
@@ -8,6 +9,7 @@ type PatientState = {
   enrollmentStatus: EnrollmentStatus;
   isLoading: boolean;
   fetchPatient: (authUserId: string) => Promise<Patient | null>;
+  patchEmergencyContact: (contact: EmergencyContact) => void;
   reset: () => void;
 };
 
@@ -32,6 +34,20 @@ export const usePatientStore = create<PatientState>((set) => ({
       return null;
     }
   },
+
+  patchEmergencyContact: (contact) =>
+    set((state) =>
+      state.patient
+        ? {
+            patient: {
+              ...state.patient,
+              emergency_contact_name: contact.name || null,
+              emergency_contact_phone: contact.phone || null,
+              emergency_contact_relationship: contact.relationship || null,
+            },
+          }
+        : state,
+    ),
 
   reset: () => {
     set({ patient: null, enrollmentStatus: 'unknown', isLoading: false });
