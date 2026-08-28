@@ -4,6 +4,7 @@ import {
   fetchLatestVitalsForPatient,
   type LatestVitals,
 } from '@/lib/vitals/vitalsApi';
+import { hasVitalsReadings } from '@/lib/vitals/vitalsDisplay';
 
 type VitalsState = {
   vitals: LatestVitals;
@@ -20,6 +21,10 @@ type VitalsState = {
 const EMPTY: LatestVitals = {
   bloodPressure: null,
   heartRate: null,
+  temperature: null,
+  weight: null,
+  height: null,
+  oxygenSaturation: null,
   updatedAt: null,
 };
 
@@ -34,8 +39,7 @@ export const useVitalsStore = create<VitalsState>((set, get) => ({
   load: async ({ studentId, employeeId, force }) => {
     if (get().loading) return get().vitals;
 
-    const empty =
-      !get().vitals.bloodPressure && !get().vitals.heartRate && !get().vitals.updatedAt;
+    const empty = !hasVitalsReadings(get().vitals);
     const canUpgradeEmpty = empty && Boolean(studentId || employeeId);
 
     if (get().hasLoaded && !force && !canUpgradeEmpty) {

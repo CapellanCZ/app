@@ -4,15 +4,27 @@ export type LatestVitals = {
   bloodPressure: string | null;
   /** Pulse / heart rate display value (e.g. "72 bpm"). */
   heartRate: string | null;
+  temperature: string | null;
+  weight: string | null;
+  height: string | null;
+  oxygenSaturation: string | null;
   updatedAt: string | null;
 };
 
 type PhysicalExam = {
   bloodPressure?: unknown;
   pulseRate?: unknown;
+  temperature?: unknown;
+  weight?: unknown;
+  height?: unknown;
+  oxygenSaturation?: unknown;
+  spo2?: unknown;
 };
 
 function asTrimmedString(value: unknown): string | null {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return String(value);
+  }
   if (typeof value !== 'string') return null;
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
@@ -20,9 +32,32 @@ function asTrimmedString(value: unknown): string | null {
 
 function formatHeartRate(pulse: string | null): string | null {
   if (!pulse) return null;
-  // Already labeled in clinic data.
   if (/bpm/i.test(pulse)) return pulse;
   return `${pulse} bpm`;
+}
+
+function formatTemperature(value: string | null): string | null {
+  if (!value) return null;
+  if (/°|celsius|c\b/i.test(value)) return value;
+  return `${value}°C`;
+}
+
+function formatWeight(value: string | null): string | null {
+  if (!value) return null;
+  if (/kg|lb/i.test(value)) return value;
+  return `${value} kg`;
+}
+
+function formatHeight(value: string | null): string | null {
+  if (!value) return null;
+  if (/cm|m\b|ft|in/i.test(value)) return value;
+  return `${value} cm`;
+}
+
+function formatOxygen(value: string | null): string | null {
+  if (!value) return null;
+  if (/%|spo2/i.test(value)) return value.replace(/spo2/i, '%').trim();
+  return `${value}%`;
 }
 
 /**
@@ -33,7 +68,15 @@ export async function fetchLatestVitalsForPatient(params: {
   studentId?: string | null;
   employeeId?: string | null;
 }): Promise<LatestVitals> {
-  const empty: LatestVitals = { bloodPressure: null, heartRate: null, updatedAt: null };
+  const empty: LatestVitals = {
+    bloodPressure: null,
+    heartRate: null,
+    temperature: null,
+    weight: null,
+    height: null,
+    oxygenSaturation: null,
+    updatedAt: null,
+  };
   if (!supabase) return empty;
 
   const studentId = params.studentId?.trim() || null;
@@ -64,12 +107,24 @@ export async function fetchLatestVitalsForPatient(params: {
   const exam = (data.physical_exam ?? null) as PhysicalExam | null;
   const bloodPressure = asTrimmedString(exam?.bloodPressure);
   const pulseRate = asTrimmedString(exam?.pulseRate);
+  const temperature = formatTemperature(asTrimmedString(exam?.temperature));
+  const weight = formatWeight(asTrimmedString(exam?.weight));
+  const height = formatHeight(asTrimmedString(exam?.height));
+  const oxygenSaturation = formatOxygen(
+    asTrimmedString(exam?.oxygenSaturation) ?? asTrimmedString(exam?.spo2),
+  );
 
-  if (!bloodPressure && !pulseRate) return empty;
+  if (!bloodPressure && !pulseRate && !temperature && !weight && !height && !oxygenSaturation) {
+    return empty;
+  }
 
   return {
     bloodPressure,
     heartRate: formatHeartRate(pulseRate),
+    temperature,
+    weight,
+    height,
+    oxygenSaturation,
     updatedAt: data.last_edited_at ?? data.updated_at ?? null,
   };
 }

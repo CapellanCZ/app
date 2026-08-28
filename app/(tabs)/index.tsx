@@ -21,9 +21,9 @@ import {
 } from '@/lib/health-service/healthServiceStore';
 import { useStaffPresenceStore } from '@/lib/health-service/staffPresenceStore';
 import { useProfileStore } from '@/lib/profile/profileStore';
+import { showMoreQuickActionToast } from '@/lib/home/quickActionToasts';
 import { ROUTES } from '@/lib/routes';
 import { Inter } from '@/lib/typography/inter';
-import { showAppToast } from '@/lib/ui/toastBridge';
 import { openClinicCall } from '@/lib/health-service/clinicContact';
 import { useVitalsStore } from '@/lib/vitals/vitalsStore';
 
@@ -251,16 +251,8 @@ export default function HealthServiceScreen() {
 
           <HomeQuickActions
             onBookings={() => router.push(ROUTES.appointments)}
-            onVitals={() => router.push(ROUTES.appointments)}
-            onMore={() =>
-              showAppToast({
-                variant: 'accent',
-                status: 'info',
-                placement: 'top',
-                duration: 2800,
-                label: 'Launch soon',
-              })
-            }
+            onVitals={() => router.push(ROUTES.vitalSigns)}
+            onMore={showMoreQuickActionToast}
           />
         </View>
 

@@ -71,6 +71,7 @@ export default function RootLayout() {
                 <Stack.Screen name="notifications" options={{ animation: 'slide_from_right' }} />
                 <Stack.Screen name="health-service" options={{ animation: 'fade', animationDuration: 120 }} />
                 <Stack.Screen name="appointments" />
+                <Stack.Screen name="vital-signs" options={{ animation: 'slide_from_right' }} />
                 <Stack.Screen
                   name="visit-completed"
                   options={{

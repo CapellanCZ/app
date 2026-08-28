@@ -13,6 +13,7 @@ export const ROUTES = {
 
   // --- Stack screens (reachable from Home quick actions) ---
   appointments: '/appointments',
+  vitalSigns: '/vital-signs',
 
   // --- Auth ---
   login: '/login',
