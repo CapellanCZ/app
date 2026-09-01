@@ -1,4 +1,4 @@
-export type PatientType = 'student' | 'faculty';
+export type PatientType = 'student' | 'faculty' | 'employee';
 
 /** Safe mobile fields from `patients` — never include medical_notes. */
 export type Patient = {

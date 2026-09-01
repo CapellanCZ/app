@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   Easing,
@@ -36,11 +36,18 @@ import {
 } from '@/lib/health-service/appointmentDisplay';
 import { formatVisitReasonDisplay } from '@/components/booking/BookingConsultationFields';
 import { resolveAppointmentStaffDisplay } from '@/lib/health-service/appointmentStaff';
+import { openDefaultBooking } from '@/lib/health-service/openDefaultBooking';
 import { useHealthServiceStore } from '@/lib/health-service/healthServiceStore';
 import { Inter } from '@/lib/typography/inter';
 
 /** Figma tabs: Upcoming · Past · Cancelled */
 type AppointmentTab = 'upcoming' | 'past' | 'cancelled';
+
+function parseTabParam(value: string | string[] | undefined): AppointmentTab | null {
+  const raw = Array.isArray(value) ? value[0] : value;
+  if (raw === 'upcoming' || raw === 'past' || raw === 'cancelled') return raw;
+  return null;
+}
 
 const TAB_ORDER: AppointmentTab[] = ['upcoming', 'past', 'cancelled'];
 
@@ -69,7 +76,9 @@ function matchesTab(
  */
 export default function AppointmentsScreen() {
   const insets = useSafeAreaInsets();
-  const [activeTab, setActiveTab] = useState<AppointmentTab>('upcoming');
+  const { tab } = useLocalSearchParams<{ tab?: string }>();
+  const initialTab = parseTabParam(tab) ?? 'upcoming';
+  const [activeTab, setActiveTab] = useState<AppointmentTab>(initialTab);
   const [panelKey, setPanelKey] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const directionRef = useRef<'forward' | 'back'>('forward');
@@ -85,6 +94,11 @@ export default function AppointmentsScreen() {
   const loadAppointments = useHealthServiceStore((s) => s.loadAppointments);
   const loadStaff = useHealthServiceStore((s) => s.loadStaff);
   const refreshData = useHealthServiceStore((s) => s.refreshData);
+
+  useEffect(() => {
+    const parsed = parseTabParam(tab);
+    if (parsed) setActiveTab(parsed);
+  }, [tab]);
 
   useEffect(() => {
     tabIndexSV.value = TAB_ORDER.indexOf(activeTab);
@@ -381,11 +395,9 @@ export default function AppointmentsScreen() {
                         }
                         onReschedule={
                           variant === 'cancelled'
-                            ? () =>
-                                router.push({
-                                  pathname: '/health-service/book/[staffId]',
-                                  params: { staffId: item.staffId },
-                                })
+                            ? () => {
+                                void openDefaultBooking();
+                              }
                             : undefined
                         }
                         onPress={

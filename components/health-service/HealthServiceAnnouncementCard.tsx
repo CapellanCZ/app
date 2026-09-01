@@ -14,6 +14,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 
 import { AnnouncementCardSkeleton } from '@/components/health-service/AnnouncementCardSkeleton';
+import { useAuth } from '@/lib/auth/AuthProvider';
 import { useAnnouncementStore } from '@/lib/announcements/announcementStore';
 import { formatDateLabel, limitSentences } from '@/lib/announcements/announcementsApi';
 import type { Announcement } from '@/lib/announcements/types';
@@ -215,6 +216,7 @@ function AnnouncementSlide({ item, width, index, total, onReadMore }: SlideProps
  * Shows skeleton while the shared store fetch is in flight (prefetch starts on Home).
  */
 export function HealthServiceAnnouncementCard() {
+  const { patient } = useAuth();
   const scrollRef = useRef<ScrollView>(null);
   const [width, setWidth] = useState(0);
   const [index, setIndex] = useState(0);
@@ -226,8 +228,8 @@ export function HealthServiceAnnouncementCard() {
 
   // Kick off / continue fetch immediately on mount (overlaps with skeleton paint).
   useEffect(() => {
-    void load();
-  }, [load]);
+    void load({ patientType: patient?.patient_type });
+  }, [load, patient?.patient_type]);
 
   useEffect(() => {
     indexRef.current = index;

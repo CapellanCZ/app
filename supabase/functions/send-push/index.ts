@@ -50,6 +50,48 @@ function resolveCategory(row: NotificationRow): string {
   return fromMeta ?? row.category ?? row.type ?? 'health';
 }
 
+type PreferenceKey = 'appointments' | 'announcements' | 'health';
+
+function resolvePreferenceKey(row: NotificationRow): PreferenceKey {
+  const type = (row.type ?? '').toLowerCase();
+  const meta = row.metadata ?? {};
+  const milestone =
+    typeof meta.queue_milestone === 'string' ? meta.queue_milestone.toLowerCase() : null;
+
+  if (type === 'announcement') return 'announcements';
+
+  const category =
+    (typeof meta.category === 'string' ? meta.category : row.category ?? '').toLowerCase();
+  if (category === 'campus') return 'announcements';
+
+  if (type === 'queue' || (milestone && milestone !== 'visit_completed')) return 'health';
+  if (type === 'appointment' || type === 'consultation_request') return 'appointments';
+
+  return 'health';
+}
+
+async function isPushAllowed(
+  admin: ReturnType<typeof createClient>,
+  userId: string,
+  row: NotificationRow,
+): Promise<boolean> {
+  const { data, error } = await admin
+    .from('notification_preferences')
+    .select('appointments, announcements, health')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (error) {
+    console.warn('[send-push] preference lookup failed:', error);
+    return true;
+  }
+
+  if (!data) return true;
+
+  const key = resolvePreferenceKey(row);
+  return Boolean(data[key]);
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method !== 'POST') {
     return new Response('Method not allowed', { status: 405 });
@@ -84,6 +126,13 @@ Deno.serve(async (req: Request) => {
   const admin = createClient(SUPABASE_URL, SERVICE_ROLE, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
+
+  const allowed = await isPushAllowed(admin, row.user_id, row);
+  if (!allowed) {
+    return new Response(JSON.stringify({ skipped: true, reason: 'preference disabled' }), {
+      headers: { 'content-type': 'application/json' },
+    });
+  }
 
   const { data: tokens, error } = await admin
     .from('device_tokens')

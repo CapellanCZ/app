@@ -13,6 +13,7 @@ import { UniwindInsetSync } from '@/components/UniwindInsetSync';
 import { AuthSessionGuard } from '@/components/auth/AuthSessionGuard';
 import { AuthProvider } from '@/lib/auth/AuthProvider';
 import { AppointmentSubscription } from '@/components/health-service/AppointmentSubscription';
+import { AnnouncementSubscription } from '@/components/announcements/AnnouncementSubscription';
 import { NotificationHandler } from '@/components/notifications/NotificationHandler';
 import { NotificationSubscription } from '@/components/notifications/NotificationSubscription';
 import { AppToastBinder } from '@/components/ui/AppToastBinder';
@@ -63,6 +64,7 @@ export default function RootLayout() {
               <AuthSessionGuard />
               <FeedbackSoundHost />
               <AppointmentSubscription />
+              <AnnouncementSubscription />
               <NotificationHandler />
               <NotificationSubscription />
               <UniwindInsetSync />
@@ -81,6 +83,7 @@ export default function RootLayout() {
                 <Stack.Screen name="health-service" options={{ animation: 'fade', animationDuration: 120 }} />
                 <Stack.Screen name="appointments" />
                 <Stack.Screen name="vital-signs" options={{ animation: 'slide_from_right' }} />
+                <Stack.Screen name="my-queue" options={{ animation: 'slide_from_right' }} />
                 <Stack.Screen
                   name="visit-completed"
                   options={{

@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { AppState } from 'react-native';
 
 import { useAuth } from '@/lib/auth/AuthProvider';
+import { useNotificationPreferencesStore } from '@/lib/notifications/notificationPreferencesStore';
 import { useNotificationStore } from '@/lib/notifications/notificationStore';
 
 /**
@@ -13,6 +14,7 @@ export function NotificationSubscription() {
   const userId = session?.user?.id;
   const subscribe = useNotificationStore((s) => s.subscribe);
   const fetchAll = useNotificationStore((s) => s.fetchAll);
+  const fetchPreferences = useNotificationPreferencesStore((s) => s.fetch);
   const unsubscribeRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
@@ -27,8 +29,10 @@ export function NotificationSubscription() {
 
     console.log('[NotificationSubscription] Starting subscription for user:', userId);
 
-    // Initial fetch
-    fetchAll(userId);
+    void (async () => {
+      await fetchPreferences(userId);
+      await fetchAll(userId);
+    })();
 
     // Set up realtime subscription
     const unsubscribe = subscribe(userId);
@@ -39,21 +43,24 @@ export function NotificationSubscription() {
       unsubscribe();
       unsubscribeRef.current = null;
     };
-  }, [userId, subscribe, fetchAll]);
+  }, [userId, subscribe, fetchAll, fetchPreferences]);
 
   // Refresh when app comes to foreground
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextAppState) => {
       if (nextAppState === 'active' && userId) {
         console.log('[NotificationSubscription] App active - refreshing notifications');
-        fetchAll(userId);
+        void (async () => {
+          await fetchPreferences(userId);
+          await fetchAll(userId);
+        })();
       }
     });
 
     return () => {
       subscription.remove();
     };
-  }, [userId, fetchAll]);
+  }, [userId, fetchAll, fetchPreferences]);
 
   return null;
 }

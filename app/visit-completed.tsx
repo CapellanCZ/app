@@ -64,7 +64,7 @@ export default function VisitCompletedSheet() {
               lineHeight: 36,
               textAlign: 'center',
             }}>
-            Visit Completed
+            Consultation Summary
           </Text>
           <Text
             style={{

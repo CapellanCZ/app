@@ -31,8 +31,8 @@ import { EmptyStateNotifIllustration } from '@/components/notifications/EmptySta
 import { NotificationItemMenu } from '@/components/notifications/NotificationItemMenu';
 import { NotificationListRow } from '@/components/notifications/NotificationListRow';
 import { NotificationListSkeleton } from '@/components/notifications/NotificationListSkeleton';
-import { IconsaxArrowLeftIcon } from '@/components/icons/IconsaxArrowLeftIcon';
 import { IconsaxTickDoubleIcon } from '@/components/icons/IconsaxTickDoubleIcon';
+import { CircleBackButton } from '@/components/ui/CircleBackButton';
 import { useAuth } from '@/lib/auth/AuthProvider';
 import { useNotificationStore } from '@/lib/notifications/notificationStore';
 import type { NotificationItem } from '@/lib/notifications/types';
@@ -322,42 +322,39 @@ export default function NotificationsScreen() {
         paddingHorizontal: 20,
         paddingBottom: Math.max(insets.bottom, 24),
       }}>
-      <Pressable
-        accessibilityLabel="Go back"
-        accessibilityRole="button"
-        hitSlop={12}
-        onPress={handleBack}
-        style={{
-          width: 42,
-          height: 42,
-          borderRadius: 999,
-          backgroundColor: '#FFFFFF',
-          alignItems: 'center',
-          justifyContent: 'center',
-          marginBottom: 10,
-        }}>
-        <IconsaxArrowLeftIcon size={24} color="#6C6C6C" />
-      </Pressable>
+      <CircleBackButton onPress={handleBack} style={{ marginBottom: 16 }} />
 
       <View style={{ gap: 16, marginBottom: 20 }}>
         <View
           style={{
             flexDirection: 'row',
-            alignItems: 'center',
+            alignItems: 'flex-start',
             justifyContent: 'space-between',
             gap: 12,
           }}>
-          <Text
-            style={{
-              flex: 1,
-              fontFamily: Inter.medium,
-              fontSize: 28,
-              letterSpacing: -2.24,
-              lineHeight: 38,
-              color: '#222222',
-            }}>
-            Notifications
-          </Text>
+          <View style={{ flex: 1, gap: 6 }}>
+            <Text
+              accessibilityRole="header"
+              style={{
+                fontFamily: Inter.medium,
+                fontSize: 30,
+                letterSpacing: -2.24,
+                lineHeight: 38,
+                color: '#222222',
+              }}>
+              Notifications
+            </Text>
+            <Text
+              style={{
+                fontFamily: Inter.regular,
+                fontSize: 18,
+                color: '#727272',
+                letterSpacing: -0.64,
+                lineHeight: 22,
+              }}>
+              Stay updated on visits and campus news
+            </Text>
+          </View>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Clear all notifications"
@@ -366,6 +363,7 @@ export default function NotificationsScreen() {
             hitSlop={12}
             onPress={handleClearAll}
             style={{
+              marginTop: 4,
               padding: 4,
               opacity: items.length === 0 ? 0.35 : 1,
             }}>
@@ -452,18 +450,18 @@ export default function NotificationsScreen() {
                       color: '#222222',
                       textAlign: 'center',
                     }}>
-                    No notification yet
+                    No notifications yet
                   </Text>
                   <Text
                     style={{
                       fontFamily: Inter.regular,
-                      fontSize: 16,
-                      letterSpacing: -0.64,
-                      lineHeight: 20,
+                      fontSize: 18,
                       color: '#727272',
+                      letterSpacing: -0.64,
+                      lineHeight: 22,
                       textAlign: 'center',
                     }}>
-                    You’ll see notifications here when they{'\n'}are available
+                    You’ll see updates here when they{'\n'}are available
                   </Text>
                 </View>
               </ScrollView>

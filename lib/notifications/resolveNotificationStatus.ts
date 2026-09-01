@@ -31,6 +31,7 @@ const STATUS_BY_TITLE: Record<string, NotificationStatusType> = {
   'medical certificate ready': 'success',
   'we missed you': 'warning',
   'clinic advisory': 'info',
+  'new announcement': 'info',
 };
 
 /** Ordered keyword rules — first match wins (most specific first). */
@@ -38,7 +39,7 @@ const TITLE_KEYWORD_RULES: readonly { test: RegExp; status: NotificationStatusTy
   { test: /\bcancel/, status: 'error' },
   { test: /\b(missed|unavailable|pick a new|reschedul|30 minute|starts soon|3rd in queue|you.?re next)\b/, status: 'warning' },
   { test: /\b(confirm|all set|completed|certificate ready|ready)\b/, status: 'success' },
-  { test: /\b(pending|your turn|5th in queue|on break|advisory|submitted|queue)\b/, status: 'info' },
+  { test: /\b(pending|your turn|5th in queue|on break|advisory|announcement|submitted|queue)\b/, status: 'info' },
 ];
 
 function normalizeTitle(title: string): string {

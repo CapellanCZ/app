@@ -14,6 +14,7 @@ export const ROUTES = {
   // --- Stack screens (reachable from Home quick actions) ---
   appointments: '/appointments',
   vitalSigns: '/vital-signs',
+  myQueue: '/my-queue',
 
   // --- Auth ---
   login: '/login',

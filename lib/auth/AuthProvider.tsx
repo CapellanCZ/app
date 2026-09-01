@@ -6,6 +6,7 @@ import { clearStaleSession, isStaleSessionError } from '@/lib/auth/sessionRecove
 import { consumeIntentionalSignOut } from '@/lib/auth/signOut';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { showAppToast } from '@/lib/ui/toastBridge';
+import { useNotificationPreferencesStore } from '@/lib/notifications/notificationPreferencesStore';
 import { registerPushToken } from '@/lib/notifications/registerPushToken';
 import { useHealthServiceStore } from '@/lib/health-service/healthServiceStore';
 import { useStaffPresenceStore } from '@/lib/health-service/staffPresenceStore';
@@ -149,7 +150,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       resetHealthService();
       useStaffPresenceStore.getState().reset();
       useVitalsStore.getState().reset();
-      useAnnouncementStore.setState({ items: [], hasLoaded: false, loading: false });
+      useAnnouncementStore.setState({
+        items: [],
+        hasLoaded: false,
+        loading: false,
+        lastPatientType: null,
+      });
       useNotificationStore.setState({
         items: [],
         unreadCount: 0,
@@ -157,6 +163,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         error: null,
         hasLoaded: false,
       });
+      useNotificationPreferencesStore.getState().reset();
     }
   }, [session?.user?.id, enrollmentStatus, isLoading, loadStaff, loadAppointments, resetHealthService]);
 

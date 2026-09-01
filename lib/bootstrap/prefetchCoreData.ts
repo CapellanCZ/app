@@ -64,7 +64,9 @@ export async function prefetchCoreData(
           health.appointmentsLoaded ? Promise.resolve() : health.loadAppointments(),
           health.staffLoaded ? Promise.resolve() : health.loadStaff(),
           notifications.hasLoaded ? Promise.resolve() : notifications.fetchAll(userId),
-          announcements.hasLoaded ? Promise.resolve() : announcements.load(),
+          announcements.hasLoaded
+            ? Promise.resolve()
+            : announcements.load({ patientType: patient?.patient_type }),
           profile.profile?.id === userId && (profile.profile.full_name || profile.profile.first_name)
             ? Promise.resolve()
             : patient

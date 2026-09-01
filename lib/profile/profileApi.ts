@@ -51,7 +51,13 @@ export function patientToProfile(patient: Patient, authUserId: string): StudentP
     full_name: patient.full_name,
     program:
       patient.affiliation?.trim() ||
-      (patient.patient_type === 'faculty' ? 'Faculty' : patient.patient_type === 'student' ? 'Student' : ''),
+      (patient.patient_type === 'faculty'
+        ? 'Faculty'
+        : patient.patient_type === 'student'
+          ? 'Student'
+          : patient.patient_type === 'employee'
+            ? 'Employee'
+            : ''),
     student_id: patient.student_id ?? '',
     employee_id: patient.employee_id ?? undefined,
     patient_type: patient.patient_type,

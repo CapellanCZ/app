@@ -1,5 +1,6 @@
 import { isSupabaseConfigured, supabase } from '@/lib/supabase';
 
+import { dbAudiencesForPatientType } from './announcementAudience';
 import type { Announcement } from './types';
 
 const ATTACHMENT_BUCKET = 'announcement-attachments';
@@ -59,11 +60,15 @@ async function signedImageUrl(filePath: string): Promise<string | null> {
 }
 
 /**
- * Latest published campus-wide announcements for the patient (audience = All).
- * Always returns at most 3 — newest by `created_at` (recently added), then drops older posts.
+ * Latest published announcements for the signed-in patient:
+ * campus-wide (`All`) plus their role (`Student` / `Faculty` / `Employee`).
  */
-export async function fetchPublishedAnnouncements(): Promise<Announcement[]> {
+export async function fetchPublishedAnnouncements(
+  patientType?: string | null,
+): Promise<Announcement[]> {
   if (!isSupabaseConfigured || !supabase) return [];
+
+  const audiences = dbAudiencesForPatientType(patientType);
 
   const { data, error } = await supabase
     .from('announcements')
@@ -82,7 +87,7 @@ export async function fetchPublishedAnnouncements(): Promise<Announcement[]> {
     `,
     )
     .eq('status', 'published')
-    .eq('audience', 'All')
+    .in('audience', audiences)
     // Recently added first; fall back to publish time if created_at ties.
     .order('created_at', { ascending: false })
     .order('published_at', { ascending: false })

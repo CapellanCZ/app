@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { RefreshControl, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, type Href } from 'expo-router';
 
+import { HomeMoreSheet } from '@/components/home/HomeMoreSheet';
 import { HomeQuickActions } from '@/components/home/HomeQuickActions';
 import { HomeScreenSkeleton } from '@/components/home/HomeScreenSkeleton';
 import { HomeWelcomeHeader } from '@/components/home/HomeWelcomeHeader';
@@ -23,7 +24,6 @@ import {
 } from '@/lib/health-service/healthServiceStore';
 import { useStaffPresenceStore } from '@/lib/health-service/staffPresenceStore';
 import { useProfileStore } from '@/lib/profile/profileStore';
-import { showMoreQuickActionToast } from '@/lib/home/quickActionToasts';
 import { useHomeScreenReady } from '@/lib/home/useHomeScreenReady';
 import { ROUTES } from '@/lib/routes';
 import { Inter } from '@/lib/typography/inter';
@@ -73,6 +73,7 @@ export default function HealthServiceScreen() {
   const avatarUrl = profile?.avatar_url ?? null;
 
   const [refreshing, setRefreshing] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const isHomeReady = useHomeScreenReady();
   const showHomeSkeleton = !refreshing && !isHomeReady;
 
@@ -86,7 +87,7 @@ export default function HealthServiceScreen() {
 
   useEffect(() => {
     void Promise.all([
-      loadAnnouncements(),
+      loadAnnouncements({ patientType: patient?.patient_type }),
       loadStaff(),
       loadAppointments(),
       loadVitals({
@@ -95,7 +96,16 @@ export default function HealthServiceScreen() {
       }),
     ]);
     return subscribeAppointments();
-  }, [loadAnnouncements, loadStaff, loadAppointments, loadVitals, subscribeAppointments, patient?.student_id, patient?.employee_id]);
+  }, [
+    loadAnnouncements,
+    loadStaff,
+    loadAppointments,
+    loadVitals,
+    subscribeAppointments,
+    patient?.patient_type,
+    patient?.student_id,
+    patient?.employee_id,
+  ]);
 
   const userName = useMemo(() => {
     const full =
@@ -145,7 +155,7 @@ export default function HealthServiceScreen() {
     try {
       await Promise.all([
         refreshData(),
-        loadAnnouncements({ force: true }),
+        loadAnnouncements({ force: true, patientType: patient?.patient_type }),
         loadVitals({
           studentId: patient?.student_id,
           employeeId: patient?.employee_id,
@@ -164,6 +174,7 @@ export default function HealthServiceScreen() {
     loadVitals,
     loadPresence,
     upcomingStaffId,
+    patient?.patient_type,
     patient?.student_id,
     patient?.employee_id,
   ]);
@@ -257,7 +268,7 @@ export default function HealthServiceScreen() {
           <HomeQuickActions
             onBookings={() => router.push(ROUTES.appointments)}
             onVitals={() => router.push(ROUTES.vitalSigns)}
-            onMore={showMoreQuickActionToast}
+            onMore={() => setMoreOpen(true)}
           />
         </View>
 
@@ -278,6 +289,18 @@ export default function HealthServiceScreen() {
           </>
         )}
       </ScrollView>
+
+      <HomeMoreSheet
+        visible={moreOpen}
+        onClose={() => setMoreOpen(false)}
+        onMyQueue={() => router.push(ROUTES.myQueue as Href)}
+        onPastVisits={() =>
+          router.push({
+            pathname: ROUTES.appointments,
+            params: { tab: 'past' },
+          })
+        }
+      />
     </HealthServiceScreenShell>
   );
 }

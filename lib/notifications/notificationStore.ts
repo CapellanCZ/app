@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 
+import { useAnnouncementStore } from '@/lib/announcements/announcementStore';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { acquireNotificationsSubscription } from './realtimeSubscriptions';
 import { MOCK_NOTIFICATIONS } from './mockNotifications';
@@ -13,6 +14,8 @@ import {
   type NotificationSection,
 } from './types';
 import { toastFromNotification } from '@/lib/notifications/toastFromNotification';
+import { isNotificationAllowed } from '@/lib/notifications/notificationPreferenceKeys';
+import { useNotificationPreferencesStore } from '@/lib/notifications/notificationPreferencesStore';
 
 function countUnread(items: NotificationItem[]): number {
   let n = 0;
@@ -20,6 +23,11 @@ function countUnread(items: NotificationItem[]): number {
     if (!item.read) n += 1;
   }
   return n;
+}
+
+function isAnnouncementNotification(row: NotificationRow): boolean {
+  if ((row.type ?? '').toLowerCase() === 'announcement') return true;
+  return typeof row.metadata?.announcement_id === 'string' && row.metadata.announcement_id.length > 0;
 }
 
 interface NotificationState {
@@ -110,8 +118,10 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
     }
     const rows = (data ?? []) as NotificationRow[];
     const pendingArchiveIds = get().pendingArchiveIds;
+    const preferences = useNotificationPreferencesStore.getState().preferences;
     const items = rows
       .filter((r) => isWithinDays(r.created_at, 30))
+      .filter((r) => isNotificationAllowed(preferences, r))
       .map(toNotificationItem)
       .filter((item) => !pendingArchiveIds.has(item.id));
     set({
@@ -230,11 +240,19 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
       },
       onInsert: (row) => {
         if (row.archived_at) return;
+        const preferences = useNotificationPreferencesStore.getState().preferences;
+        if (!isNotificationAllowed(preferences, row)) return;
         const item = toNotificationItem(row);
         get().prependItem(item);
-        // Queue milestones also raise a local OS banner (in + out of app when allowed).
+
+        const isAnnouncement = isAnnouncementNotification(row);
+        if (isAnnouncement) {
+          void useAnnouncementStore.getState().load({ force: true });
+        }
+
         toastFromNotification(item, {
           alsoLocalOsAlert:
+            isAnnouncement ||
             item.title.toLowerCase().includes('your turn') ||
             item.title.toLowerCase().includes("you're next") ||
             item.title.toLowerCase().includes('youre next') ||

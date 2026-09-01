@@ -8,9 +8,9 @@ import { useAuth } from '@/lib/auth/AuthProvider';
 import { displayNameWithoutMiddle } from '@/lib/profile/displayName';
 import { useProfileStore } from '@/lib/profile/profileStore';
 import { IconsaxNotificationIcon } from '@/components/icons/IconsaxNotificationIcon';
+import { IconsaxDocumentTextIcon } from '@/components/icons/IconsaxDocumentTextIcon';
 import { IconsaxInfoCircleIcon } from '@/components/icons/IconsaxInfoCircleIcon';
 import { UserEditIcon } from '@/components/icons/UserEditIcon';
-import { ShieldSecurityIcon } from '@/components/icons/ShieldSecurityIcon';
 import { MessageQuestionIcon } from '@/components/icons/MessageQuestionIcon';
 import {
   LogoutModal,
@@ -99,9 +99,9 @@ export default function ProfileTab() {
             onPress={() => router.push(ROUTES.notificationSettings)}
           />
           <ProfileMenuRow
-            icon={<ShieldSecurityIcon size={24} color="#111111" />}
-            label="Security & Privacy"
-            onPress={() => router.push(ROUTES.security)}
+            icon={<IconsaxDocumentTextIcon size={24} color="#111111" />}
+            label="Privacy Policy"
+            onPress={() => router.push(ROUTES.privacy)}
           />
         </ProfileSection>
 
