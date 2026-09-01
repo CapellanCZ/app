@@ -1,3 +1,4 @@
+export { ProfilePhotoViewer } from './ProfilePhotoViewer';
 export { ProfileMenuRow, type ProfileMenuRowProps } from './ProfileMenuRow';
 export { ProfileSection } from './ProfileSection';
 export { UserInfoCard } from './UserInfoCard';

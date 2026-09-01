@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -13,8 +13,8 @@ import { useAuth } from '@/lib/auth/AuthProvider';
 import { emergencyContactFromPatient } from '@/lib/patients/emergencyContact';
 import { usePatientStore } from '@/lib/patients/patientStore';
 import { displayNameWithoutMiddle } from '@/lib/profile/displayName';
-import { pickAndUploadAvatar } from '@/lib/profile/profileApi';
 import { useProfileStore } from '@/lib/profile/profileStore';
+import { useAvatarUpload } from '@/lib/profile/useAvatarUpload';
 import { Inter } from '@/lib/typography/inter';
 import { SCHEDULE_PARTNER } from '@/lib/ui/theme';
 export default function PersonalInfoScreen() {
@@ -25,7 +25,23 @@ export default function PersonalInfoScreen() {
   const fetchProfile = useProfileStore((s) => s.fetchProfile);
   const setAvatarUrl = useProfileStore((s) => s.setAvatarUrl);
   const fetchPatient = usePatientStore((s) => s.fetchPatient);
-  const [avatarUploading, setAvatarUploading] = useState(false);
+
+  const avatarUrl = profile?.avatar_url ?? null;
+  const avatarUrlRef = useRef(avatarUrl);
+  avatarUrlRef.current = avatarUrl;
+
+  const getCurrentAvatarUrl = useCallback(() => avatarUrlRef.current, []);
+
+  const { uploadStatus, pickAndSave } = useAvatarUpload({
+    userId: session?.user?.id,
+    getCurrentAvatarUrl,
+    onSuccess: setAvatarUrl,
+    onSynced: session?.user?.id
+      ? () => {
+          void fetchPatient(session.user.id);
+        }
+      : undefined,
+  });
 
   useEffect(() => {
     if (!session?.user?.id) return;
@@ -57,14 +73,6 @@ export default function PersonalInfoScreen() {
     }
   };
 
-  const handleChangeAvatar = useCallback(async () => {
-    if (!session?.user?.id || avatarUploading) return;
-    setAvatarUploading(true);
-    const url = await pickAndUploadAvatar(session.user.id);
-    if (url) setAvatarUrl(url);
-    setAvatarUploading(false);
-  }, [session?.user?.id, avatarUploading, setAvatarUrl]);
-
   const rawName =
     patient?.full_name?.trim() ||
     profile?.full_name?.trim() ||
@@ -72,7 +80,6 @@ export default function PersonalInfoScreen() {
     '—';
   const name = displayNameWithoutMiddle(rawName) || '—';
   const email = patient?.email ?? profile?.email ?? session?.user?.email ?? '—';
-  const avatarUrl = profile?.avatar_url ?? null;
 
   const patientType = patient?.patient_type ?? profile?.patient_type;
   const normalizedType =
@@ -135,8 +142,8 @@ export default function PersonalInfoScreen() {
         <PersonalInfoPhotoSection
           name={name}
           avatarUrl={avatarUrl}
-          uploading={avatarUploading}
-          onPress={handleChangeAvatar}
+          uploadStatus={uploadStatus}
+          onPress={pickAndSave}
         />
 
         <ProfileSection title="Account Details">

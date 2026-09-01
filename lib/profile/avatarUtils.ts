@@ -1,8 +1,17 @@
 import { supabase } from '@/lib/supabase';
 
-const AVATAR_BUCKET = 'avatars';
+export const AVATAR_BUCKET = 'avatars';
 
-/** Turn a storage path or legacy full URL into a displayable image URL. */
+function isLocalAvatarUri(value: string): boolean {
+  return (
+    value.startsWith('file://') ||
+    value.startsWith('content://') ||
+    value.startsWith('ph://') ||
+    value.startsWith('data:')
+  );
+}
+
+/** Turn a storage path, remote URL, or local preview URI into a displayable image URL. */
 export function resolveAvatarDisplayUrl(
   avatarUrl: string | null | undefined,
   cacheBust?: boolean,
@@ -10,6 +19,10 @@ export function resolveAvatarDisplayUrl(
   if (!avatarUrl?.trim()) return null;
 
   const trimmed = avatarUrl.trim();
+  if (isLocalAvatarUri(trimmed)) {
+    return trimmed;
+  }
+
   let url: string;
 
   if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
@@ -30,4 +43,28 @@ export function resolveAvatarDisplayUrl(
 
 export function avatarStoragePath(userId: string, ext: string): string {
   return `${userId}/avatar.${ext}`;
+}
+
+/** Remove every file in the user's avatar folder before uploading a replacement. */
+export async function deleteUserAvatarsFromStorage(userId: string): Promise<void> {
+  if (!supabase) return;
+
+  const { data: files, error } = await supabase.storage.from(AVATAR_BUCKET).list(userId);
+  if (error) {
+    console.warn('[avatarUtils] list avatars', error.message);
+    return;
+  }
+
+  if (!files?.length) return;
+
+  const paths = files
+    .filter((file) => file.name && !file.name.endsWith('/'))
+    .map((file) => `${userId}/${file.name}`);
+
+  if (!paths.length) return;
+
+  const { error: removeError } = await supabase.storage.from(AVATAR_BUCKET).remove(paths);
+  if (removeError) {
+    console.warn('[avatarUtils] remove avatars', removeError.message);
+  }
 }

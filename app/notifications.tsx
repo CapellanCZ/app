@@ -221,7 +221,7 @@ export default function NotificationsScreen() {
     if (!items.length || clearingRef.current) return;
     Alert.alert(
       'Clear all notifications?',
-      'This removes every notification from your list.',
+      'Notifications will be archived and removed from your inbox.',
       [
         { text: 'Cancel', style: 'cancel' },
         {

@@ -10,20 +10,24 @@ type UserInfoCardProps = {
   name: string;
   email: string;
   avatarUrl: string | null;
+  /** Chevron + card body — opens Edit Profile. */
   onPress: () => void;
-  onAvatarPress: () => void;
+  /** Avatar only — opens full-screen photo preview when a photo exists. */
+  onViewAvatar?: () => void;
 };
 
 /**
- * User info card — tap opens Edit Profile; avatar still changes photo.
+ * User info card — chevron opens Edit Profile; avatar opens photo preview.
  */
 export function UserInfoCard({
   name,
   email,
   avatarUrl,
   onPress,
-  onAvatarPress,
+  onViewAvatar,
 }: UserInfoCardProps) {
+  const canViewAvatar = Boolean(avatarUrl && onViewAvatar);
+
   return (
     <Pressable
       accessibilityRole="button"
@@ -67,18 +71,21 @@ export function UserInfoCard({
       </View>
 
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-        <Pressable
-          onPress={(e) => {
-            // Keep avatar as change-photo; don’t open Edit Profile.
-            e?.stopPropagation?.();
-            onAvatarPress();
-          }}
-          accessibilityRole="button"
-          accessibilityLabel="Change profile photo"
-          {...androidPressProps({ borderless: true, hitSlop: 8 })}
-          style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}>
+        {canViewAvatar ? (
+          <Pressable
+            onPress={(e) => {
+              e?.stopPropagation?.();
+              onViewAvatar?.();
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="View profile photo"
+            {...androidPressProps({ borderless: true, hitSlop: 8 })}
+            style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}>
+            <GreyAvatar size={52} name={name} avatarUrl={avatarUrl} />
+          </Pressable>
+        ) : (
           <GreyAvatar size={52} name={name} avatarUrl={avatarUrl} />
-        </Pressable>
+        )}
         <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
           <Text
             numberOfLines={1}

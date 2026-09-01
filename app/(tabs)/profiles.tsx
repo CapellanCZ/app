@@ -1,11 +1,10 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 
 import { TAB_BAR_HEIGHT } from '@/components/layout/BottomTabBar';
 import { useAuth } from '@/lib/auth/AuthProvider';
-import { pickAndUploadAvatar } from '@/lib/profile/profileApi';
 import { displayNameWithoutMiddle } from '@/lib/profile/displayName';
 import { useProfileStore } from '@/lib/profile/profileStore';
 import { IconsaxNotificationIcon } from '@/components/icons/IconsaxNotificationIcon';
@@ -17,6 +16,7 @@ import {
   LogoutModal,
   LogoutRow,
   ProfileMenuRow,
+  ProfilePhotoViewer,
   ProfileSection,
   UserInfoCard,
 } from '@/components/profile';
@@ -29,9 +29,8 @@ export default function ProfileTab() {
   const { session, patient } = useAuth();
   const profile = useProfileStore((s) => s.profile);
   const fetchProfile = useProfileStore((s) => s.fetchProfile);
-  const setAvatarUrl = useProfileStore((s) => s.setAvatarUrl);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
-  const [avatarUploading, setAvatarUploading] = useState(false);
+  const [photoViewerOpen, setPhotoViewerOpen] = useState(false);
 
   useEffect(() => {
     if (!session?.user?.id) return;
@@ -47,14 +46,6 @@ export default function ProfileTab() {
       userMetadata: session.user.user_metadata,
     });
   }, [session?.user?.id, session?.user?.email, session?.user?.user_metadata, fetchProfile]);
-
-  const handleChangeAvatar = useCallback(async () => {
-    if (!session?.user?.id || avatarUploading) return;
-    setAvatarUploading(true);
-    const url = await pickAndUploadAvatar(session.user.id);
-    if (url) setAvatarUrl(url);
-    setAvatarUploading(false);
-  }, [session?.user?.id, avatarUploading, setAvatarUrl]);
 
   const rawName =
     patient?.full_name?.trim() ||
@@ -93,7 +84,7 @@ export default function ProfileTab() {
           email={email}
           avatarUrl={avatarUrl}
           onPress={() => router.push(ROUTES.personalInfo)}
-          onAvatarPress={handleChangeAvatar}
+          onViewAvatar={() => setPhotoViewerOpen(true)}
         />
 
         <ProfileSection title="Account">
@@ -135,6 +126,12 @@ export default function ProfileTab() {
           onCancel={() => setShowLogoutModal(false)}
         />
       </ScrollView>
+
+      <ProfilePhotoViewer
+        visible={photoViewerOpen}
+        imageUrl={avatarUrl}
+        onClose={() => setPhotoViewerOpen(false)}
+      />
     </View>
   );
 }

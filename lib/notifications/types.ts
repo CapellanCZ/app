@@ -55,6 +55,7 @@ export type NotificationRow = {
   body: string;
   href: string;
   read_at: string | null;
+  archived_at?: string | null;
   created_at: string;
   metadata?: {
     category?: WelfareNotificationCategory;

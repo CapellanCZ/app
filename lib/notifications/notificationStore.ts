@@ -30,8 +30,8 @@ interface NotificationState {
   /** Cached unread count — prefer selecting this over filtering `items`. */
   unreadCount: number;
   error: string | null;
-  /** IDs removed locally while the delete request is in flight — blocks ghost refetches. */
-  pendingDeleteIds: Set<string>;
+  /** IDs archived locally while the update request is in flight — blocks ghost refetches. */
+  pendingArchiveIds: Set<string>;
 
   /** Initial fetch (call on screen mount or app launch). */
   fetchAll: (userId: string, opts?: { silent?: boolean }) => Promise<void>;
@@ -86,7 +86,7 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
   hasLoaded: false,
   unreadCount: 0,
   error: null,
-  pendingDeleteIds: new Set<string>(),
+  pendingArchiveIds: new Set<string>(),
 
   fetchAll: async (userId, opts) => {
     if (!isSupabaseConfigured || !supabase) {
@@ -100,6 +100,7 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
       .from('notifications')
       .select('*')
       .eq('user_id', userId)
+      .is('archived_at', null)
       .order('created_at', { ascending: false })
       .limit(100);
 
@@ -108,11 +109,11 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
       return;
     }
     const rows = (data ?? []) as NotificationRow[];
-    const pendingDeleteIds = get().pendingDeleteIds;
+    const pendingArchiveIds = get().pendingArchiveIds;
     const items = rows
       .filter((r) => isWithinDays(r.created_at, 30))
       .map(toNotificationItem)
-      .filter((item) => !pendingDeleteIds.has(item.id));
+      .filter((item) => !pendingArchiveIds.has(item.id));
     set({
       items,
       unreadCount: countUnread(items),
@@ -178,28 +179,34 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
     if (!ids.length) return;
 
     const idSet = new Set(ids);
+    const archivedAt = new Date().toISOString();
     set((s) => {
-      const pendingDeleteIds = new Set(s.pendingDeleteIds);
-      for (const id of idSet) pendingDeleteIds.add(id);
+      const pendingArchiveIds = new Set(s.pendingArchiveIds);
+      for (const id of idSet) pendingArchiveIds.add(id);
       const items = s.items.filter((n) => !idSet.has(n.id));
-      return { items, unreadCount: countUnread(items), pendingDeleteIds };
+      return { items, unreadCount: countUnread(items), pendingArchiveIds };
     });
 
     if (!isSupabaseConfigured || !supabase) {
       set((s) => {
-        const pendingDeleteIds = new Set(s.pendingDeleteIds);
-        for (const id of idSet) pendingDeleteIds.delete(id);
-        return { pendingDeleteIds };
+        const pendingArchiveIds = new Set(s.pendingArchiveIds);
+        for (const id of idSet) pendingArchiveIds.delete(id);
+        return { pendingArchiveIds };
       });
       return;
     }
 
-    const { error } = await supabase.from('notifications').delete().in('id', ids);
+    const { error } = await supabase
+      .from('notifications')
+      .update({ archived_at: archivedAt })
+      .in('id', ids);
+
     set((s) => {
-      const pendingDeleteIds = new Set(s.pendingDeleteIds);
-      for (const id of idSet) pendingDeleteIds.delete(id);
-      return { pendingDeleteIds };
+      const pendingArchiveIds = new Set(s.pendingArchiveIds);
+      for (const id of idSet) pendingArchiveIds.delete(id);
+      return { pendingArchiveIds };
     });
+
     if (error) {
       console.warn('[notifications] archiveIds failed:', error.message);
       const userId = (await supabase.auth.getUser()).data.user?.id;
@@ -222,6 +229,7 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
         void get().fetchAll(userId, { silent: true });
       },
       onInsert: (row) => {
+        if (row.archived_at) return;
         const item = toNotificationItem(row);
         get().prependItem(item);
         // Queue milestones also raise a local OS banner (in + out of app when allowed).
@@ -234,7 +242,7 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
         });
       },
       onDelete: (row) => {
-        if (!row.id || get().pendingDeleteIds.has(row.id)) return;
+        if (!row.id || get().pendingArchiveIds.has(row.id)) return;
         set((s) => {
           if (!s.items.some((n) => n.id === row.id)) return s;
           const items = s.items.filter((n) => n.id !== row.id);

@@ -1,9 +1,26 @@
-import * as ImagePicker from 'expo-image-picker';
 import { fetchPatientByAuthUserId } from '@/lib/patients/patientsApi';
 import type { Patient } from '@/lib/patients/types';
 import { supabase } from '@/lib/supabase';
 
-import { avatarStoragePath, resolveAvatarDisplayUrl } from './avatarUtils';
+import {
+  pickAvatarFromLibrary,
+  readLocalFileBytes,
+  type AvatarPickResult,
+} from './avatarImage';
+import { base64ToArrayBuffer } from './base64';
+import { avatarStoragePath, deleteUserAvatarsFromStorage, resolveAvatarDisplayUrl } from './avatarUtils';
+
+export type AvatarUploadResult =
+  | { outcome: 'success'; url: string }
+  | { outcome: 'cancelled' }
+  | { outcome: 'permission_denied' }
+  | { outcome: 'failed'; message: string };
+
+export type AvatarPersistResult =
+  | { outcome: 'success'; url: string }
+  | { outcome: 'failed'; message: string };
+
+export type { AvatarPickResult };
 
 /** UI profile shape — sourced from `patients` after login. */
 export type StudentProfile = {
@@ -52,54 +69,76 @@ export async function fetchStudentProfile(authUserId: string): Promise<StudentPr
   return patientToProfile(patient, authUserId);
 }
 
-/** Pick a photo, upload to `avatars`, and persist path on `patients.avatar_url`. */
-export async function pickAndUploadAvatar(userId: string): Promise<string | null> {
-  if (!supabase) return null;
+/** Opens the photo library and returns the picked local URI. */
+export async function pickAvatarImage(): Promise<AvatarPickResult> {
+  return pickAvatarFromLibrary();
+}
 
-  const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-  if (!perm.granted) return null;
-
-  const result = await ImagePicker.launchImageLibraryAsync({
-    mediaTypes: ImagePicker.MediaTypeOptions.Images,
-    allowsEditing: true,
-    aspect: [1, 1],
-    quality: 0.8,
-  });
-
-  if (result.canceled || !result.assets[0]) return null;
-
-  const asset = result.assets[0];
-  const ext = asset.uri.split('.').pop()?.toLowerCase() ?? 'jpg';
-  const normalizedExt = ext === 'jpeg' ? 'jpg' : ext;
-  const filePath = avatarStoragePath(userId, normalizedExt);
-
-  const response = await fetch(asset.uri);
-  const blob = await response.blob();
-  const arrayBuffer = await new Response(blob).arrayBuffer();
-
-  const { error: uploadError } = await supabase.storage.from('avatars').upload(filePath, arrayBuffer, {
-    contentType: asset.mimeType ?? `image/${normalizedExt}`,
-    upsert: true,
-  });
-
-  if (uploadError) {
-    console.error('[profileApi] upload avatar', uploadError);
-    return null;
+/** Upload avatar bytes and persist path for the current user. */
+export async function uploadAvatarImage(
+  userId: string,
+  picked: Extract<AvatarPickResult, { outcome: 'success' }>,
+): Promise<AvatarPersistResult> {
+  if (!supabase) {
+    return { outcome: 'failed', message: 'Storage is not configured.' };
   }
 
-  const { error: dbError } = await supabase.rpc('set_my_patient_avatar', {
-    p_avatar_url: filePath,
-  });
+  const filePath = avatarStoragePath(userId, 'jpg');
+  const contentType = 'image/jpeg';
 
-  if (dbError) {
-    console.error('[profileApi] set_my_patient_avatar', dbError);
-    return null;
+  try {
+    await deleteUserAvatarsFromStorage(userId);
+
+    const arrayBuffer = picked.base64
+      ? base64ToArrayBuffer(picked.base64)
+      : await readLocalFileBytes(picked.sourceUri);
+
+    const { error: uploadError } = await supabase.storage.from('avatars').upload(filePath, arrayBuffer, {
+      contentType,
+      upsert: true,
+    });
+
+    if (uploadError) {
+      console.error('[profileApi] upload avatar', uploadError);
+      return { outcome: 'failed', message: uploadError.message };
+    }
+
+    const { error: dbError } = await supabase.rpc('set_my_patient_avatar', {
+      p_avatar_url: filePath,
+    });
+
+    if (dbError) {
+      console.error('[profileApi] set_my_patient_avatar', dbError);
+      return { outcome: 'failed', message: dbError.message };
+    }
+
+    void supabase.auth
+      .updateUser({ data: { avatar_url: filePath } })
+      .then(({ error }) => {
+        if (error) {
+          console.warn('[profileApi] auth avatar metadata sync', error.message);
+        }
+      });
+
+    const url = resolveAvatarDisplayUrl(filePath, true);
+    if (!url) {
+      return { outcome: 'failed', message: 'Could not resolve photo URL.' };
+    }
+
+    return { outcome: 'success', url };
+  } catch (error) {
+    console.error('[profileApi] uploadAvatarImage', error);
+    return {
+      outcome: 'failed',
+      message: error instanceof Error ? error.message : 'Upload failed.',
+    };
   }
+}
 
-  // Keep auth metadata in sync for session fallbacks.
-  await supabase.auth.updateUser({
-    data: { avatar_url: filePath },
-  });
-
-  return resolveAvatarDisplayUrl(filePath, true);
+/** @deprecated Use pickAvatarImage + uploadAvatarImage for responsive UI. */
+export async function pickAndUploadAvatar(userId: string): Promise<AvatarUploadResult> {
+  const picked = await pickAvatarImage();
+  if (picked.outcome === 'cancelled') return { outcome: 'cancelled' };
+  if (picked.outcome === 'permission_denied') return { outcome: 'permission_denied' };
+  return uploadAvatarImage(userId, picked);
 }
