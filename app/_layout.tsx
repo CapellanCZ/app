@@ -1,6 +1,6 @@
 import '../global.css';
+import { useEffect } from 'react';
 import { useFonts } from 'expo-font';
-import * as SplashScreen from 'expo-splash-screen';
 import { HeroUINativeProvider } from 'heroui-native';
 import { Stack } from 'expo-router';
 import { useColorScheme, View } from 'react-native';
@@ -10,6 +10,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { TamaguiProvider } from 'tamagui';
 
 import { UniwindInsetSync } from '@/components/UniwindInsetSync';
+import { AuthSessionGuard } from '@/components/auth/AuthSessionGuard';
 import { AuthProvider } from '@/lib/auth/AuthProvider';
 import { AppointmentSubscription } from '@/components/health-service/AppointmentSubscription';
 import { NotificationHandler } from '@/components/notifications/NotificationHandler';
@@ -17,10 +18,11 @@ import { NotificationSubscription } from '@/components/notifications/Notificatio
 import { AppToastBinder } from '@/components/ui/AppToastBinder';
 import { FeedbackSoundHost } from '@/components/ui/FeedbackSoundHost';
 import { configureAndroidText } from '@/lib/ui/configureAndroidText';
+import { hideSplashScreenOnce, prepareSplashScreen } from '@/lib/bootstrap/splashScreen';
 import { tamaguiConfig } from '../tamagui.config';
 
 configureAndroidText();
-void SplashScreen.preventAutoHideAsync();
+prepareSplashScreen();
 
 export const unstable_settings = {
   // Ensure that reloading on `/modal` keeps a back button present.
@@ -37,6 +39,12 @@ export default function RootLayout() {
     'Inter-Bold': require('@tamagui/font-inter/otf/Inter-Bold.otf'),
   });
 
+  useEffect(() => {
+    if (fontsLoaded) {
+      void hideSplashScreenOnce();
+    }
+  }, [fontsLoaded]);
+
   if (!fontsLoaded) {
     return null;
   }
@@ -52,6 +60,7 @@ export default function RootLayout() {
             <KeyboardProvider>
               <AuthProvider>
               <AppToastBinder />
+              <AuthSessionGuard />
               <FeedbackSoundHost />
               <AppointmentSubscription />
               <NotificationHandler />

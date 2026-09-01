@@ -339,6 +339,11 @@
         <div class="otp-code">{{ .Token }}</div>
         <div class="otp-expiry">Expires in 10 minutes</div>
       </div>
+
+      <!-- iOS Mail / keyboard autofill hint (keep this line plain text) -->
+      <p style="font-size: 13px; color: #717680; text-align: center; margin: -16px 0 24px; letter-spacing: -0.26px;">
+        @campuscare.app #{{ .Token }}
+      </p>
       
       <!-- Instructions -->
       <div class="instructions">

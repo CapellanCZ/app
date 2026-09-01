@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 
-import { supabase } from '@/lib/supabase';
+import { signOutUser } from '@/lib/auth/signOut';
 
 /**
  * Shown when auth succeeds but no `patients` row is linked to the user.
@@ -10,7 +10,7 @@ export default function NotEnrolledScreen() {
   const router = useRouter();
 
   const handleSignOut = async () => {
-    await supabase?.auth.signOut();
+    await signOutUser();
     router.replace('/(auth)');
   };
 

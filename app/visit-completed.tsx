@@ -7,7 +7,7 @@ import { AppointmentBookedCheckIcon } from '@/components/booking/AppointmentBook
 import { formatVisitReasonDisplay } from '@/components/booking/BookingConsultationFields';
 import { BottomSheetModal, type BottomSheetModalHandle } from '@/components/ui/BottomSheetModal';
 import { formatAppointmentBookedDate } from '@/lib/health-service/appointmentDisplay';
-import { useHealthServiceStore } from '@/lib/health-service/healthServiceStore';
+import { useAppointmentStaffDisplay } from '@/lib/health-service/useAppointmentStaffDisplay';
 import { Inter } from '@/lib/typography/inter';
 import { playToastFeedback } from '@/lib/ui/feedbackSound';
 
@@ -17,61 +17,30 @@ import { playToastFeedback } from '@/lib/ui/feedbackSound';
  */
 export default function VisitCompletedSheet() {
   const sheetRef = useRef<BottomSheetModalHandle>(null);
-  const {
-    id,
-    doctorName,
-    specialtyLabel,
-    photoUrl,
-    appointmentDate,
-    appointmentTime,
-    dateKey,
-    reason,
-    completedTime,
-  } = useLocalSearchParams<{
-    id?: string;
-    doctorName?: string;
-    specialtyLabel?: string;
-    photoUrl?: string;
-    appointmentDate?: string;
-    appointmentTime?: string;
-    dateKey?: string;
-    reason?: string;
-    completedTime?: string;
-  }>();
+  const { id } = useLocalSearchParams<{ id?: string }>();
+  const appointmentId = id ? String(id) : undefined;
 
   useEffect(() => {
     void playToastFeedback('success');
   }, []);
 
-  const appointments = useHealthServiceStore((s) => s.appointments);
-  const appointment = useMemo(() => {
-    const appointmentId = id ? String(id) : '';
-    if (!appointmentId) return null;
-    return appointments.find((a) => a.id === appointmentId) ?? null;
-  }, [appointments, id]);
+  const { name, specialty, photoUrl, appointment } = useAppointmentStaffDisplay(appointmentId);
 
   const visitReason = useMemo(
-    () => formatVisitReasonDisplay(reason || appointment?.reason),
-    [reason, appointment?.reason],
+    () => formatVisitReasonDisplay(appointment?.reason),
+    [appointment?.reason],
   );
 
-  const name = doctorName?.trim() || 'Clinic staff';
-  const specialty = specialtyLabel?.trim() || 'Campus Clinic';
-  const dateLabel =
-    (dateKey ? formatAppointmentBookedDate(String(dateKey)) : null) ||
-    appointmentDate?.trim() ||
-    (appointment ? formatAppointmentBookedDate(appointment.dateKey) : null) ||
-    '—';
+  const dateLabel = appointment
+    ? formatAppointmentBookedDate(appointment.dateKey)
+    : '—';
 
-  const appointmentTimeLabel =
-    appointmentTime?.trim() || appointment?.startLabel?.trim() || '';
-  const completedAtLabel =
-    completedTime?.trim() || appointment?.endLabel?.trim() || '';
-
-  const timeLabel =
-    appointmentTimeLabel && completedAtLabel
-      ? `${appointmentTimeLabel} · ${completedAtLabel}`
-      : appointmentTimeLabel || completedAtLabel || '—';
+  const timeLabel = useMemo(() => {
+    const start = appointment?.startLabel?.trim() ?? '';
+    const end = appointment?.endLabel?.trim() ?? '';
+    if (start && end) return `${start} · ${end}`;
+    return start || end || '—';
+  }, [appointment?.startLabel, appointment?.endLabel]);
 
   const dismiss = () => {
     sheetRef.current?.dismiss(() => router.back());

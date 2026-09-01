@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 
 import { HomeQuickActions } from '@/components/home/HomeQuickActions';
+import { HomeScreenSkeleton } from '@/components/home/HomeScreenSkeleton';
 import { HomeWelcomeHeader } from '@/components/home/HomeWelcomeHeader';
 import {
   HomeUpcomingAppointmentCard,
@@ -16,12 +17,14 @@ import { TAB_BAR_HEIGHT } from '@/components/layout/BottomTabBar';
 import { useAnnouncementStore } from '@/lib/announcements/announcementStore';
 import { useAuth } from '@/lib/auth/AuthProvider';
 import {
+  staffDisplayForAppointment,
   staffNameForAppointment,
   useHealthServiceStore,
 } from '@/lib/health-service/healthServiceStore';
 import { useStaffPresenceStore } from '@/lib/health-service/staffPresenceStore';
 import { useProfileStore } from '@/lib/profile/profileStore';
 import { showMoreQuickActionToast } from '@/lib/home/quickActionToasts';
+import { useHomeScreenReady } from '@/lib/home/useHomeScreenReady';
 import { ROUTES } from '@/lib/routes';
 import { Inter } from '@/lib/typography/inter';
 import { openClinicCall } from '@/lib/health-service/clinicContact';
@@ -70,6 +73,8 @@ export default function HealthServiceScreen() {
   const avatarUrl = profile?.avatar_url ?? null;
 
   const [refreshing, setRefreshing] = useState(false);
+  const isHomeReady = useHomeScreenReady();
+  const showHomeSkeleton = !refreshing && !isHomeReady;
 
   const { appointments, staff, loadAppointments, loadStaff, refreshData, subscribeAppointments } =
     useHealthServiceStore();
@@ -80,23 +85,17 @@ export default function HealthServiceScreen() {
   const presenceByStaffId = useStaffPresenceStore((s) => s.byStaffId);
 
   useEffect(() => {
-    // Stores are usually warm from splash prefetch; only fill gaps.
-    void loadAnnouncements();
-    if (!staff.length) void loadStaff();
-    if (!appointments.length) void loadAppointments();
-    void loadVitals({
-      studentId: patient?.student_id,
-      employeeId: patient?.employee_id,
-    });
+    void Promise.all([
+      loadAnnouncements(),
+      loadStaff(),
+      loadAppointments(),
+      loadVitals({
+        studentId: patient?.student_id,
+        employeeId: patient?.employee_id,
+      }),
+    ]);
     return subscribeAppointments();
-  }, []);
-
-  useEffect(() => {
-    void loadVitals({
-      studentId: patient?.student_id,
-      employeeId: patient?.employee_id,
-    });
-  }, [patient?.student_id, patient?.employee_id, loadVitals]);
+  }, [loadAnnouncements, loadStaff, loadAppointments, loadVitals, subscribeAppointments, patient?.student_id, patient?.employee_id]);
 
   const userName = useMemo(() => {
     const full =
@@ -124,7 +123,9 @@ export default function HealthServiceScreen() {
     );
   }, [appointments]);
 
-  const upcomingStaffName = upcomingItem ? staffNameForAppointment(upcomingItem.staffId) : '';
+  const upcomingStaffDisplay = upcomingItem
+    ? staffDisplayForAppointment(upcomingItem)
+    : null;
   const upcomingStaff = upcomingItem ? staff.find((s) => s.id === upcomingItem.staffId) : null;
   /** Prefer appointment staff id so presence loads even before staff list hydrates. */
   const upcomingStaffId = upcomingItem?.staffId ?? upcomingStaff?.id ?? null;
@@ -205,6 +206,10 @@ export default function HealthServiceScreen() {
           gap: 20,
           backgroundColor: '#F9F9F9',
         }}>
+        {showHomeSkeleton ? (
+          <HomeScreenSkeleton />
+        ) : (
+          <>
         {/* Header + greeting */}
         <View style={{ gap: 10 }}>
           <View style={{ paddingVertical: 10 }}>
@@ -228,9 +233,9 @@ export default function HealthServiceScreen() {
         <View style={{ gap: 16 }}>
           {upcomingItem ? (
             <HomeUpcomingAppointmentCard
-              doctorName={upcomingStaffName || upcomingStaff?.name || 'Clinic staff'}
-              specialtyLabel={upcomingStaff?.specialtyLabel || 'Campus Clinic'}
-              photoUrl={upcomingStaff?.photoUrl}
+              doctorName={upcomingStaffDisplay?.name || 'Clinic staff'}
+              specialtyLabel={upcomingStaffDisplay?.specialty || 'Campus Clinic'}
+              photoUrl={upcomingStaffDisplay?.photoUrl}
               dateLabel={formatShortDate(upcomingItem.dateKey)}
               timeLabel={timeLabel}
               estDoneLabel={estDoneLabel}
@@ -270,6 +275,8 @@ export default function HealthServiceScreen() {
           <SectionTitle>Announcement</SectionTitle>
           <HealthServiceAnnouncementCard />
         </View>
+          </>
+        )}
       </ScrollView>
     </HealthServiceScreenShell>
   );

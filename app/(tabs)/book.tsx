@@ -1,25 +1,18 @@
 import { useCallback } from 'react';
-import { View } from 'react-native';
-import { router, useFocusEffect } from 'expo-router';
-
-import { openDefaultBooking } from '@/lib/health-service/openDefaultBooking';
-import { ROUTES } from '@/lib/routes';
+import { useFocusEffect, useNavigation } from 'expo-router';
 
 /**
- * Book (+) tab — opens full-screen booking, then returns tab selection to Home
- * so backing out of booking does not re-trigger this screen (iOS NativeTabs).
+ * Book (+) is not a destination — if this route ever gains focus, return to Home
+ * (e.g. after closing the booking stack) without re-opening booking.
  */
 export default function BookTab() {
+  const navigation = useNavigation();
+
   useFocusEffect(
     useCallback(() => {
-      void (async () => {
-        const opened = await openDefaultBooking();
-        if (opened) {
-          router.navigate(ROUTES.home);
-        }
-      })();
-    }, []),
+      navigation.navigate('index');
+    }, [navigation]),
   );
 
-  return <View style={{ flex: 1, backgroundColor: '#F9F9F9' }} />;
+  return null;
 }

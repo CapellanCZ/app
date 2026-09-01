@@ -155,6 +155,7 @@ export default function Login() {
     <BottomSheetModal
       ref={sheetRef}
       onClose={() => router.back()}
+      bottomPadding={32}
       dismissOnBackdropPress={step !== 'verify'}>
 
           {/* ── STEP 1: Email Entry ── */}
@@ -271,6 +272,7 @@ const styles = StyleSheet.create({
     gap: 20,
     paddingHorizontal: 4,
     paddingTop: 8,
+    paddingBottom: 12,
   },
   emailField: {
     gap: 10,

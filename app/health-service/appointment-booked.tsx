@@ -8,8 +8,6 @@ import { AppointmentBookedCheckIcon } from '@/components/booking/AppointmentBook
 import { AppointmentImportantNote } from '@/components/booking/AppointmentImportantNote';
 import { formatVisitReasonDisplay } from '@/components/booking/BookingConsultationFields';
 import { useAuth } from '@/lib/auth/AuthProvider';
-import { showAppToast } from '@/lib/ui/toastBridge';
-import { playToastFeedback } from '@/lib/ui/feedbackSound';
 import {
   appointmentReminderAt,
   buildGoogleCalendarUrl,
@@ -20,8 +18,11 @@ import {
 } from '@/lib/health-service/appointmentDisplay';
 import { healthServiceApi } from '@/lib/health-service/healthServiceApi';
 import { useHealthServiceStore } from '@/lib/health-service/healthServiceStore';
+import { useAppointmentStaffDisplay } from '@/lib/health-service/useAppointmentStaffDisplay';
 import { notifyAppointmentCancelled } from '@/lib/notifications/appointmentNotifications';
 import { Inter } from '@/lib/typography/inter';
+import { playToastFeedback } from '@/lib/ui/feedbackSound';
+import { showAppToast } from '@/lib/ui/toastBridge';
 
 const REMINDER_MINUTES_BEFORE = 30;
 const CLINIC_LOCATION = 'CampusCare Student Health Clinic';
@@ -35,75 +36,44 @@ const CLINIC_LOCATION = 'CampusCare Student Health Clinic';
 export default function AppointmentBookedScreen() {
   const insets = useSafeAreaInsets();
   const { session } = useAuth();
+  const { id } = useLocalSearchParams<{ id?: string }>();
+  const appointmentId = id ? String(id) : undefined;
+
   const [reminderBusy, setReminderBusy] = useState(false);
   const [reminderSetAt, setReminderSetAt] = useState<Date | null>(null);
   const [calendarBusy, setCalendarBusy] = useState(false);
   const [cancelBusy, setCancelBusy] = useState(false);
   const [queueNumberLabel, setQueueNumberLabel] = useState<string | null>(null);
-  const {
-    id,
-    doctorName,
-    specialtyLabel,
-    photoUrl,
-    appointmentDate,
-    appointmentTime,
-    dateKey,
-    status,
-    reason,
-    queueNumber,
-  } = useLocalSearchParams<{
-    id?: string;
-    doctorName?: string;
-    specialtyLabel?: string;
-    photoUrl?: string;
-    appointmentDate?: string;
-    appointmentTime?: string;
-    dateKey?: string;
-    status?: string;
-    reason?: string;
-    queueNumber?: string;
-  }>();
 
-  const appointments = useHealthServiceStore((s) => s.appointments);
   const loadAppointments = useHealthServiceStore((s) => s.loadAppointments);
   const cancelAppointment = useHealthServiceStore((s) => s.cancelAppointment);
-  const storeAppointment = useMemo(() => {
-    const appointmentId = id ? String(id) : '';
-    if (!appointmentId) return null;
-    return appointments.find((a) => a.id === appointmentId) ?? null;
-  }, [appointments, id]);
 
-  const storeReason = storeAppointment?.reason ?? null;
-  const routeQueueLabel = queueNumber?.trim() || null;
-  const prefetchedQueueLabel = storeAppointment?.arrivalTicket
-    ? `${storeAppointment.arrivalTicket.position}#`
-    : routeQueueLabel;
+  const { name, specialty, photoUrl, appointment } = useAppointmentStaffDisplay(appointmentId);
 
   const visitReason = useMemo(
-    () => formatVisitReasonDisplay(reason || storeReason),
-    [reason, storeReason],
+    () => formatVisitReasonDisplay(appointment?.reason),
+    [appointment?.reason],
   );
 
-  const statusNorm = String(status ?? storeAppointment?.status ?? '').toLowerCase();
-  const isCancelled = statusNorm === 'cancelled' || storeAppointment?.status === 'cancelled';
-  // Prefer live store once realtime updates arrive (URL params can stay stale as "pending").
-  const isConfirmed =
-    storeAppointment?.status === 'confirmed' ||
-    statusNorm === 'confirmed' ||
-    statusNorm === 'in_progress';
+  const isCancelled = appointment?.status === 'cancelled';
+  const isConfirmed = appointment?.status === 'confirmed';
 
-  // Prefer prefetched ticket from appointments load; keep local state for refresh.
+  const prefetchedQueueLabel = appointment?.arrivalTicket
+    ? `${appointment.arrivalTicket.position}#`
+    : null;
   const displayQueueLabel = queueNumberLabel ?? prefetchedQueueLabel;
 
+  const time = appointment?.startLabel?.trim() || '—';
+  const dateKey = appointment?.dateKey ?? '';
+  const dateLabel = appointment ? formatAppointmentBookedDate(appointment.dateKey) : '—';
+  const estDoneLabel = isConfirmed && time !== '—' ? estimateEndLabel(time) : null;
+
   useEffect(() => {
-    // Keep status/queue in sync when admin confirms while this screen is open.
     void loadAppointments();
   }, [loadAppointments]);
 
   useEffect(() => {
-    if (isCancelled) {
-      router.replace('/appointments');
-    }
+    if (isCancelled) router.replace('/appointments');
   }, [isCancelled]);
 
   useEffect(() => {
@@ -112,16 +82,12 @@ export default function AppointmentBookedScreen() {
   }, [isCancelled]);
 
   useEffect(() => {
-    const appointmentId = id ? String(id) : '';
     if (!appointmentId || !isConfirmed) {
       setQueueNumberLabel(null);
       return;
     }
 
-    // Seed from store immediately when available (splash / list prefetch).
-    if (prefetchedQueueLabel) {
-      setQueueNumberLabel(prefetchedQueueLabel);
-    }
+    if (prefetchedQueueLabel) setQueueNumberLabel(prefetchedQueueLabel);
 
     let cancelled = false;
     void (async () => {
@@ -134,41 +100,28 @@ export default function AppointmentBookedScreen() {
         if (!cancelled && !prefetchedQueueLabel) setQueueNumberLabel(null);
       }
     })();
+
     return () => {
       cancelled = true;
     };
-  }, [id, isConfirmed, storeAppointment?.status, prefetchedQueueLabel]);
-
-  const name = doctorName?.trim() || 'Clinic staff';
-  const specialty = specialtyLabel?.trim() || 'Campus Clinic';
-  const time = appointmentTime?.trim() || '—';
-  const dateLabel =
-    (dateKey ? formatAppointmentBookedDate(String(dateKey)) : null) ||
-    appointmentDate?.trim() ||
-    '—';
-  // EST finish only when confirmed — pending shows start time alone.
-  const estDoneLabel = isConfirmed && appointmentTime ? estimateEndLabel(String(appointmentTime)) : null;
+  }, [appointmentId, isConfirmed, prefetchedQueueLabel, appointment?.status]);
 
   const reminderAt = useMemo(() => {
-    if (!dateKey || !appointmentTime) return null;
-    return appointmentReminderAt(String(dateKey), String(appointmentTime), REMINDER_MINUTES_BEFORE);
-  }, [appointmentTime, dateKey]);
+    if (!dateKey || time === '—') return null;
+    return appointmentReminderAt(dateKey, time, REMINDER_MINUTES_BEFORE);
+  }, [dateKey, time]);
 
   const reminderAvailable = Boolean(reminderAt && reminderAt.getTime() > Date.now());
 
   const reminderLinkLabel = useMemo(() => {
-    if (reminderSetAt) {
-      return `Reminder set for ${formatClinicTime(reminderSetAt)} →`;
-    }
+    if (reminderSetAt) return `Reminder set for ${formatClinicTime(reminderSetAt)} →`;
     if (!reminderAt) return 'Get a reminder 30 minutes before →';
     return `Get a reminder at ${formatClinicTime(reminderAt)} (${formatClinicDayMonth(reminderAt)}) →`;
   }, [reminderAt, reminderSetAt]);
 
-  /** Hide the reminder row once the appointment is within 30 minutes (unless already set). */
   const showReminder = Boolean(reminderSetAt || reminderAvailable);
 
   const requestCancel = useCallback(() => {
-    const appointmentId = id ? String(id) : '';
     if (!appointmentId || cancelBusy) return;
 
     Alert.alert(
@@ -199,15 +152,15 @@ export default function AppointmentBookedScreen() {
         },
       ],
     );
-  }, [cancelAppointment, cancelBusy, id, name, session?.user?.id]);
+  }, [appointmentId, cancelAppointment, cancelBusy, name, session?.user?.id]);
 
   const handleAddToCalendar = useCallback(async () => {
-    if (!dateKey || !appointmentTime || calendarBusy) return;
+    if (!dateKey || time === '—' || calendarBusy) return;
 
     const url = buildGoogleCalendarUrl({
       title: `CampusCare · ${name}`,
-      dateKey: String(dateKey),
-      startLabel: String(appointmentTime),
+      dateKey,
+      startLabel: time,
       details: `Appointment with ${name} (${specialty})\nPlease arrive 15 minutes early and bring your school ID.`,
       location: CLINIC_LOCATION,
     });
@@ -242,10 +195,11 @@ export default function AppointmentBookedScreen() {
     } finally {
       setCalendarBusy(false);
     }
-  }, [appointmentTime, calendarBusy, dateKey, dateLabel, name, specialty, time]);
+  }, [calendarBusy, dateKey, dateLabel, name, specialty, time]);
 
   const handleReminder = useCallback(async () => {
-    if (!dateKey || !appointmentTime || reminderBusy || reminderSetAt) return;
+    if (!appointmentId || !dateKey || time === '—' || reminderBusy || reminderSetAt) return;
+
     if (!reminderAvailable) {
       showAppToast({
         variant: 'accent',
@@ -256,22 +210,7 @@ export default function AppointmentBookedScreen() {
       return;
     }
 
-    const appointmentId = id ? String(id) : '';
-    if (!appointmentId) {
-      showAppToast({
-        variant: 'danger',
-        placement: 'top',
-        label: 'Could not set reminder',
-        description: 'Missing appointment id.',
-      });
-      return;
-    }
-
-    const fireAt = appointmentReminderAt(
-      String(dateKey),
-      String(appointmentTime),
-      REMINDER_MINUTES_BEFORE,
-    );
+    const fireAt = appointmentReminderAt(dateKey, time, REMINDER_MINUTES_BEFORE);
     if (!fireAt) {
       showAppToast({
         variant: 'danger',
@@ -341,10 +280,9 @@ export default function AppointmentBookedScreen() {
       setReminderBusy(false);
     }
   }, [
-    appointmentTime,
+    appointmentId,
     dateKey,
     dateLabel,
-    id,
     name,
     reminderAvailable,
     reminderBusy,
@@ -557,7 +495,7 @@ export default function AppointmentBookedScreen() {
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Cancel appointment"
-                disabled={cancelBusy || !id}
+                disabled={cancelBusy || !appointmentId}
                 onPress={requestCancel}
                 style={{
                   height: 48,
@@ -567,7 +505,7 @@ export default function AppointmentBookedScreen() {
                   backgroundColor: 'transparent',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  opacity: cancelBusy || !id ? 0.55 : 1,
+                  opacity: cancelBusy || !appointmentId ? 0.55 : 1,
                 }}
                 className="active:opacity-80">
                 <Text

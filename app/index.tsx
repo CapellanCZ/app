@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import * as SplashScreen from 'expo-splash-screen';
 import { useRouter } from 'expo-router';
 
 import { SplashBrand } from '@/components/splash/SplashBrand';
@@ -15,34 +14,28 @@ export default function Index() {
   const { session, isLoading, isConfigured, enrollmentStatus, isEnrollmentLoading } = useAuth();
   const hasRedirected = useRef(false);
   const bootStarted = useRef(false);
-  const [nativeSplashHidden, setNativeSplashHidden] = useState(false);
+  const [minSplashElapsed, setMinSplashElapsed] = useState(false);
 
   useEffect(() => {
-    void SplashScreen.hideAsync().finally(() => setNativeSplashHidden(true));
+    const timer = setTimeout(() => setMinSplashElapsed(true), MIN_SPLASH_MS);
+    return () => clearTimeout(timer);
   }, []);
 
   useEffect(() => {
-    if (!nativeSplashHidden) return;
+    if (!minSplashElapsed) return;
     if (isLoading) return;
     if (bootStarted.current || hasRedirected.current) return;
 
     if (!isConfigured || !session) {
       bootStarted.current = true;
-      const started = Date.now();
-      const go = () => {
-        if (hasRedirected.current) return;
-        hasRedirected.current = true;
-        router.replace('/(auth)');
-      };
-      const remaining = Math.max(0, MIN_SPLASH_MS - (Date.now() - started));
-      const t = setTimeout(go, remaining);
-      return () => clearTimeout(t);
+      hasRedirected.current = true;
+      router.replace('/(auth)');
+      return;
     }
 
     if (isEnrollmentLoading || enrollmentStatus === 'unknown') return;
 
     bootStarted.current = true;
-    const started = Date.now();
 
     void (async () => {
       if (enrollmentStatus === 'enrolled' && session.user?.id) {
@@ -50,11 +43,6 @@ export default function Index() {
           email: session.user.email ?? undefined,
           userMetadata: session.user.user_metadata as Record<string, unknown> | undefined,
         });
-      }
-
-      const remaining = Math.max(0, MIN_SPLASH_MS - (Date.now() - started));
-      if (remaining > 0) {
-        await new Promise((r) => setTimeout(r, remaining));
       }
 
       if (hasRedirected.current) return;
@@ -68,7 +56,7 @@ export default function Index() {
       router.replace('/(tabs)' as never);
     })();
   }, [
-    nativeSplashHidden,
+    minSplashElapsed,
     isLoading,
     isConfigured,
     session,

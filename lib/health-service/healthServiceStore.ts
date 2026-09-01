@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { resolveAppointmentStaffDisplay } from './appointmentStaff';
 import { healthServiceApi } from './healthServiceApi';
 import { acquireAppointmentsSubscription } from './realtimeSubscriptions';
 import type { Appointment, Staff } from './types';
@@ -151,7 +152,30 @@ export function getHealthAppointmentsSnapshot(): Appointment[] {
   return useHealthServiceStore.getState().appointments;
 }
 
-export function staffNameForAppointment(staffId: string): string {
-  const staff = useHealthServiceStore.getState().staff.find(s => s.id === staffId);
-  return staff?.name || 'Unknown Provider';
+export function staffNameForAppointment(
+  staffId: string,
+  appointmentId?: string,
+): string {
+  const state = useHealthServiceStore.getState();
+  const appointment =
+    (appointmentId
+      ? state.appointments.find((item) => item.id === appointmentId)
+      : undefined) ??
+    (staffId ? state.appointments.find((item) => item.staffId === staffId) : undefined);
+
+  if (!appointment) {
+    const staff = staffId ? state.staff.find((member) => member.id === staffId) : undefined;
+    return staff?.name || 'Clinic staff';
+  }
+
+  return resolveAppointmentStaffDisplay(appointment, state.staff).name;
+}
+
+export function staffDisplayForAppointment(appointment: Appointment): {
+  name: string;
+  specialty: string;
+  photoUrl?: string | null;
+} {
+  const state = useHealthServiceStore.getState();
+  return resolveAppointmentStaffDisplay(appointment, state.staff);
 }

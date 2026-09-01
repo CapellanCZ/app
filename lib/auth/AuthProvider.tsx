@@ -1,8 +1,11 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import type { Session } from '@supabase/supabase-js';
 
+import { clearStaleSession, isStaleSessionError } from '@/lib/auth/sessionRecovery';
+import { consumeIntentionalSignOut } from '@/lib/auth/signOut';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { showAppToast } from '@/lib/ui/toastBridge';
 import { registerPushToken } from '@/lib/notifications/registerPushToken';
 import { useHealthServiceStore } from '@/lib/health-service/healthServiceStore';
 import { useStaffPresenceStore } from '@/lib/health-service/staffPresenceStore';
@@ -34,6 +37,7 @@ const AuthContext = createContext<AuthContextValue>({
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const hadSessionRef = useRef(false);
 
   const patient = usePatientStore((s) => s.patient);
   const enrollmentStatus = usePatientStore((s) => s.enrollmentStatus);
@@ -47,26 +51,69 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    supabase.auth.getSession().then(({ data: { session: s } }) => {
-      setSession(s);
+    const client = supabase;
+
+    let cancelled = false;
+
+    void (async () => {
+      const {
+        data: { session: s },
+        error,
+      } = await client.auth.getSession();
+
+      if (cancelled) return;
+
+      if (error && isStaleSessionError(error)) {
+        await clearStaleSession(client);
+        setSession(null);
+        setIsLoading(false);
+        return;
+      }
+
+      if (s?.user) {
+        hadSessionRef.current = true;
+      }
+
+      setSession(s ?? null);
       setIsLoading(false);
-    });
+    })();
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, s) => {
+    } = client.auth.onAuthStateChange((event, s) => {
+      if (cancelled) return;
+
+      if (event === 'SIGNED_OUT') {
+        const wasIntentional = consumeIntentionalSignOut();
+        if (hadSessionRef.current && !wasIntentional) {
+          showAppToast({
+            variant: 'warning',
+            label: 'Session expired',
+            description: 'Please sign in again.',
+          });
+        }
+        hadSessionRef.current = false;
+        setSession(null);
+        return;
+      }
+
+      if (s?.user) {
+        hadSessionRef.current = true;
+      }
+
       setSession(s);
     });
 
     const appStateListener = AppState.addEventListener('change', (state) => {
       if (state === 'active') {
-        supabase.auth.startAutoRefresh();
+        client.auth.startAutoRefresh();
       } else {
-        supabase.auth.stopAutoRefresh();
+        client.auth.stopAutoRefresh();
       }
     });
 
     return () => {
+      cancelled = true;
       subscription.unsubscribe();
       appStateListener.remove();
     };

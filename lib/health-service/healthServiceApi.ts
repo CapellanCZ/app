@@ -2,6 +2,12 @@
  * API-shaped surface for Health Service data with Supabase backend integration.
  * CampusCare live tables: `patients`, `appointments`, `doctor_availability`, `users`.
  */
+import {
+  inferStaffFromProviderType,
+  mapProviderTypeToStaffRole,
+  specialtyLabelForProviderType,
+} from './appointmentStaff';
+import { resolveAvatarDisplayUrl } from '../profile/avatarUtils';
 import { supabase } from '../supabase';
 import type { Appointment, AppointmentStatus, SlotPeriod, Staff, StaffRole, QueueTicket } from './types';
 
@@ -281,6 +287,123 @@ const STAFF_ROLE_LABEL: Record<StaffRole, string> = {
   dentist: 'Dentist',
 };
 
+type AppointmentDoctorRow = {
+  id: string;
+  full_name: string | null;
+  avatar_url: string | null;
+  primary_role: string | null;
+};
+
+type AppointmentListRow = {
+  id: string;
+  doctor_id: string | null;
+  provider_type: string | null;
+  starts_at: string;
+  ends_at: string | null;
+  status: string;
+  created_at: string;
+  reason: string | null;
+  cancellation_reason: string | null;
+  doctor: AppointmentDoctorRow | AppointmentDoctorRow[] | null;
+};
+
+function doctorFromAppointmentRow(
+  row: AppointmentListRow,
+): AppointmentDoctorRow | null {
+  const embedded = row.doctor;
+  if (!embedded) return null;
+  return Array.isArray(embedded) ? embedded[0] ?? null : embedded;
+}
+
+function staffFieldsFromDoctor(
+  doctor: AppointmentDoctorRow | null,
+  providerType: string | null,
+): Pick<Appointment, 'staffName' | 'staffSpecialty' | 'staffPhotoUrl'> {
+  const role = doctor?.primary_role
+    ? mapWebRoleToStaffRole(String(doctor.primary_role))
+    : mapProviderTypeToStaffRole(providerType);
+
+  return {
+    staffName: doctor?.full_name?.trim() || undefined,
+    staffSpecialty: role ? STAFF_ROLE_LABEL[role] : specialtyLabelForProviderType(providerType),
+    staffPhotoUrl: doctor?.avatar_url ?? null,
+  };
+}
+
+async function attachStaffToAppointments(appointments: Appointment[]): Promise<Appointment[]> {
+  if (!supabase || appointments.length === 0) return appointments;
+
+  const doctorIds = [
+    ...new Set(appointments.map((a) => a.staffId).filter(Boolean)),
+  ];
+  const byId = new Map<string, AppointmentDoctorRow>();
+
+  if (doctorIds.length > 0) {
+    const { data: doctors, error } = await supabase
+      .from('users')
+      .select('id, full_name, avatar_url, primary_role')
+      .in('id', doctorIds);
+
+    if (error) {
+      console.warn('[appointments] attachStaffToAppointments failed:', error.message);
+    } else {
+      for (const row of doctors ?? []) {
+        byId.set(row.id as string, row as AppointmentDoctorRow);
+      }
+    }
+  }
+
+  const needsProviderInfer = appointments.some(
+    (appt) => !appt.staffName && appt.providerType,
+  );
+  let staffForInfer: Staff[] = [];
+  if (needsProviderInfer) {
+    const { data, error } = await supabase
+      .from('users')
+      .select('id, full_name, avatar_url, primary_role, is_active')
+      .eq('is_active', true)
+      .in('primary_role', ['physician', 'doctor', 'nurse', 'dentist'])
+      .order('full_name');
+
+    if (error) {
+      console.warn('[appointments] provider infer staff load failed:', error.message);
+    } else {
+      staffForInfer = (data ?? [])
+        .map((row) => {
+          const role = mapWebRoleToStaffRole(String(row.primary_role));
+          if (!role) return null;
+          return {
+            id: row.id as string,
+            name: row.full_name as string,
+            role,
+            specialtyLabel: STAFF_ROLE_LABEL[role],
+            photoUrl: resolveAvatarDisplayUrl((row.avatar_url as string | null) ?? undefined) ?? undefined,
+          } satisfies Staff;
+        })
+        .filter((member): member is Staff => member !== null);
+    }
+  }
+
+  return appointments.map((appt) => {
+    const doctor = appt.staffId ? byId.get(appt.staffId) ?? null : null;
+    const fromDoctor = staffFieldsFromDoctor(doctor, appt.providerType ?? null);
+    const inferred = !fromDoctor.staffName
+      ? inferStaffFromProviderType(appt.providerType, staffForInfer)
+      : null;
+
+    return {
+      ...appt,
+      staffName: appt.staffName ?? fromDoctor.staffName ?? inferred?.name,
+      staffSpecialty:
+        appt.staffSpecialty ??
+        fromDoctor.staffSpecialty ??
+        inferred?.specialtyLabel ??
+        specialtyLabelForProviderType(appt.providerType),
+      staffPhotoUrl: appt.staffPhotoUrl ?? fromDoctor.staffPhotoUrl ?? inferred?.photoUrl ?? null,
+    };
+  });
+}
+
 const SLOT_INTERVAL_MIN = 20;
 
 /** Parse "09:00:00" / "9:00:00" → minutes from midnight. */
@@ -356,7 +479,7 @@ function createSupabaseHealthServiceApi(): HealthServiceApi {
             name: row.full_name as string,
             role,
             specialtyLabel: STAFF_ROLE_LABEL[role],
-            photoUrl: (row.avatar_url as string | null) ?? undefined,
+            photoUrl: resolveAvatarDisplayUrl((row.avatar_url as string | null) ?? undefined) ?? undefined,
           } satisfies Staff;
         })
         .filter((s): s is Staff => s !== null);
@@ -622,7 +745,25 @@ function createSupabaseHealthServiceApi(): HealthServiceApi {
 
       const { data: appointments, error } = await supabase
         .from('appointments')
-        .select('id, doctor_id, starts_at, ends_at, status, created_at, reason, cancellation_reason')
+        .select(
+          `
+          id,
+          doctor_id,
+          provider_type,
+          starts_at,
+          ends_at,
+          status,
+          created_at,
+          reason,
+          cancellation_reason,
+          doctor:users!appointments_doctor_id_fkey (
+            id,
+            full_name,
+            avatar_url,
+            primary_role
+          )
+        `,
+        )
         .eq('patient_id', patientId)
         .in('status', [
           'pending',
@@ -637,19 +778,29 @@ function createSupabaseHealthServiceApi(): HealthServiceApi {
 
       if (error) throw error;
 
-      const mapped: Appointment[] = (appointments ?? []).map((appt) => ({
-        id: appt.id as string,
-        staffId: appt.doctor_id as string,
-        dateKey: dateKeyInClinicTz(appt.starts_at as string),
-        startLabel: labelFromIso(appt.starts_at as string),
-        endLabel: appt.ends_at ? labelFromIso(appt.ends_at as string) : undefined,
-        reason: (appt.reason as string | null) ?? null,
-        cancellationReason: (appt.cancellation_reason as string | null) ?? null,
-        status: mapDbStatus(String(appt.status)),
-        createdAt: appt.created_at as string,
-      }));
+      const mapped: Appointment[] = (appointments ?? []).map((row) => {
+        const appt = row as AppointmentListRow;
+        const doctor = doctorFromAppointmentRow(appt);
+        const staffId = (appt.doctor_id ?? doctor?.id ?? '') as string;
+        const staffFields = staffFieldsFromDoctor(doctor, appt.provider_type);
 
-      return attachArrivalTickets(patientId, mapped);
+        return {
+          id: appt.id,
+          staffId,
+          providerType: appt.provider_type,
+          dateKey: dateKeyInClinicTz(appt.starts_at),
+          startLabel: labelFromIso(appt.starts_at),
+          endLabel: appt.ends_at ? labelFromIso(appt.ends_at) : undefined,
+          reason: appt.reason ?? null,
+          cancellationReason: appt.cancellation_reason ?? null,
+          status: mapDbStatus(String(appt.status)),
+          createdAt: appt.created_at,
+          ...staffFields,
+        };
+      });
+
+      const withStaff = await attachStaffToAppointments(mapped);
+      return attachArrivalTickets(patientId, withStaff);
     },
 
     async bookAppointment(input) {

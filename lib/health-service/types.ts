@@ -55,4 +55,10 @@ export type Appointment = {
   createdAt?: string;
   /** Present only when `status` is `confirmed` — created when the provider confirms (no ticket while pending). */
   arrivalTicket?: QueueTicket;
+  /** Resolved from `users` at fetch — includes inactive / past providers. */
+  staffName?: string;
+  staffSpecialty?: string;
+  staffPhotoUrl?: string | null;
+  /** From `appointments.provider_type` — used when `doctor_id` is missing on legacy rows. */
+  providerType?: string | null;
 };

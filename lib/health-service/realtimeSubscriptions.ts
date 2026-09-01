@@ -115,7 +115,7 @@ export function acquireAppointmentsSubscription(get: HealthStoreGet): () => void
             // Toast/inbox: DB trigger inserts "Visit Completed" → notifications realtime.
             const appointment = get().appointments.find((a) => a.id === appointmentId);
             if (appointment?.status === 'completed') {
-              openVisitCompletedScreen(appointment, staffMember);
+              openVisitCompletedScreen(appointment);
             }
           }
         },

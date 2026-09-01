@@ -1,7 +1,7 @@
 import { Stack, useRouter } from 'expo-router';
 import { useEffect } from 'react';
 
-import { supabase } from '@/lib/supabase';
+import { signOutUser } from '@/lib/auth/signOut';
 
 /** Fallback when opened by URL (e.g. deep link to `/logout`). */
 export default function LogoutScreen() {
@@ -9,7 +9,7 @@ export default function LogoutScreen() {
 
   useEffect(() => {
     void (async () => {
-      await supabase?.auth.signOut();
+      await signOutUser();
       router.replace('/(auth)');
     })();
   }, [router]);

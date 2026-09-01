@@ -100,9 +100,10 @@ export const BottomSheetModal = forwardRef<BottomSheetModalHandle, Props>(functi
   const sheetStyle = useAnimatedStyle(() => {
     // `height` is ≤ 0 while the keyboard is open (library convention).
     const kbLift = -keyboardHeight.value;
+    const keyboardOpenBottomPad = Math.max(24, bottomPadding);
     return {
       opacity: sheetOpacity.value,
-      paddingBottom: kbLift > 10 ? 12 : closedBottomPad,
+      paddingBottom: kbLift > 10 ? keyboardOpenBottomPad : closedBottomPad,
       transform: [{ translateY: translateY.value - Math.max(0, kbLift) }],
     };
   });

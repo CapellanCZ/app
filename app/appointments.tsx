@@ -35,6 +35,7 @@ import {
   formatCancellationLabel,
 } from '@/lib/health-service/appointmentDisplay';
 import { formatVisitReasonDisplay } from '@/components/booking/BookingConsultationFields';
+import { resolveAppointmentStaffDisplay } from '@/lib/health-service/appointmentStaff';
 import { useHealthServiceStore } from '@/lib/health-service/healthServiceStore';
 import { Inter } from '@/lib/typography/inter';
 
@@ -95,10 +96,7 @@ export default function AppointmentsScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      void loadAppointments();
-      if (!useHealthServiceStore.getState().staffLoaded) {
-        void loadStaff();
-      }
+      void Promise.all([loadAppointments(), loadStaff()]);
     }, [loadAppointments, loadStaff]),
   );
 
@@ -347,8 +345,8 @@ export default function AppointmentsScreen() {
                   </View>
                 ) : (
                   filtered.map((item, index) => {
-                    const staffMember = staff.find((s) => s.id === item.staffId);
-                    const doctorName = staffMember?.name ?? 'Unknown Doctor';
+                    const { name: doctorName, specialty, photoUrl: photo } =
+                      resolveAppointmentStaffDisplay(item, staff);
                     const variant = activeTab as AppointmentCardVariant;
 
                     const dateLabel =
@@ -363,11 +361,6 @@ export default function AppointmentsScreen() {
                           ? formatCancellationLabel(item.cancellationReason)
                           : formatVisitReasonDisplay(item.reason) || 'Consultation';
 
-                    const queueParam =
-                      item.arrivalTicket != null
-                        ? `${item.arrivalTicket.position}#`
-                        : undefined;
-
                     return (
                       <AppointmentCard
                         key={`${panelKey}-${item.id}`}
@@ -379,8 +372,8 @@ export default function AppointmentsScreen() {
                         }
                         enterIndex={index}
                         staffName={doctorName}
-                        staffSpecialty={staffMember?.specialtyLabel ?? 'Physician'}
-                        staffPhoto={staffMember?.photoUrl}
+                        staffSpecialty={specialty}
+                        staffPhoto={photo}
                         dateLabel={dateLabel}
                         secondaryLabel={secondaryLabel}
                         backgroundColor={
@@ -402,36 +395,12 @@ export default function AppointmentsScreen() {
                               ? () =>
                                   router.push({
                                     pathname: '/visit-completed',
-                                    params: {
-                                      id: item.id,
-                                      staffId: item.staffId,
-                                      doctorName,
-                                      specialtyLabel:
-                                        staffMember?.specialtyLabel ?? 'Physician',
-                                      photoUrl: staffMember?.photoUrl ?? '',
-                                      appointmentDate: formatAppointmentBookedDate(item.dateKey),
-                                      appointmentTime: item.startLabel,
-                                      dateKey: item.dateKey,
-                                      reason: item.reason ?? '',
-                                      completedTime: item.endLabel ?? '',
-                                    },
+                                    params: { id: item.id },
                                   })
                               : () =>
                                   router.push({
                                     pathname: '/health-service/appointment-booked',
-                                    params: {
-                                      id: item.id,
-                                      doctorName,
-                                      specialtyLabel:
-                                        staffMember?.specialtyLabel ?? 'Physician',
-                                      photoUrl: staffMember?.photoUrl ?? '',
-                                      appointmentDate: formatAppointmentBookedDate(item.dateKey),
-                                      appointmentTime: item.startLabel,
-                                      dateKey: item.dateKey,
-                                      status: item.status,
-                                      reason: item.reason ?? '',
-                                      ...(queueParam ? { queueNumber: queueParam } : {}),
-                                    },
+                                    params: { id: item.id },
                                   })
                         }
                       />

@@ -503,17 +503,7 @@ export function HealthServiceBookScreen({
 
       router.replace({
         pathname: '/health-service/appointment-booked',
-        params: {
-          id: appointmentId,
-          doctorName: doctorLabel,
-          specialtyLabel: resolveSpecialty(staff.role, staff.specialtyLabel),
-          photoUrl: staff.photoUrl ?? '',
-          appointmentDate: formatAppointmentBookedDate(dayKey),
-          appointmentTime: selectedSlot,
-          dateKey: dayKey,
-          status: isAutoConfirmed ? 'confirmed' : 'pending',
-          reason,
-        },
+        params: { id: appointmentId },
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Please try again.';
