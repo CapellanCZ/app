@@ -14,6 +14,7 @@ import { AuthSessionGuard } from '@/components/auth/AuthSessionGuard';
 import { AuthProvider } from '@/lib/auth/AuthProvider';
 import { AppointmentSubscription } from '@/components/health-service/AppointmentSubscription';
 import { AnnouncementSubscription } from '@/components/announcements/AnnouncementSubscription';
+import { VitalsSubscription } from '@/components/vitals/VitalsSubscription';
 import { NotificationHandler } from '@/components/notifications/NotificationHandler';
 import { NotificationSubscription } from '@/components/notifications/NotificationSubscription';
 import { AppToastBinder } from '@/components/ui/AppToastBinder';
@@ -65,6 +66,7 @@ export default function RootLayout() {
               <FeedbackSoundHost />
               <AppointmentSubscription />
               <AnnouncementSubscription />
+              <VitalsSubscription />
               <NotificationHandler />
               <NotificationSubscription />
               <UniwindInsetSync />

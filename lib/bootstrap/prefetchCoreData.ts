@@ -56,6 +56,7 @@ export async function prefetchCoreData(
   // Warm realtime early so the first screen is already live.
   const releaseAppointments = health.subscribeAppointments();
   const releaseNotifications = notifications.subscribe(userId);
+  const releaseVitals = vitals.subscribe();
 
   try {
     await withTimeout(
@@ -95,5 +96,6 @@ export async function prefetchCoreData(
     // Global AppointmentSubscription / NotificationSubscription keep ref-counts alive.
     releaseAppointments();
     releaseNotifications();
+    releaseVitals();
   }
 }

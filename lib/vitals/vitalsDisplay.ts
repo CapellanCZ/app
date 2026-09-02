@@ -31,6 +31,19 @@ export type VitalsMeasurementRow = {
   value: string;
 };
 
+const EMPTY_VALUE = '—';
+
+export function buildVitalsGridRows(vitals: LatestVitals): VitalsMeasurementRow[] {
+  return [
+    { label: 'Blood Pressure', value: vitals.bloodPressure?.trim() || EMPTY_VALUE },
+    { label: 'Pulse Rate', value: vitals.heartRate?.trim() || EMPTY_VALUE },
+    { label: 'Temperature', value: vitals.temperature?.trim() || EMPTY_VALUE },
+    { label: 'Weight', value: vitals.weight?.trim() || EMPTY_VALUE },
+    { label: 'Height', value: vitals.height?.trim() || EMPTY_VALUE },
+    { label: 'O2', value: vitals.oxygenSaturation?.trim() || EMPTY_VALUE },
+  ];
+}
+
 export function buildSecondaryMeasurements(vitals: LatestVitals): VitalsMeasurementRow[] {
   const rows: VitalsMeasurementRow[] = [];
 
