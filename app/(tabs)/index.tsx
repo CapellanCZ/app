@@ -28,6 +28,7 @@ import { useHomeScreenReady } from '@/lib/home/useHomeScreenReady';
 import { ROUTES } from '@/lib/routes';
 import { Inter } from '@/lib/typography/inter';
 import { openClinicCall } from '@/lib/health-service/clinicContact';
+import { useAppointmentStatusStore } from '@/lib/health-service/appointmentStatusStore';
 import { useVitalsStore } from '@/lib/vitals/vitalsStore';
 
 const PRESENCE_POLL_MS = 45_000;
@@ -257,10 +258,7 @@ export default function HealthServiceScreen() {
               estDoneLabel={estDoneLabel}
               presenceStatus={presenceStatus}
               onPress={() =>
-                router.push({
-                  pathname: '/health-service/appointment/[id]',
-                  params: { id: upcomingItem.id },
-                })
+                useAppointmentStatusStore.getState().open(upcomingItem.id)
               }
               onCallPress={() => {
                 openClinicCall();

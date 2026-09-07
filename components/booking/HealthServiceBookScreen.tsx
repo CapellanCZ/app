@@ -42,6 +42,7 @@ import {
   formatAppointmentBookedDate,
 } from '@/lib/health-service/appointmentDisplay';
 import { healthServiceApi } from '@/lib/health-service/healthServiceApi';
+import { useAppointmentStatusStore } from '@/lib/health-service/appointmentStatusStore';
 import { useHealthServiceStore } from '@/lib/health-service/healthServiceStore';
 import type { StaffRole } from '@/lib/health-service/types';
 import { useNotificationStore } from '@/lib/notifications/notificationStore';
@@ -501,10 +502,8 @@ export function HealthServiceBookScreen({
         });
       }
 
-      router.replace({
-        pathname: '/health-service/appointment-booked',
-        params: { id: appointmentId },
-      });
+      useAppointmentStatusStore.getState().open(appointmentId);
+      router.replace('/appointments');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Please try again.';
       const isSameDay = message.includes('already have an appointment on this day');

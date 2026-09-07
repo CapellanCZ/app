@@ -29,6 +29,7 @@ import { HealthServiceScreenShell } from '@/components/health-service/HealthServ
 import { TAB_BAR_HEIGHT } from '@/components/layout/BottomTabBar';
 import { CircleBackButton } from '@/components/ui/CircleBackButton';
 import { useConsultationSummaryStore } from '@/lib/consultation/consultationSummaryStore';
+import { useAppointmentStatusStore } from '@/lib/health-service/appointmentStatusStore';
 import {
   formatAppointmentBookedDate,
   formatAppointmentCancelledWhen,
@@ -408,10 +409,7 @@ export default function AppointmentsScreen() {
                               ? () =>
                                   useConsultationSummaryStore.getState().open(item.id)
                               : () =>
-                                  router.push({
-                                    pathname: '/health-service/appointment-booked',
-                                    params: { id: item.id },
-                                  })
+                                  useAppointmentStatusStore.getState().open(item.id)
                         }
                       />
                     );

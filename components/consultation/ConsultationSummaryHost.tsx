@@ -1,26 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  Dimensions,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
-import Animated, {
-  Easing,
-  runOnJS,
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-} from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { AppointmentBookedCard } from '@/components/booking/AppointmentBookedCard';
 import { AppointmentBookedCheckIcon } from '@/components/booking/AppointmentBookedCheckIcon';
 import { formatVisitReasonDisplay } from '@/components/booking/BookingConsultationFields';
 import { ConsultationPrescriptionCard } from '@/components/consultation/ConsultationPrescriptionCard';
+import { BottomSheetModal } from '@/components/ui/BottomSheetModal';
 import { VitalsSignsGrid } from '@/components/vitals/VitalsSignsGrid';
 import { useAuth } from '@/lib/auth/AuthProvider';
 import { fetchConsultationPrescription } from '@/lib/consultation/consultationSummaryApi';
@@ -35,24 +20,17 @@ import { hasVitalsReadings } from '@/lib/vitals/vitalsDisplay';
 import { useVitalsStore } from '@/lib/vitals/vitalsStore';
 
 const EMPTY_PRESCRIPTION: ConsultationPrescription = { medications: [], updatedAt: null };
-const SHEET_OFFSCREEN = Dimensions.get('window').height;
-const SHEET_MAX_HEIGHT = Dimensions.get('window').height * 0.88;
 
 /**
- * Root-level Consultation Summary sheet.
- * Uses RN Modal + presentationStyle="overFullScreen" so the iOS dim always shows.
+ * Consultation / visit-completed status sheet — content-sized with solid iOS dim.
  */
 export function ConsultationSummaryHost() {
   const appointmentId = useConsultationSummaryStore((s) => s.appointmentId);
   const close = useConsultationSummaryStore((s) => s.close);
-  const insets = useSafeAreaInsets();
   const { patient } = useAuth();
 
-  const [mounted, setMounted] = useState(false);
   const [prescription, setPrescription] =
     useState<ConsultationPrescription>(EMPTY_PRESCRIPTION);
-
-  const sheetTranslateY = useSharedValue(SHEET_OFFSCREEN);
 
   const vitalsRevision = useVitalsStore((s) => s.revision);
   const loadConsultationVitals = useVitalsStore((s) => s.loadConsultationVitals);
@@ -60,39 +38,13 @@ export function ConsultationSummaryHost() {
     appointmentId ? (s.consultationByAppointment[appointmentId] ?? EMPTY_VITALS) : EMPTY_VITALS,
   );
 
-  const finishClose = useCallback(() => {
-    setMounted(false);
-    close();
-  }, [close]);
-
-  const animateOut = useCallback(() => {
-    sheetTranslateY.value = withTiming(
-      SHEET_OFFSCREEN,
-      { duration: 260, easing: Easing.in(Easing.cubic) },
-      (finished) => {
-        if (!finished) return;
-        runOnJS(finishClose)();
-      },
-    );
-  }, [sheetTranslateY, finishClose]);
-
-  useEffect(() => {
-    if (!appointmentId) return;
-
-    setMounted(true);
-    void playToastFeedback('success');
-    sheetTranslateY.value = SHEET_OFFSCREEN;
-    sheetTranslateY.value = withTiming(0, {
-      duration: 320,
-      easing: Easing.out(Easing.cubic),
-    });
-  }, [appointmentId, sheetTranslateY]);
-
   useEffect(() => {
     if (!appointmentId) {
       setPrescription(EMPTY_PRESCRIPTION);
       return;
     }
+
+    void playToastFeedback('success');
 
     let cancelled = false;
     void fetchConsultationPrescription(appointmentId).then((result) => {
@@ -142,115 +94,82 @@ export function ConsultationSummaryHost() {
     return start || end || '—';
   }, [appointment?.startLabel, appointment?.endLabel]);
 
-  const sheetStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: sheetTranslateY.value }],
-  }));
-
-  if (!mounted || !appointmentId) return null;
+  const handleClose = useCallback(() => {
+    close();
+  }, [close]);
 
   return (
-    <Modal
-      visible={mounted}
-      transparent
-      animationType="none"
-      statusBarTranslucent
-      presentationStyle="overFullScreen"
-      onRequestClose={animateOut}>
-      <View style={styles.root}>
-        <View style={styles.backdrop}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Close consultation summary"
-            onPress={animateOut}
-            style={StyleSheet.absoluteFill}
-          />
+    <BottomSheetModal
+      visible={Boolean(appointmentId)}
+      onClose={handleClose}
+      backgroundColor="#F9F9F9"
+      bottomPadding={16}
+      maxHeightFraction={0.88}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        bounces={false}
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}>
+        <View style={styles.header}>
+          <AppointmentBookedCheckIcon size={96} animateCheck />
+          <Text style={[healthUiText.modalTitle, styles.center]}>Consultation Summary</Text>
+          <Text style={[healthUiText.modalSubtitle, styles.center]}>
+            Review your visit details below.
+          </Text>
         </View>
 
-        <Animated.View
-          style={[
-            styles.sheet,
-            sheetStyle,
-            { paddingBottom: Math.max(insets.bottom, 12) + 16, maxHeight: SHEET_MAX_HEIGHT },
-          ]}>
-          <View style={styles.handle} />
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-            bounces={false}
-            style={{ flexGrow: 0 }}
-            contentContainerStyle={{ gap: 20, paddingTop: 4, paddingBottom: 8 }}>
-            <View style={{ alignItems: 'center', gap: 12, width: '100%' }}>
-              <AppointmentBookedCheckIcon size={96} animateCheck />
-              <Text style={[healthUiText.modalTitle, { textAlign: 'center' }]}>
-                Consultation Summary
-              </Text>
-              <Text style={[healthUiText.modalSubtitle, { textAlign: 'center' }]}>
-                Review your visit details below.
-              </Text>
-            </View>
+        <AppointmentBookedCard
+          doctorName={name}
+          specialtyLabel={specialty}
+          photoUrl={photoUrl}
+          dateLabel={dateLabel}
+          timeLabel={timeLabel}
+          visitReason={visitReason}
+        />
 
-            <AppointmentBookedCard
-              doctorName={name}
-              specialtyLabel={specialty}
-              photoUrl={photoUrl}
-              dateLabel={dateLabel}
-              timeLabel={timeLabel}
-              visitReason={visitReason}
-            />
+        {hasConsultationVitals ? (
+          <VitalsSignsGrid vitals={consultationVitals} collapsible defaultExpanded={false} />
+        ) : null}
 
-            {hasConsultationVitals ? (
-              <VitalsSignsGrid vitals={consultationVitals} collapsible defaultExpanded={false} />
-            ) : null}
+        {prescription.medications.length > 0 ? (
+          <ConsultationPrescriptionCard medications={prescription.medications} />
+        ) : null}
 
-            {prescription.medications.length > 0 ? (
-              <ConsultationPrescriptionCard medications={prescription.medications} />
-            ) : null}
-
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Got it"
-              onPress={animateOut}
-              style={({ pressed }) => ({
-                height: 48,
-                borderRadius: 48,
-                backgroundColor: '#000000',
-                alignItems: 'center',
-                justifyContent: 'center',
-                opacity: pressed ? 0.9 : 1,
-              })}>
-              <Text style={healthUiText.primaryButton}>Got It</Text>
-            </Pressable>
-          </ScrollView>
-        </Animated.View>
-      </View>
-    </Modal>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Got it"
+          onPress={handleClose}
+          style={({ pressed }) => [styles.gotIt, { opacity: pressed ? 0.9 : 1 }]}>
+          <Text style={healthUiText.primaryButton}>Got It</Text>
+        </Pressable>
+      </ScrollView>
+    </BottomSheetModal>
   );
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    justifyContent: 'flex-end',
+  scroll: {
+    flexGrow: 0,
   },
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.55)',
+  scrollContent: {
+    gap: 20,
+    paddingTop: 4,
+    paddingBottom: 8,
   },
-  sheet: {
+  header: {
+    alignItems: 'center',
+    gap: 12,
     width: '100%',
-    backgroundColor: '#F9F9F9',
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
-    paddingTop: 10,
-    paddingHorizontal: 20,
-    overflow: 'hidden',
   },
-  handle: {
-    alignSelf: 'center',
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: '#E0E0E0',
-    marginBottom: 16,
+  center: {
+    textAlign: 'center',
+  },
+  gotIt: {
+    height: 48,
+    borderRadius: 48,
+    backgroundColor: '#000000',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

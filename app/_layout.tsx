@@ -19,6 +19,7 @@ import { NotificationSubscription } from '@/components/notifications/Notificatio
 import { AppToastBinder } from '@/components/ui/AppToastBinder';
 import { FeedbackSoundHost } from '@/components/ui/FeedbackSoundHost';
 import { ConsultationSummaryHost } from '@/components/consultation/ConsultationSummaryHost';
+import { AppointmentStatusHost } from '@/components/health-service/AppointmentStatusHost';
 import { LoginSheetHost } from '@/components/auth/LoginSheetHost';
 import { configureAndroidText } from '@/lib/ui/configureAndroidText';
 import { prepareSplashScreen } from '@/lib/bootstrap/splashScreen';
@@ -67,7 +68,6 @@ export default function RootLayout() {
               <VitalsSubscription />
               <NotificationHandler />
               <NotificationSubscription />
-              <ConsultationSummaryHost />
               <UniwindInsetSync />
               <View style={{ flex: 1, backgroundColor: rootBackgroundColor }}>
               <Stack
@@ -103,7 +103,9 @@ export default function RootLayout() {
                 />
               </Stack>
               </View>
-              {/* After the stack so iOS absolute overlays paint above Get Started. */}
+              {/* After the stack so iOS overlays/modals paint above screen content. */}
+              <ConsultationSummaryHost />
+              <AppointmentStatusHost />
               <LoginSheetHost />
               </AuthProvider>
             </KeyboardProvider>

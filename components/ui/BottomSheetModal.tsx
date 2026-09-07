@@ -1,4 +1,4 @@
-import { forwardRef, ReactNode, useCallback, useEffect, useImperativeHandle, useState } from 'react';
+import { forwardRef, ReactNode, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import {
   Dimensions,
   Modal,
@@ -28,6 +28,10 @@ type Props = {
   dismissOnBackdropPress?: boolean;
   /** Sheet surface color. Default: `#FFFFFF` */
   backgroundColor?: string;
+  /** Max height as a fraction of the window (0–1). Default: 0.88 */
+  maxHeightFraction?: number;
+  /** Show the grabber handle. Default: true */
+  showHandle?: boolean;
 };
 
 export type BottomSheetModalHandle = {
@@ -36,7 +40,6 @@ export type BottomSheetModalHandle = {
 };
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
-const SHEET_MAX_HEIGHT = SCREEN_HEIGHT * 0.88;
 const SHEET_OFFSCREEN = Math.min(SCREEN_HEIGHT * 0.55, 480);
 const SCRIM = 'rgba(0, 0, 0, 0.55)';
 
@@ -57,6 +60,8 @@ export const BottomSheetModal = forwardRef<BottomSheetModalHandle, Props>(functi
     bottomPadding = 24,
     dismissOnBackdropPress = true,
     backgroundColor = '#FFFFFF',
+    maxHeightFraction = 0.88,
+    showHandle = true,
   },
   ref,
 ) {
@@ -64,19 +69,32 @@ export const BottomSheetModal = forwardRef<BottomSheetModalHandle, Props>(functi
   const { height: keyboardHeight } = useReanimatedKeyboardAnimation();
   const [mounted, setMounted] = useState(false);
   const translateY = useSharedValue(SHEET_OFFSCREEN);
+  const closingRef = useRef(false);
 
+  const sheetMaxHeight = SCREEN_HEIGHT * maxHeightFraction;
   const closedBottomPad = Math.max(insets.bottom, 12) + bottomPadding;
 
   const finishClose = useCallback(() => {
+    closingRef.current = false;
     setMounted(false);
     onClose();
   }, [onClose]);
 
+  const finishCloseSilent = useCallback(() => {
+    closingRef.current = false;
+    setMounted(false);
+  }, []);
+
   const handleDismiss = useCallback(
     (afterClose?: () => void) => {
+      if (closingRef.current) return;
+      closingRef.current = true;
       translateY.set(
         withTiming(SHEET_OFFSCREEN, { duration: CLOSE_MS, easing: IOS_DISMISS }, (finished) => {
-          if (!finished) return;
+          if (!finished) {
+            closingRef.current = false;
+            return;
+          }
           runOnJS(finishClose)();
           if (afterClose) runOnJS(afterClose)();
         }),
@@ -88,17 +106,39 @@ export const BottomSheetModal = forwardRef<BottomSheetModalHandle, Props>(functi
   useImperativeHandle(ref, () => ({ dismiss: handleDismiss }), [handleDismiss]);
 
   useEffect(() => {
-    if (!visible) {
-      setMounted(false);
+    if (visible) {
+      // Always clear a stuck dismiss flag so a new open isn't ignored.
+      closingRef.current = false;
+      if (mounted) {
+        // Remounted while already open (e.g. mid-dismiss cancelled) — slide back in.
+        translateY.set(withTiming(0, { duration: OPEN_MS, easing: IOS_PRESENT }));
+        return;
+      }
       translateY.set(SHEET_OFFSCREEN);
+      setMounted(true);
       return;
     }
 
-    translateY.set(SHEET_OFFSCREEN);
-    setMounted(true);
-  }, [visible, translateY]);
+    if (!mounted || closingRef.current) {
+      if (!mounted) translateY.set(SHEET_OFFSCREEN);
+      return;
+    }
+
+    // Parent flipped `visible` off — animate out without re-calling onClose.
+    closingRef.current = true;
+    translateY.set(
+      withTiming(SHEET_OFFSCREEN, { duration: CLOSE_MS, easing: IOS_DISMISS }, (finished) => {
+        if (!finished) {
+          closingRef.current = false;
+          return;
+        }
+        runOnJS(finishCloseSilent)();
+      }),
+    );
+  }, [visible, mounted, translateY, finishCloseSilent]);
 
   const present = useCallback(() => {
+    closingRef.current = false;
     translateY.set(SHEET_OFFSCREEN);
     translateY.set(withTiming(0, { duration: OPEN_MS, easing: IOS_PRESENT }));
   }, [translateY]);
@@ -134,8 +174,8 @@ export const BottomSheetModal = forwardRef<BottomSheetModalHandle, Props>(functi
         />
 
         <Animated.View
-          style={[styles.sheet, { backgroundColor, maxHeight: SHEET_MAX_HEIGHT }, sheetStyle]}>
-          <View style={styles.handle} />
+          style={[styles.sheet, { backgroundColor, maxHeight: sheetMaxHeight }, sheetStyle]}>
+          {showHandle ? <View style={styles.handle} /> : null}
           {children}
         </Animated.View>
       </View>
