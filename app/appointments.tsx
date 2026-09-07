@@ -28,6 +28,7 @@ import { EmptyStateAppointmentsIllustration } from '@/components/appointments/Em
 import { HealthServiceScreenShell } from '@/components/health-service/HealthServiceScreenShell';
 import { TAB_BAR_HEIGHT } from '@/components/layout/BottomTabBar';
 import { CircleBackButton } from '@/components/ui/CircleBackButton';
+import { useConsultationSummaryStore } from '@/lib/consultation/consultationSummaryStore';
 import {
   formatAppointmentBookedDate,
   formatAppointmentCancelledWhen,
@@ -405,10 +406,7 @@ export default function AppointmentsScreen() {
                             ? undefined
                             : variant === 'past'
                               ? () =>
-                                  router.push({
-                                    pathname: '/visit-completed',
-                                    params: { id: item.id },
-                                  })
+                                  useConsultationSummaryStore.getState().open(item.id)
                               : () =>
                                   router.push({
                                     pathname: '/health-service/appointment-booked',

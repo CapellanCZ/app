@@ -1,6 +1,6 @@
 import { isSupabaseConfigured, supabase } from '@/lib/supabase';
 
-import { dbAudiencesForPatientType } from './announcementAudience';
+import { dbAudiencesForPatientType, patientMatchesAnnouncementAudience } from './announcementAudience';
 import type { Announcement } from './types';
 
 const ATTACHMENT_BUCKET = 'announcement-attachments';
@@ -27,6 +27,7 @@ type AnnouncementRow = {
   id: string;
   title: string;
   body: string;
+  audience?: string | null;
   published_at: string | null;
   created_at?: string | null;
   announcement_attachments:
@@ -77,6 +78,7 @@ export async function fetchPublishedAnnouncements(
       id,
       title,
       body,
+      audience,
       published_at,
       created_at,
       announcement_attachments (
@@ -98,7 +100,9 @@ export async function fetchPublishedAnnouncements(
     return [];
   }
 
-  const rows = ((data as AnnouncementRow[] | null) ?? []).slice(0, MAX_ANNOUNCEMENT_SLIDES);
+  const rows = ((data as AnnouncementRow[] | null) ?? [])
+    .filter((row) => patientMatchesAnnouncementAudience(patientType, row.audience))
+    .slice(0, MAX_ANNOUNCEMENT_SLIDES);
 
   return Promise.all(
     rows.map(async (row) => {

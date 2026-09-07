@@ -1,5 +1,4 @@
 import '../global.css';
-import { useEffect } from 'react';
 import { useFonts } from 'expo-font';
 import { HeroUINativeProvider } from 'heroui-native';
 import { Stack } from 'expo-router';
@@ -19,8 +18,10 @@ import { NotificationHandler } from '@/components/notifications/NotificationHand
 import { NotificationSubscription } from '@/components/notifications/NotificationSubscription';
 import { AppToastBinder } from '@/components/ui/AppToastBinder';
 import { FeedbackSoundHost } from '@/components/ui/FeedbackSoundHost';
+import { ConsultationSummaryHost } from '@/components/consultation/ConsultationSummaryHost';
+import { LoginSheetHost } from '@/components/auth/LoginSheetHost';
 import { configureAndroidText } from '@/lib/ui/configureAndroidText';
-import { hideSplashScreenOnce, prepareSplashScreen } from '@/lib/bootstrap/splashScreen';
+import { prepareSplashScreen } from '@/lib/bootstrap/splashScreen';
 import { tamaguiConfig } from '../tamagui.config';
 
 configureAndroidText();
@@ -41,11 +42,8 @@ export default function RootLayout() {
     'Inter-Bold': require('@tamagui/font-inter/otf/Inter-Bold.otf'),
   });
 
-  useEffect(() => {
-    if (fontsLoaded) {
-      void hideSplashScreenOnce();
-    }
-  }, [fontsLoaded]);
+  // Keep the native splash up until SplashBrand has laid out (see SplashBrand onLayout).
+  // Hiding here caused a heart-only flash with no "CampusCare" wordmark.
 
   if (!fontsLoaded) {
     return null;
@@ -69,6 +67,8 @@ export default function RootLayout() {
               <VitalsSubscription />
               <NotificationHandler />
               <NotificationSubscription />
+              <ConsultationSummaryHost />
+              <LoginSheetHost />
               <UniwindInsetSync />
               <View style={{ flex: 1, backgroundColor: rootBackgroundColor }}>
               <Stack
@@ -89,6 +89,7 @@ export default function RootLayout() {
                 <Stack.Screen
                   name="visit-completed"
                   options={{
+                    // Deep-link shim only — real UI is ConsultationSummaryHost (RN Modal).
                     presentation: 'transparentModal',
                     animation: 'none',
                     headerShown: false,

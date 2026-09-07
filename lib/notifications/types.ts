@@ -61,6 +61,8 @@ export type NotificationRow = {
     category?: WelfareNotificationCategory;
     notification_type?: string;
     appointment_id?: string;
+    announcement_id?: string;
+    announcement_audience?: string;
     [key: string]: unknown;
   } | null;
   source?: string | null;

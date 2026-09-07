@@ -1,5 +1,7 @@
+import { useCallback } from 'react';
 import { Image, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 
+import { hideSplashScreenOnce } from '@/lib/bootstrap/splashScreen';
 import { Inter } from '@/lib/typography/inter';
 
 /** Figma Splashscreen 206:37 — heart + CampusCare wordmark. */
@@ -10,9 +12,18 @@ type SplashBrandProps = {
   style?: StyleProp<ViewStyle>;
 };
 
+/**
+ * Branded splash (heart + CampusCare). Hides the native splash only after this
+ * view has laid out so the wordmark is never missing during the handoff.
+ */
 export function SplashBrand({ style }: SplashBrandProps) {
+  const onReady = useCallback(() => {
+    void hideSplashScreenOnce();
+  }, []);
+
   return (
     <View
+      onLayout={onReady}
       style={[
         {
           flex: 1,
@@ -37,6 +48,8 @@ export function SplashBrand({ style }: SplashBrandProps) {
             color: '#021032',
             letterSpacing: -2.56,
             lineHeight: 38,
+            // Keep wordmark readable even if a custom face fails to bind.
+            includeFontPadding: false,
           }}>
           CampusCare
         </Text>

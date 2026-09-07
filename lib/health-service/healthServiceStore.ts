@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import { isExpectedUnauthDataError } from '@/lib/auth/errors';
+import { isSupabaseConfigured, supabase } from '@/lib/supabase';
 import { resolveAppointmentStaffDisplay } from './appointmentStaff';
 import { healthServiceApi } from './healthServiceApi';
 import { acquireAppointmentsSubscription } from './realtimeSubscriptions';
@@ -41,13 +43,31 @@ export const useHealthServiceStore = create<HealthServiceState>((set, get) => ({
   error: null,
 
   loadAppointments: async () => {
+    if (!isSupabaseConfigured || !supabase) {
+      set({ appointments: [], loading: false, appointmentsLoaded: true, error: null });
+      return;
+    }
+
+    // Avoid auth round-trips / redboxes when signed out (home can mount before redirect).
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session?.user) {
+      set({ appointments: [], loading: false, appointmentsLoaded: true, error: null });
+      return;
+    }
+
     set({ loading: true, error: null });
     try {
       const appointments = await healthServiceApi.listMyAppointments();
       set({ appointments, loading: false, appointmentsLoaded: true });
     } catch (error) {
+      if (isExpectedUnauthDataError(error)) {
+        set({ appointments: [], loading: false, appointmentsLoaded: true, error: null });
+        return;
+      }
       console.error('Failed to load appointments:', error);
-      set({ 
+      set({
         error: error instanceof Error ? error.message : 'Failed to load appointments',
         loading: false,
         appointmentsLoaded: true,
@@ -56,13 +76,22 @@ export const useHealthServiceStore = create<HealthServiceState>((set, get) => ({
   },
 
   loadStaff: async () => {
+    if (!isSupabaseConfigured || !supabase) {
+      set({ staff: [], loading: false, staffLoaded: true, error: null });
+      return;
+    }
+
     set({ loading: true, error: null });
     try {
       const staff = await healthServiceApi.listStaff();
       set({ staff, loading: false, staffLoaded: true });
     } catch (error) {
+      if (isExpectedUnauthDataError(error)) {
+        set({ staff: [], loading: false, staffLoaded: true, error: null });
+        return;
+      }
       console.error('Failed to load staff:', error);
-      set({ 
+      set({
         error: error instanceof Error ? error.message : 'Failed to load staff',
         loading: false,
         staffLoaded: true,

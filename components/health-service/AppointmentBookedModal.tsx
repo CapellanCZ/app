@@ -185,6 +185,7 @@ export function AppointmentBookedModal({
       visible={visible}
       transparent
       animationType="fade"
+      presentationStyle="overFullScreen"
       onRequestClose={onClose}>
       <Pressable 
         style={{

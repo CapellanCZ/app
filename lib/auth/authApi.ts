@@ -5,7 +5,7 @@ type ApiResult = { ok: boolean; message: string };
 
 const NOT_CONFIGURED: ApiResult = {
   ok: false,
-  message: 'Authentication service is not configured.',
+  message: 'Sign-in is temporarily unavailable. Please try again in a moment.',
 };
 
 const NOT_ENROLLED: ApiResult = {
@@ -18,7 +18,14 @@ const NOT_ENROLLED: ApiResult = {
  * No magic link / redirect — code is entered in-app.
  */
 export async function sendOtp(email: string): Promise<ApiResult> {
-  if (!isSupabaseConfigured || !supabase) return NOT_CONFIGURED;
+  if (!isSupabaseConfigured || !supabase) {
+    if (__DEV__) {
+      console.warn(
+        '[auth] EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_ANON_KEY missing from this JS bundle. Restart Metro with cache clear and reconnect the app to this bundler.',
+      );
+    }
+    return NOT_CONFIGURED;
+  }
 
   const { error } = await supabase.auth.signInWithOtp({
     email,

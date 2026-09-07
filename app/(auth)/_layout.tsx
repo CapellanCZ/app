@@ -2,8 +2,8 @@ import { Stack } from 'expo-router';
 import { useColorScheme } from 'react-native';
 
 /**
- * Unauthenticated routes (get-started, login, not-enrolled).
- * The `(auth)` segment is omitted from the URL — e.g. this stack serves `/login`.
+ * Unauthenticated routes (get-started, login shim, not-enrolled).
+ * Login UI is hosted at root via LoginSheetHost (RN Modal) for a reliable dim scrim.
  */
 export default function AuthLayout() {
   const colorScheme = useColorScheme();
@@ -19,9 +19,9 @@ export default function AuthLayout() {
       <Stack.Screen
         name="login"
         options={{
-          presentation: 'transparentModal',
           animation: 'none',
           contentStyle: { backgroundColor: 'transparent' },
+          gestureEnabled: false,
         }}
       />
       <Stack.Screen name="not-enrolled" options={{ animation: 'fade' }} />

@@ -10,8 +10,9 @@ import { useNotificationStore } from '@/lib/notifications/notificationStore';
  * Place this in the root layout so it stays active across all screens.
  */
 export function NotificationSubscription() {
-  const { session } = useAuth();
+  const { session, patient } = useAuth();
   const userId = session?.user?.id;
+  const patientType = patient?.patient_type;
   const subscribe = useNotificationStore((s) => s.subscribe);
   const fetchAll = useNotificationStore((s) => s.fetchAll);
   const fetchPreferences = useNotificationPreferencesStore((s) => s.fetch);
@@ -44,6 +45,12 @@ export function NotificationSubscription() {
       unsubscribeRef.current = null;
     };
   }, [userId, subscribe, fetchAll, fetchPreferences]);
+
+  // Re-filter announcement notifications once patient role is known.
+  useEffect(() => {
+    if (!userId || !patientType) return;
+    void fetchAll(userId, { silent: true });
+  }, [userId, patientType, fetchAll]);
 
   // Refresh when app comes to foreground
   useEffect(() => {

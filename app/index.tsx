@@ -5,10 +5,10 @@ import { SplashBrand } from '@/components/splash/SplashBrand';
 import { useAuth } from '@/lib/auth/AuthProvider';
 import { prefetchCoreData } from '@/lib/bootstrap/prefetchCoreData';
 
-/** Brief hold so the brand can read before routing away. */
-const MIN_SPLASH_MS = 700;
+/** Hold long enough for the CampusCare wordmark to read before routing away. */
+const MIN_SPLASH_MS = 1200;
 
-/** Entry `/` → clinic home, not-enrolled, or login. Prefetches core data while branded splash shows. */
+/** Entry `/` → clinic home, not-enrolled, or login. Prefetches while branded splash shows. */
 export default function Index() {
   const router = useRouter();
   const { session, isLoading, isConfigured, enrollmentStatus, isEnrollmentLoading } = useAuth();

@@ -1,12 +1,11 @@
-import { router } from 'expo-router';
-
 import type { Appointment } from '@/lib/health-service/types';
+import { useConsultationSummaryStore } from '@/lib/consultation/consultationSummaryStore';
 
 const recentNav = new Map<string, number>();
 const DEDUPE_MS = 8_000;
 
 /**
- * Opens the Visit Completed receipt for a finished appointment.
+ * Opens the Consultation Summary receipt for a finished appointment.
  * Dedupes bursty realtime updates for the same id.
  */
 export function openVisitCompletedScreen(appointment: Appointment): void {
@@ -17,8 +16,5 @@ export function openVisitCompletedScreen(appointment: Appointment): void {
   if (prev != null && now - prev < DEDUPE_MS) return;
   recentNav.set(appointment.id, now);
 
-  router.push({
-    pathname: '/visit-completed',
-    params: { id: appointment.id },
-  });
+  useConsultationSummaryStore.getState().open(appointment.id);
 }

@@ -53,19 +53,36 @@ function medicationsFromJson(value: unknown): PrescriptionMedication[] {
     return single ? [single] : [];
   }
 
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return [];
+
+    // Clinic may store JSON text in `prescription`.
+    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+      try {
+        return medicationsFromJson(JSON.parse(trimmed) as unknown);
+      } catch {
+        // Fall through to plain-text note.
+      }
+    }
+
+    return [
+      {
+        name: trimmed,
+        strength: null,
+        quantity: null,
+        frequency: null,
+        duration: null,
+        instructions: null,
+      },
+    ];
+  }
+
   return [];
 }
 
 function parseConsultationRow(row: Record<string, unknown>): ConsultationPrescription {
-  const sources = [
-    row.medications,
-    row.prescription_medications,
-    row.prescription,
-    row.prescription_data,
-    row.prescription_document,
-  ];
-
-  const medications = sources.flatMap((source) => medicationsFromJson(source));
+  const medications = medicationsFromJson(row.prescription);
   const deduped = medications.filter((med, index) => {
     const key = JSON.stringify(med);
     return medications.findIndex((other) => JSON.stringify(other) === key) === index;
@@ -85,11 +102,10 @@ export async function fetchConsultationPrescription(
 ): Promise<ConsultationPrescription> {
   if (!appointmentId?.trim() || !isSupabaseConfigured || !supabase) return EMPTY;
 
+  // Live schema: prescription (text) — no medications / prescription_* JSON columns.
   const { data, error } = await supabase
     .from('appointment_consultations')
-    .select(
-      'medications, prescription, prescription_data, prescription_document, prescription_medications, completed_at, updated_at, created_at',
-    )
+    .select('prescription, completed_at, updated_at, created_at')
     .eq('appointment_id', appointmentId)
     .not('completed_at', 'is', null)
     .order('completed_at', { ascending: false })

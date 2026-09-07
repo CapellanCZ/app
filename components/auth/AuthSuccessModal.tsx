@@ -23,27 +23,23 @@ export function AuthSuccessModal({
   message,
   buttonLabel,
 }: AuthSuccessModalProps) {
-  const scrimOpacity = useRef(new Animated.Value(0)).current;
   const scale = useRef(new Animated.Value(0.85)).current;
   const contentOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (visible) {
       Animated.parallel([
-        Animated.timing(scrimOpacity, { toValue: 1, duration: 220, useNativeDriver: true }),
         Animated.spring(scale, { toValue: 1, damping: 18, stiffness: 260, useNativeDriver: true }),
         Animated.timing(contentOpacity, { toValue: 1, duration: 200, useNativeDriver: true }),
       ]).start();
     }
-  }, [visible]);
+  }, [visible, scale, contentOpacity]);
 
   const close = () => {
     Animated.parallel([
-      Animated.timing(scrimOpacity, { toValue: 0, duration: 160, useNativeDriver: true }),
       Animated.timing(scale, { toValue: 0.85, duration: 180, useNativeDriver: true }),
       Animated.timing(contentOpacity, { toValue: 0, duration: 160, useNativeDriver: true }),
     ]).start(() => {
-      scrimOpacity.setValue(0);
       scale.setValue(0.85);
       contentOpacity.setValue(0);
       onClose();
@@ -51,12 +47,17 @@ export function AuthSuccessModal({
   };
 
   return (
-    <Modal visible={visible} transparent animationType="none" onRequestClose={close}>
-      <Animated.View
+    <Modal
+      visible={visible}
+      transparent
+      animationType="none"
+      statusBarTranslucent
+      presentationStyle="overFullScreen"
+      onRequestClose={close}>
+      <View
         style={{
           flex: 1,
           backgroundColor: 'rgba(0,0,0,0.45)',
-          opacity: scrimOpacity,
           justifyContent: 'center',
           alignItems: 'center',
           paddingHorizontal: 32,
@@ -133,7 +134,7 @@ export function AuthSuccessModal({
             </Text>
           </Pressable>
         </Animated.View>
-      </Animated.View>
+      </View>
     </Modal>
   );
 }

@@ -152,7 +152,8 @@ export function BookingConsultationSelect({ value, onChange, error }: SelectProp
         transparent
         animationType="none"
         onRequestClose={closeSheet}
-        statusBarTranslucent>
+        statusBarTranslucent
+        presentationStyle="overFullScreen">
         <View style={{ flex: 1, justifyContent: 'flex-end' }}>
           {/* Dim stays fixed — does not slide with the sheet. */}
           <Pressable

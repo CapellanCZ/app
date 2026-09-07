@@ -3,6 +3,10 @@
  * CampusCare live tables: `patients`, `appointments`, `doctor_availability`, `users`.
  */
 import {
+  NotAuthenticatedError,
+  PatientNotLinkedError,
+} from '@/lib/auth/errors';
+import {
   inferStaffFromProviderType,
   mapProviderTypeToStaffRole,
   specialtyLabelForProviderType,
@@ -192,7 +196,7 @@ async function requireLinkedPatient(): Promise<{
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) throw new Error('Not authenticated');
+  if (!user) throw new NotAuthenticatedError();
 
   const { data: patient, error } = await supabase
     .from('patients')
@@ -201,7 +205,7 @@ async function requireLinkedPatient(): Promise<{
     .maybeSingle();
 
   if (error) throw error;
-  if (!patient) throw new Error('Patient not found');
+  if (!patient) throw new PatientNotLinkedError();
 
   return {
     userId: user.id,
@@ -1090,7 +1094,7 @@ function createSupabaseHealthServiceApi(): HealthServiceApi {
       if (!supabase) throw new Error('Supabase not configured');
       
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
+      if (!user) throw new NotAuthenticatedError();
       
       const { error } = await supabase
         .from('health_vital_signs')

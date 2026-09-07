@@ -39,17 +39,6 @@ type PhysicalExamRecord = {
   updated_at?: string | null;
 };
 
-type HealthVitalSignsRow = {
-  blood_pressure_systolic?: number | null;
-  blood_pressure_diastolic?: number | null;
-  heart_rate?: number | null;
-  temperature?: number | null;
-  weight?: number | null;
-  height?: number | null;
-  oxygen_saturation?: number | null;
-  recorded_at?: string | null;
-};
-
 function asTrimmedString(value: unknown): string | null {
   if (typeof value === 'number' && Number.isFinite(value)) {
     return String(value);
@@ -135,35 +124,6 @@ function mapPhysicalExamRecord(record: PhysicalExamRecord): LatestVitals {
   return mapPhysicalExam(exam, updatedAt);
 }
 
-function mapHealthVitalSignsRow(row: HealthVitalSignsRow): LatestVitals {
-  const systolic = row.blood_pressure_systolic;
-  const diastolic = row.blood_pressure_diastolic;
-  const bloodPressure =
-    systolic != null && diastolic != null ? `${systolic}/${diastolic}` : null;
-
-  const vitals: LatestVitals = {
-    bloodPressure,
-    heartRate: formatHeartRate(asTrimmedString(row.heart_rate)),
-    temperature: formatTemperature(asTrimmedString(row.temperature)),
-    weight: formatWeight(asTrimmedString(row.weight)),
-    height: formatHeight(asTrimmedString(row.height)),
-    oxygenSaturation: formatOxygen(asTrimmedString(row.oxygen_saturation)),
-    updatedAt: row.recorded_at ?? null,
-  };
-
-  return hasAnyVitalValue(vitals) ? vitals : EMPTY_VITALS;
-}
-
-function isMissingColumnError(message: string): boolean {
-  const lower = message.toLowerCase();
-  return lower.includes('column') && lower.includes('does not exist');
-}
-
-function isMissingRelationError(message: string): boolean {
-  const lower = message.toLowerCase();
-  return lower.includes('relation') && lower.includes('does not exist');
-}
-
 const CLINIC_TZ = 'Asia/Manila';
 
 function dateKeyInClinicTz(iso: string): string {
@@ -233,7 +193,8 @@ export async function fetchLatestVitalsForPatient(params: {
 
 /**
  * Vitals for a completed appointment (consultation summary).
- * Tries appointment-linked sources first, then same-day `patient_records.physical_exam`.
+ * Uses same-day `patient_records.physical_exam` (live DB has no health_vital_signs /
+ * patient_records.appointment_id).
  */
 export async function fetchVitalsForAppointment(params: {
   appointmentId: string;
@@ -244,43 +205,6 @@ export async function fetchVitalsForAppointment(params: {
 }): Promise<LatestVitals> {
   const appointmentId = params.appointmentId?.trim();
   if (!supabase || !appointmentId) return EMPTY_VITALS;
-
-  const { data: healthRow, error: healthError } = await supabase
-    .from('health_vital_signs')
-    .select(
-      'blood_pressure_systolic, blood_pressure_diastolic, heart_rate, temperature, weight, height, oxygen_saturation, recorded_at',
-    )
-    .eq('appointment_id', appointmentId)
-    .order('recorded_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (!healthError && healthRow) {
-    const mapped = mapHealthVitalSignsRow(healthRow as HealthVitalSignsRow);
-    if (hasAnyVitalValue(mapped)) return mapped;
-  } else if (
-    healthError &&
-    !isMissingColumnError(healthError.message) &&
-    !isMissingRelationError(healthError.message)
-  ) {
-    console.warn('[vitals] health_vital_signs:', healthError.message);
-  }
-
-  const { data: recordRow, error: recordError } = await supabase
-    .from('patient_records')
-    .select('physical_exam, last_edited_at, updated_at')
-    .eq('appointment_id', appointmentId)
-    .not('physical_exam', 'is', null)
-    .order('updated_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (!recordError && recordRow) {
-    const mapped = mapPhysicalExamRecord(recordRow as PhysicalExamRecord);
-    if (hasAnyVitalValue(mapped)) return mapped;
-  } else if (recordError && !isMissingColumnError(recordError.message)) {
-    console.warn('[vitals] patient_records by appointment:', recordError.message);
-  }
 
   return fetchPatientRecordVitals({
     studentId: params.studentId,

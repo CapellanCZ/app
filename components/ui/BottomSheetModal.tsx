@@ -1,5 +1,11 @@
-import { forwardRef, ReactNode, useCallback, useImperativeHandle, useState } from 'react';
-import { LayoutChangeEvent, Pressable, StyleSheet, View } from 'react-native';
+import { forwardRef, ReactNode, useCallback, useEffect, useImperativeHandle, useState } from 'react';
+import {
+  Dimensions,
+  Modal,
+  Pressable,
+  StyleSheet,
+  View,
+} from 'react-native';
 import Animated, {
   Easing,
   runOnJS,
@@ -12,6 +18,7 @@ import { useReanimatedKeyboardAnimation } from 'react-native-keyboard-controller
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type Props = {
+  visible: boolean;
   children: ReactNode;
   onClose: () => void;
   /** Extra bottom padding inside the sheet (on top of safe area). Default: 24 */
@@ -27,21 +34,17 @@ export type BottomSheetModalHandle = {
   dismiss: (afterClose?: () => void) => void;
 };
 
+const SCREEN_HEIGHT = Dimensions.get('window').height;
+const SHEET_MAX_HEIGHT = SCREEN_HEIGHT * 0.88;
+
 /**
- * Custom bottom sheet modal powered by react-native-reanimated.
- * All animations run on the UI thread so a heavy React tree won't drop frames.
- *
- * Keyboard: rides above the soft keyboard on iOS + Android via
- * `useReanimatedKeyboardAnimation` (same approach as the booking sheet).
- *
- * Flow:
- * 1. Sheet mounts hidden (opacity 0) while offscreen at translateY 1000.
- * 2. onLayout fires with the real height → translateY snaps to that height
- *    and opacity flips to 1 in the same UI-thread frame.
- * 3. A spring animates translateY to 0 and the backdrop fades in.
+ * Bottom sheet with a reliable dim scrim.
+ * Uses RN Modal + overFullScreen + static rgba backdrop (animated opacity on Android
+ * often stays at 0 when the Modal mounts after the timing starts).
  */
 export const BottomSheetModal = forwardRef<BottomSheetModalHandle, Props>(function BottomSheetModal(
   {
+    visible,
     children,
     onClose,
     bottomPadding = 24,
@@ -52,88 +55,93 @@ export const BottomSheetModal = forwardRef<BottomSheetModalHandle, Props>(functi
 ) {
   const insets = useSafeAreaInsets();
   const { height: keyboardHeight } = useReanimatedKeyboardAnimation();
-  const translateY = useSharedValue(1000);
-  const sheetOpacity = useSharedValue(0);
-  const backdropOpacity = useSharedValue(0);
-  const [measured, setMeasured] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  const translateY = useSharedValue(SCREEN_HEIGHT);
 
   const closedBottomPad = Math.max(insets.bottom, 12) + bottomPadding;
 
-  const handleLayout = useCallback(
-    (e: LayoutChangeEvent) => {
-      if (measured) return;
-      const h = e.nativeEvent.layout.height;
-      setMeasured(true);
-
-      // Jump to off-screen position + reveal, then spring in.
-      translateY.value = h;
-      sheetOpacity.value = 1;
-      backdropOpacity.value = withTiming(1, { duration: 260, easing: Easing.out(Easing.cubic) });
-      translateY.value = withSpring(0, {
-        damping: 26,
-        stiffness: 180,
-        mass: 1,
-        overshootClamping: true,
-      });
-    },
-    [measured, translateY, sheetOpacity, backdropOpacity],
-  );
+  const finishClose = useCallback(() => {
+    setMounted(false);
+    onClose();
+  }, [onClose]);
 
   const handleDismiss = useCallback(
     (afterClose?: () => void) => {
-      backdropOpacity.value = withTiming(0, { duration: 240, easing: Easing.in(Easing.quad) });
-      translateY.value = withTiming(
-        1000,
-        { duration: 280, easing: Easing.in(Easing.cubic) },
-        (finished) => {
+      translateY.set(
+        withTiming(SCREEN_HEIGHT, { duration: 280, easing: Easing.in(Easing.cubic) }, (finished) => {
           if (!finished) return;
+          runOnJS(finishClose)();
           if (afterClose) runOnJS(afterClose)();
-          else runOnJS(onClose)();
-        },
+        }),
       );
     },
-    [translateY, backdropOpacity, onClose],
+    [translateY, finishClose],
   );
 
   useImperativeHandle(ref, () => ({ dismiss: handleDismiss }), [handleDismiss]);
 
+  useEffect(() => {
+    if (visible) {
+      setMounted(true);
+      translateY.set(SCREEN_HEIGHT);
+      // Defer spring until after Modal is in the tree so layout exists.
+      requestAnimationFrame(() => {
+        translateY.set(
+          withSpring(0, {
+            damping: 26,
+            stiffness: 180,
+            mass: 1,
+            overshootClamping: true,
+          }),
+        );
+      });
+      return;
+    }
+
+    setMounted(false);
+    translateY.set(SCREEN_HEIGHT);
+  }, [visible, translateY]);
+
   const sheetStyle = useAnimatedStyle(() => {
-    // `height` is ≤ 0 while the keyboard is open (library convention).
-    const kbLift = -keyboardHeight.value;
+    const kbLift = -keyboardHeight.get();
     const keyboardOpenBottomPad = Math.max(24, bottomPadding);
     return {
-      opacity: sheetOpacity.value,
       paddingBottom: kbLift > 10 ? keyboardOpenBottomPad : closedBottomPad,
-      transform: [{ translateY: translateY.value - Math.max(0, kbLift) }],
+      transform: [{ translateY: translateY.get() - Math.max(0, kbLift) }],
     };
   });
 
-  const backdropStyle = useAnimatedStyle(() => ({ opacity: backdropOpacity.value }));
+  if (!mounted) return null;
 
   return (
-    <View style={styles.root}>
-      <Animated.View style={[styles.backdrop, backdropStyle]}>
-        <Pressable
-          style={StyleSheet.absoluteFill}
-          onPress={dismissOnBackdropPress ? () => handleDismiss() : undefined}
-          accessibilityRole="button"
-          accessibilityLabel="Close modal"
-        />
-      </Animated.View>
+    <Modal
+      visible={mounted}
+      transparent
+      animationType="none"
+      statusBarTranslucent
+      navigationBarTranslucent
+      presentationStyle="overFullScreen"
+      onRequestClose={() => handleDismiss()}>
+      <View style={styles.root} collapsable={false}>
+        {/* Static rgba — never animate opacity of the scrim (breaks on Android Modal). */}
+        <View style={styles.backdrop} pointerEvents="box-none">
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Close modal"
+            disabled={!dismissOnBackdropPress}
+            onPress={dismissOnBackdropPress ? () => handleDismiss() : undefined}
+            style={StyleSheet.absoluteFill}
+          />
+        </View>
 
-      <View pointerEvents="box-none" style={styles.keyboardWrap}>
         <Animated.View
-          onLayout={handleLayout}
-          style={[
-            styles.sheet,
-            { backgroundColor },
-            sheetStyle,
-          ]}>
+          style={[styles.sheet, { backgroundColor, maxHeight: SHEET_MAX_HEIGHT }, sheetStyle]}>
           <View style={styles.handle} />
           {children}
         </Animated.View>
       </View>
-    </View>
+    </Modal>
   );
 });
 
@@ -144,16 +152,15 @@ const styles = StyleSheet.create({
   },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-  },
-  keyboardWrap: {
-    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0, 0, 0, 0.55)',
   },
   sheet: {
+    width: '100%',
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
     paddingTop: 10,
     paddingHorizontal: 20,
+    overflow: 'hidden',
   },
   handle: {
     alignSelf: 'center',

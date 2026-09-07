@@ -20,7 +20,8 @@ export function ProfilePhotoViewer({ visible, imageUrl, onClose }: Props) {
       transparent
       animationType="fade"
       onRequestClose={onClose}
-      statusBarTranslucent>
+      statusBarTranslucent
+      presentationStyle="overFullScreen">
       <View style={{ flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.94)' }}>
         <Pressable
           accessibilityRole="button"

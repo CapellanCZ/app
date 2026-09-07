@@ -1,6 +1,10 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
-import { shouldRefreshAnnouncementsForAudience } from '@/lib/announcements/announcementAudience';
+import {
+  patientMatchesAnnouncementAudience,
+  shouldRefreshAnnouncementsForAudience,
+} from '@/lib/announcements/announcementAudience';
+import { usePatientStore } from '@/lib/patients/patientStore';
 
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 
@@ -70,7 +74,12 @@ export function acquireAnnouncementsSubscription(onChange: () => void): () => vo
         { event: 'INSERT', schema: 'public', table: 'announcements' },
         (payload) => {
           const row = payload.new as { status?: string; audience?: string } | undefined;
-          if (row?.status === 'published' && shouldRefreshAnnouncementsForAudience(row.audience)) {
+          const patientType = usePatientStore.getState().patient?.patient_type;
+          if (
+            row?.status === 'published' &&
+            shouldRefreshAnnouncementsForAudience(row.audience) &&
+            patientMatchesAnnouncementAudience(patientType, row.audience)
+          ) {
             debouncedChange();
           }
         },
@@ -80,7 +89,12 @@ export function acquireAnnouncementsSubscription(onChange: () => void): () => vo
         { event: 'UPDATE', schema: 'public', table: 'announcements' },
         (payload) => {
           const row = payload.new as { status?: string; audience?: string } | undefined;
-          if (row?.status === 'published' && shouldRefreshAnnouncementsForAudience(row.audience)) {
+          const patientType = usePatientStore.getState().patient?.patient_type;
+          if (
+            row?.status === 'published' &&
+            shouldRefreshAnnouncementsForAudience(row.audience) &&
+            patientMatchesAnnouncementAudience(patientType, row.audience)
+          ) {
             debouncedChange();
           }
         },

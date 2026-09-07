@@ -13,9 +13,15 @@ type Props = {
 /** Single shared long-press sheet — avoids mounting a Modal per list row. */
 export function NotificationItemMenu({ item, onClose, onMarkRead, onArchive }: Props) {
   return (
-    <Modal visible={item != null} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal
+      visible={item != null}
+      transparent
+      animationType="fade"
+      statusBarTranslucent
+      presentationStyle="overFullScreen"
+      onRequestClose={onClose}>
       <Pressable
-        style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'flex-end' }}
+        style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' }}
         onPress={onClose}>
         <Pressable
           onPress={(e) => e.stopPropagation()}

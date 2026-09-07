@@ -68,7 +68,7 @@ function SectionTitle({ children }: { children: string }) {
  */
 export default function HealthServiceScreen() {
   const insets = useSafeAreaInsets();
-  const { patient } = useAuth();
+  const { patient, session, enrollmentStatus } = useAuth();
   const profile = useProfileStore((s) => s.profile);
   const avatarUrl = profile?.avatar_url ?? null;
 
@@ -85,7 +85,11 @@ export default function HealthServiceScreen() {
   const loadPresence = useStaffPresenceStore((s) => s.loadOne);
   const presenceByStaffId = useStaffPresenceStore((s) => s.byStaffId);
 
+  const canLoadPatientData = Boolean(session?.user?.id) && enrollmentStatus === 'enrolled';
+
   useEffect(() => {
+    if (!canLoadPatientData) return;
+
     void Promise.all([
       loadAnnouncements({ patientType: patient?.patient_type }),
       loadStaff(),
@@ -97,6 +101,7 @@ export default function HealthServiceScreen() {
     ]);
     return subscribeAppointments();
   }, [
+    canLoadPatientData,
     loadAnnouncements,
     loadStaff,
     loadAppointments,

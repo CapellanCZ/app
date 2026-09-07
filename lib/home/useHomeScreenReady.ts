@@ -11,7 +11,12 @@ export function useHomeScreenReady(): boolean {
   const announcementsLoaded = useAnnouncementStore((s) => s.hasLoaded);
   const vitalsLoaded = useVitalsStore((s) => s.hasLoaded);
   const profileLoading = useProfileStore((s) => s.isLoading);
-  const { patient } = useAuth();
+  const { patient, session, enrollmentStatus, isLoading: isAuthLoading } = useAuth();
+
+  // Signed-out / pre-enrollment: don't wait on patient fetches (redirect will take over).
+  if (isAuthLoading || !session?.user || enrollmentStatus !== 'enrolled') {
+    return true;
+  }
 
   const profileReady = Boolean(patient?.full_name?.trim()) || !profileLoading;
 

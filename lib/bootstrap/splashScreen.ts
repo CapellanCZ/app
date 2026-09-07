@@ -10,6 +10,11 @@ export function prepareSplashScreen(): void {
   void SplashScreen.preventAutoHideAsync().catch(() => {
     // Already hidden on reload — safe to ignore.
   });
+
+  // Safety: never leave the native splash stuck if the branded screen never mounts.
+  setTimeout(() => {
+    void hideSplashScreenOnce();
+  }, 8_000);
 }
 
 /**

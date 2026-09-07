@@ -1,9 +1,16 @@
 import { create } from 'zustand';
 
 import { useAnnouncementStore } from '@/lib/announcements/announcementStore';
+import { patientMatchesAnnouncementAudience } from '@/lib/announcements/announcementAudience';
+import { usePatientStore } from '@/lib/patients/patientStore';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { acquireNotificationsSubscription } from './realtimeSubscriptions';
 import { MOCK_NOTIFICATIONS } from './mockNotifications';
+import {
+  collectAnnouncementIds,
+  filterAnnouncementNotificationsForPatient,
+  isAnnouncementNotificationRow,
+} from './filterAnnouncementNotifications';
 import {
   toNotificationItem,
   isWithinDays,
@@ -26,8 +33,45 @@ function countUnread(items: NotificationItem[]): number {
 }
 
 function isAnnouncementNotification(row: NotificationRow): boolean {
-  if ((row.type ?? '').toLowerCase() === 'announcement') return true;
-  return typeof row.metadata?.announcement_id === 'string' && row.metadata.announcement_id.length > 0;
+  return isAnnouncementNotificationRow(row);
+}
+
+async function loadAnnouncementAudienceMap(
+  rows: NotificationRow[],
+): Promise<Map<string, string>> {
+  const map = new Map<string, string>();
+  if (!isSupabaseConfigured || !supabase) return map;
+
+  const ids = collectAnnouncementIds(rows);
+  if (!ids.length) return map;
+
+  const { data, error } = await supabase.from('announcements').select('id, audience').in('id', ids);
+  if (error) {
+    console.warn('[notifications] announcement audience lookup failed:', error.message);
+    return map;
+  }
+
+  for (const row of data ?? []) {
+    if (row.id && row.audience) map.set(row.id, row.audience);
+  }
+  return map;
+}
+
+function isAnnouncementVisibleForCurrentPatient(
+  row: NotificationRow,
+  audienceByAnnouncementId: ReadonlyMap<string, string>,
+): boolean {
+  const patientType = usePatientStore.getState().patient?.patient_type;
+  const metaAudience = row.metadata?.announcement_audience;
+  const audience =
+    typeof metaAudience === 'string' && metaAudience.trim()
+      ? metaAudience
+      : typeof row.metadata?.announcement_id === 'string'
+        ? audienceByAnnouncementId.get(row.metadata.announcement_id)
+        : null;
+
+  if (!audience) return true;
+  return patientMatchesAnnouncementAudience(patientType, audience);
 }
 
 interface NotificationState {
@@ -117,9 +161,16 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
       return;
     }
     const rows = (data ?? []) as NotificationRow[];
+    const audienceByAnnouncementId = await loadAnnouncementAudienceMap(rows);
+    const patientType = usePatientStore.getState().patient?.patient_type;
+    const scopedRows = filterAnnouncementNotificationsForPatient(
+      rows,
+      patientType,
+      audienceByAnnouncementId,
+    );
     const pendingArchiveIds = get().pendingArchiveIds;
     const preferences = useNotificationPreferencesStore.getState().preferences;
-    const items = rows
+    const items = scopedRows
       .filter((r) => isWithinDays(r.created_at, 30))
       .filter((r) => isNotificationAllowed(preferences, r))
       .map(toNotificationItem)
@@ -238,16 +289,26 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
       onChange: () => {
         void get().fetchAll(userId, { silent: true });
       },
-      onInsert: (row) => {
+      onInsert: async (row) => {
         if (row.archived_at) return;
         const preferences = useNotificationPreferencesStore.getState().preferences;
         if (!isNotificationAllowed(preferences, row)) return;
+
+        let audienceByAnnouncementId = new Map<string, string>();
+        if (isAnnouncementNotification(row)) {
+          audienceByAnnouncementId = await loadAnnouncementAudienceMap([row]);
+          if (!isAnnouncementVisibleForCurrentPatient(row, audienceByAnnouncementId)) return;
+        }
+
         const item = toNotificationItem(row);
         get().prependItem(item);
 
         const isAnnouncement = isAnnouncementNotification(row);
         if (isAnnouncement) {
-          void useAnnouncementStore.getState().load({ force: true });
+          void useAnnouncementStore.getState().load({
+            force: true,
+            patientType: usePatientStore.getState().patient?.patient_type,
+          });
         }
 
         toastFromNotification(item, {

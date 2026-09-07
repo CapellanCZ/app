@@ -26,11 +26,14 @@ export const useAnnouncementStore = create<AnnouncementState>((set, get) => ({
 
   load: async (opts) => {
     const { force } = opts ?? {};
+    const patientState = usePatientStore.getState();
     const patientType =
-      opts?.patientType ?? usePatientStore.getState().patient?.patient_type ?? null;
+      opts?.patientType ?? patientState.patient?.patient_type ?? null;
     const typeChanged = get().lastPatientType !== patientType;
 
     if (get().loading) return;
+    // Wait until patient profile resolves so we don't briefly show campus-wide only.
+    if (!patientType && patientState.isLoading) return;
     if (get().hasLoaded && !force && !typeChanged) return;
 
     set({ loading: true });

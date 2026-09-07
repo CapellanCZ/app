@@ -80,6 +80,7 @@ export function LogoutModal({ visible, onConfirm, onCancel }: LogoutModalProps) 
       transparent
       animationType="fade"
       statusBarTranslucent
+      presentationStyle="overFullScreen"
       onRequestClose={() => animateOut('cancel')}>
       <View style={{ flex: 1, justifyContent: 'flex-end' }}>
         <Pressable

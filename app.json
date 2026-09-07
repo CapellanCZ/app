@@ -43,11 +43,6 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
-    "splash": {
-      "image": "./assets/heart-blue.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
-    },
     "assetBundlePatterns": [
       "**/*"
     ],
@@ -62,15 +57,16 @@
       "package": "com.yscplln.campuscareapplication",
       "softwareKeyboardLayoutMode": "resize",
       "permissions": [
-        "android.permission.RECORD_AUDIO"
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
       ]
     },
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "a605999a-462a-4e80-8d74-5dc0e24bfe19"
+        "projectId": "2a7e35cd-5393-4c24-a09d-16e08cba0545"
       }
     },
-    "owner": "yscdev"
+    "owner": "yscplln"
   }
 }

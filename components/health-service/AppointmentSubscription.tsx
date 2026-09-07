@@ -8,7 +8,7 @@ import { useHealthServiceStore } from '@/lib/health-service/healthServiceStore';
  * notifications fire and completed visits open Visit Completed anywhere.
  */
 export function AppointmentSubscription() {
-  const { session } = useAuth();
+  const { session, enrollmentStatus } = useAuth();
   const userId = session?.user?.id;
   const subscribeAppointments = useHealthServiceStore((s) => s.subscribeAppointments);
   const loadAppointments = useHealthServiceStore((s) => s.loadAppointments);
@@ -16,7 +16,7 @@ export function AppointmentSubscription() {
   const unsubscribeRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
-    if (!userId) {
+    if (!userId || enrollmentStatus !== 'enrolled') {
       if (unsubscribeRef.current) {
         unsubscribeRef.current();
         unsubscribeRef.current = null;
@@ -32,7 +32,7 @@ export function AppointmentSubscription() {
       unsubscribeRef.current?.();
       unsubscribeRef.current = null;
     };
-  }, [userId, loadAppointments, loadStaff, subscribeAppointments]);
+  }, [userId, enrollmentStatus, loadAppointments, loadStaff, subscribeAppointments]);
 
   return null;
 }

@@ -31,7 +31,8 @@ export function PickerBottomSheet<T extends string>({
       transparent
       animationType="slide"
       onRequestClose={onClose}
-      statusBarTranslucent>
+      statusBarTranslucent
+      presentationStyle="overFullScreen">
       <View style={styles.root}>
         <Pressable style={styles.backdrop} onPress={onClose} accessibilityRole="button" />
         <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 12) + 12 }]}>
