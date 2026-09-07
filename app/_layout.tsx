@@ -68,7 +68,6 @@ export default function RootLayout() {
               <NotificationHandler />
               <NotificationSubscription />
               <ConsultationSummaryHost />
-              <LoginSheetHost />
               <UniwindInsetSync />
               <View style={{ flex: 1, backgroundColor: rootBackgroundColor }}>
               <Stack
@@ -104,6 +103,8 @@ export default function RootLayout() {
                 />
               </Stack>
               </View>
+              {/* After the stack so iOS absolute overlays paint above Get Started. */}
+              <LoginSheetHost />
               </AuthProvider>
             </KeyboardProvider>
           </SafeAreaProvider>

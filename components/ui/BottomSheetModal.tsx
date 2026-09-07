@@ -11,11 +11,12 @@ import Animated, {
   runOnJS,
   useAnimatedStyle,
   useSharedValue,
-  withSpring,
   withTiming,
 } from 'react-native-reanimated';
 import { useReanimatedKeyboardAnimation } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { androidPressProps } from '@/lib/ui/androidPress';
 
 type Props = {
   visible: boolean;
@@ -36,11 +37,17 @@ export type BottomSheetModalHandle = {
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 const SHEET_MAX_HEIGHT = SCREEN_HEIGHT * 0.88;
+const SHEET_OFFSCREEN = Math.min(SCREEN_HEIGHT * 0.55, 480);
+const SCRIM = 'rgba(0, 0, 0, 0.55)';
+
+const IOS_PRESENT = Easing.bezier(0.32, 0.72, 0, 1);
+const IOS_DISMISS = Easing.bezier(0.4, 0, 0.68, 0.06);
+const OPEN_MS = 280;
+const CLOSE_MS = 220;
 
 /**
- * Bottom sheet with a reliable dim scrim.
- * Uses RN Modal + overFullScreen + static rgba backdrop (animated opacity on Android
- * often stays at 0 when the Modal mounts after the timing starts).
+ * Content-sized bottom sheet (no tall empty pageSheet card).
+ * Solid scrim on the root (reliable on iOS) + sheet slides on a UI-thread timeline.
  */
 export const BottomSheetModal = forwardRef<BottomSheetModalHandle, Props>(function BottomSheetModal(
   {
@@ -56,8 +63,7 @@ export const BottomSheetModal = forwardRef<BottomSheetModalHandle, Props>(functi
   const insets = useSafeAreaInsets();
   const { height: keyboardHeight } = useReanimatedKeyboardAnimation();
   const [mounted, setMounted] = useState(false);
-
-  const translateY = useSharedValue(SCREEN_HEIGHT);
+  const translateY = useSharedValue(SHEET_OFFSCREEN);
 
   const closedBottomPad = Math.max(insets.bottom, 12) + bottomPadding;
 
@@ -69,7 +75,7 @@ export const BottomSheetModal = forwardRef<BottomSheetModalHandle, Props>(functi
   const handleDismiss = useCallback(
     (afterClose?: () => void) => {
       translateY.set(
-        withTiming(SCREEN_HEIGHT, { duration: 280, easing: Easing.in(Easing.cubic) }, (finished) => {
+        withTiming(SHEET_OFFSCREEN, { duration: CLOSE_MS, easing: IOS_DISMISS }, (finished) => {
           if (!finished) return;
           runOnJS(finishClose)();
           if (afterClose) runOnJS(afterClose)();
@@ -82,26 +88,20 @@ export const BottomSheetModal = forwardRef<BottomSheetModalHandle, Props>(functi
   useImperativeHandle(ref, () => ({ dismiss: handleDismiss }), [handleDismiss]);
 
   useEffect(() => {
-    if (visible) {
-      setMounted(true);
-      translateY.set(SCREEN_HEIGHT);
-      // Defer spring until after Modal is in the tree so layout exists.
-      requestAnimationFrame(() => {
-        translateY.set(
-          withSpring(0, {
-            damping: 26,
-            stiffness: 180,
-            mass: 1,
-            overshootClamping: true,
-          }),
-        );
-      });
+    if (!visible) {
+      setMounted(false);
+      translateY.set(SHEET_OFFSCREEN);
       return;
     }
 
-    setMounted(false);
-    translateY.set(SCREEN_HEIGHT);
+    translateY.set(SHEET_OFFSCREEN);
+    setMounted(true);
   }, [visible, translateY]);
+
+  const present = useCallback(() => {
+    translateY.set(SHEET_OFFSCREEN);
+    translateY.set(withTiming(0, { duration: OPEN_MS, easing: IOS_PRESENT }));
+  }, [translateY]);
 
   const sheetStyle = useAnimatedStyle(() => {
     const kbLift = -keyboardHeight.get();
@@ -120,20 +120,18 @@ export const BottomSheetModal = forwardRef<BottomSheetModalHandle, Props>(functi
       transparent
       animationType="none"
       statusBarTranslucent
-      navigationBarTranslucent
       presentationStyle="overFullScreen"
+      onShow={present}
       onRequestClose={() => handleDismiss()}>
       <View style={styles.root} collapsable={false}>
-        {/* Static rgba — never animate opacity of the scrim (breaks on Android Modal). */}
-        <View style={styles.backdrop} pointerEvents="box-none">
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Close modal"
-            disabled={!dismissOnBackdropPress}
-            onPress={dismissOnBackdropPress ? () => handleDismiss() : undefined}
-            style={StyleSheet.absoluteFill}
-          />
-        </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Close modal"
+          disabled={!dismissOnBackdropPress}
+          onPress={dismissOnBackdropPress ? () => handleDismiss() : undefined}
+          {...androidPressProps({ borderless: true })}
+          style={StyleSheet.absoluteFill}
+        />
 
         <Animated.View
           style={[styles.sheet, { backgroundColor, maxHeight: SHEET_MAX_HEIGHT }, sheetStyle]}>
@@ -149,11 +147,9 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     justifyContent: 'flex-end',
+    backgroundColor: SCRIM,
   },
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.55)',
-  },
+  /** Hug children — never flex:1 (that created the empty white pageSheet). */
   sheet: {
     width: '100%',
     borderTopLeftRadius: 32,
