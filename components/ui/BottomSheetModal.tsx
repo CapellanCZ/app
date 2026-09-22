@@ -1,4 +1,4 @@
-import { forwardRef, ReactNode, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import { forwardRef, ReactNode, useCallback, useEffect, useImperativeHandle, useState } from 'react';
 import {
   Dimensions,
   Modal,
@@ -69,30 +69,31 @@ export const BottomSheetModal = forwardRef<BottomSheetModalHandle, Props>(functi
   const { height: keyboardHeight } = useReanimatedKeyboardAnimation();
   const [mounted, setMounted] = useState(false);
   const translateY = useSharedValue(SHEET_OFFSCREEN);
-  const closingRef = useRef(false);
+  /** 0 = idle, 1 = dismissing — shared value so worklet callbacks never touch a React ref. */
+  const closing = useSharedValue(0);
 
   const sheetMaxHeight = SCREEN_HEIGHT * maxHeightFraction;
   const closedBottomPad = Math.max(insets.bottom, 12) + bottomPadding;
 
   const finishClose = useCallback(() => {
-    closingRef.current = false;
+    closing.set(0);
     setMounted(false);
     onClose();
-  }, [onClose]);
+  }, [closing, onClose]);
 
   const finishCloseSilent = useCallback(() => {
-    closingRef.current = false;
+    closing.set(0);
     setMounted(false);
-  }, []);
+  }, [closing]);
 
   const handleDismiss = useCallback(
     (afterClose?: () => void) => {
-      if (closingRef.current) return;
-      closingRef.current = true;
+      if (closing.get() === 1) return;
+      closing.set(1);
       translateY.set(
         withTiming(SHEET_OFFSCREEN, { duration: CLOSE_MS, easing: IOS_DISMISS }, (finished) => {
           if (!finished) {
-            closingRef.current = false;
+            closing.set(0);
             return;
           }
           runOnJS(finishClose)();
@@ -100,17 +101,15 @@ export const BottomSheetModal = forwardRef<BottomSheetModalHandle, Props>(functi
         }),
       );
     },
-    [translateY, finishClose],
+    [closing, translateY, finishClose],
   );
 
   useImperativeHandle(ref, () => ({ dismiss: handleDismiss }), [handleDismiss]);
 
   useEffect(() => {
     if (visible) {
-      // Always clear a stuck dismiss flag so a new open isn't ignored.
-      closingRef.current = false;
+      closing.set(0);
       if (mounted) {
-        // Remounted while already open (e.g. mid-dismiss cancelled) — slide back in.
         translateY.set(withTiming(0, { duration: OPEN_MS, easing: IOS_PRESENT }));
         return;
       }
@@ -119,29 +118,28 @@ export const BottomSheetModal = forwardRef<BottomSheetModalHandle, Props>(functi
       return;
     }
 
-    if (!mounted || closingRef.current) {
+    if (!mounted || closing.get() === 1) {
       if (!mounted) translateY.set(SHEET_OFFSCREEN);
       return;
     }
 
-    // Parent flipped `visible` off — animate out without re-calling onClose.
-    closingRef.current = true;
+    closing.set(1);
     translateY.set(
       withTiming(SHEET_OFFSCREEN, { duration: CLOSE_MS, easing: IOS_DISMISS }, (finished) => {
         if (!finished) {
-          closingRef.current = false;
+          closing.set(0);
           return;
         }
         runOnJS(finishCloseSilent)();
       }),
     );
-  }, [visible, mounted, translateY, finishCloseSilent]);
+  }, [visible, mounted, translateY, closing, finishCloseSilent]);
 
   const present = useCallback(() => {
-    closingRef.current = false;
+    closing.set(0);
     translateY.set(SHEET_OFFSCREEN);
     translateY.set(withTiming(0, { duration: OPEN_MS, easing: IOS_PRESENT }));
-  }, [translateY]);
+  }, [closing, translateY]);
 
   const sheetStyle = useAnimatedStyle(() => {
     const kbLift = -keyboardHeight.get();

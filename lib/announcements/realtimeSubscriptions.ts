@@ -88,7 +88,30 @@ export function acquireAnnouncementsSubscription(onChange: () => void): () => vo
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'announcements' },
         (payload) => {
-          const row = payload.new as { status?: string; audience?: string } | undefined;
+          const next = payload.new as { status?: string; audience?: string } | undefined;
+          const prev = payload.old as { status?: string; audience?: string } | undefined;
+          const patientType = usePatientStore.getState().patient?.patient_type;
+          const becameUnpublished =
+            prev?.status === 'published' && next?.status !== 'published';
+          const publishedVisible =
+            next?.status === 'published' &&
+            shouldRefreshAnnouncementsForAudience(next.audience) &&
+            patientMatchesAnnouncementAudience(patientType, next.audience);
+          const prevWasVisible =
+            prev?.status === 'published' &&
+            shouldRefreshAnnouncementsForAudience(prev.audience) &&
+            patientMatchesAnnouncementAudience(patientType, prev.audience);
+
+          if (publishedVisible || becameUnpublished || prevWasVisible) {
+            debouncedChange();
+          }
+        },
+      )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'announcements' },
+        (payload) => {
+          const row = payload.old as { status?: string; audience?: string } | undefined;
           const patientType = usePatientStore.getState().patient?.patient_type;
           if (
             row?.status === 'published' &&

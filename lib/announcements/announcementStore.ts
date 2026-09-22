@@ -31,9 +31,15 @@ export const useAnnouncementStore = create<AnnouncementState>((set, get) => ({
       opts?.patientType ?? patientState.patient?.patient_type ?? null;
     const typeChanged = get().lastPatientType !== patientType;
 
-    if (get().loading) return;
     // Wait until patient profile resolves so we don't briefly show campus-wide only.
     if (!patientType && patientState.isLoading) return;
+    if (get().loading) {
+      // Don't drop realtime/forced refreshes that arrive mid-fetch.
+      if (force) {
+        void Promise.resolve().then(() => get().load({ force: true, patientType }));
+      }
+      return;
+    }
     if (get().hasLoaded && !force && !typeChanged) return;
 
     set({ loading: true });

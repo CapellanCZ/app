@@ -18,7 +18,10 @@ export function emergencyContactFromPatient(patient: {
   };
 }
 
-/** Persist emergency contact on the linked `patients` row for the current user. */
+/**
+ * Persist emergency contact on the linked `patients` row for the current user.
+ * Clinic Profile still owns the canonical copy in `patient_records`.
+ */
 export async function updatePatientEmergencyContact(
   contact: EmergencyContact,
 ): Promise<boolean> {

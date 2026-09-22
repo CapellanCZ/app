@@ -20,7 +20,8 @@ import { SCHEDULE_PARTNER } from '@/lib/ui/theme';
 export default function PersonalInfoScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { patient, session } = useAuth();
+  const { session } = useAuth();
+  const patient = usePatientStore((s) => s.patient);
   const profile = useProfileStore((s) => s.profile);
   const fetchProfile = useProfileStore((s) => s.fetchProfile);
   const setAvatarUrl = useProfileStore((s) => s.setAvatarUrl);

@@ -54,8 +54,11 @@ export function AppointmentStatusHost() {
     [appointment?.reason],
   );
 
-  const isCancelled = appointment?.status === 'cancelled';
   const isConfirmed = appointment?.status === 'confirmed';
+  const isPending = appointment?.status === 'pending';
+  /** Once hydrated, only pending/confirmed belong on this sheet. */
+  const isActiveUpcoming =
+    appointment == null || isPending || isConfirmed;
 
   const prefetchedQueueLabel = appointment?.arrivalTicket
     ? `${appointment.arrivalTicket.position}#`
@@ -73,14 +76,14 @@ export function AppointmentStatusHost() {
   }, [appointmentId, loadAppointments]);
 
   useEffect(() => {
-    if (!appointmentId) return;
-    if (isCancelled) close();
-  }, [appointmentId, isCancelled, close]);
+    if (!appointmentId || appointment == null) return;
+    if (!isActiveUpcoming) close();
+  }, [appointmentId, appointment, isActiveUpcoming, close]);
 
   useEffect(() => {
-    if (!appointmentId || isCancelled) return;
+    if (!appointmentId || !isActiveUpcoming || appointment == null) return;
     void playToastFeedback('success');
-  }, [appointmentId, isCancelled]);
+  }, [appointmentId, appointment, isActiveUpcoming]);
 
   useEffect(() => {
     if (!appointmentId || !isConfirmed) {
@@ -308,7 +311,7 @@ export function AppointmentStatusHost() {
 
   return (
     <BottomSheetModal
-      visible={Boolean(appointmentId)}
+      visible={Boolean(appointmentId) && isActiveUpcoming}
       onClose={handleClose}
       backgroundColor="#F9F9F9"
       bottomPadding={16}

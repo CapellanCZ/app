@@ -3,10 +3,9 @@
 /**
  * send-appointment-email — Supabase Edge Function
  *
- * Triggered by DB trigger `queue_appointment_email` on `public.appointments`:
- *   - INSERT with status pending  → "request received" email
- *   - UPDATE to status confirmed  → "appointment confirmed" email
- *   - UPDATE to status cancelled  → "appointment cancelled" email (includes reason)
+ * Triggered by DB triggers:
+ *   - appointments: pending / confirmed / cancelled emails
+ *   - follow_up_reminders deliver job: FOLLOW_UP_REMINDER (1 day before)
  *
  * Secrets:
  *   RESEND_API_KEY
@@ -31,14 +30,23 @@ type AppointmentRow = {
   cancellation_reason?: string | null;
 };
 
+type FollowUpReminderRow = {
+  id: string;
+  consultation_id: string;
+  patient_id: string;
+  appointment_id: string | null;
+  follow_up_date: string;
+  provider_name?: string | null;
+};
+
 type WebhookPayload = {
-  type: 'INSERT' | 'UPDATE' | 'DELETE';
+  type: 'INSERT' | 'UPDATE' | 'DELETE' | 'FOLLOW_UP_REMINDER';
   table: string;
-  record: AppointmentRow;
+  record: AppointmentRow | FollowUpReminderRow;
   old_record: AppointmentRow | null;
 };
 
-type EmailKind = 'pending' | 'confirmed' | 'cancelled';
+type EmailKind = 'pending' | 'confirmed' | 'cancelled' | 'follow_up';
 
 const MANILA = 'Asia/Manila';
 
@@ -60,6 +68,18 @@ function formatWhen(iso: string): { date: string; time: string } {
   return { date, time };
 }
 
+function formatFollowUpDate(dateKey: string): string {
+  // date-only YYYY-MM-DD — render as Manila calendar day
+  const d = new Date(`${dateKey}T00:00:00+08:00`);
+  return d.toLocaleDateString('en-PH', {
+    timeZone: MANILA,
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
 function escapeHtml(s: string): string {
   return s
     .replaceAll('&', '&amp;')
@@ -78,6 +98,55 @@ function formatCancellationReason(raw: string | null | undefined): string {
     return 'You cancelled this appointment.';
   }
   return trimmed;
+}
+
+function buildEmailShell(input: {
+  headline: string;
+  leadHtml: string;
+  detailsRows: [string, string][];
+  footerNote: string;
+}): string {
+  const rowsHtml = input.detailsRows
+    .map(
+      ([label, value]) => `
+      <tr>
+        <td style="padding:10px 0;color:#64748b;font-size:14px;width:120px;vertical-align:top;">${label}</td>
+        <td style="padding:10px 0;color:#0f172a;font-size:14px;font-weight:600;">${value}</td>
+      </tr>`,
+    )
+    .join('');
+
+  return `<!DOCTYPE html>
+<html>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f1f5f9;padding:32px 16px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" style="max-width:560px;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #e2e8f0;">
+          <tr>
+            <td style="background:#0f766e;padding:24px 28px;">
+              <div style="color:#ccfbf1;font-size:12px;letter-spacing:0.08em;text-transform:uppercase;font-weight:600;">CampusCare</div>
+              <div style="color:#ffffff;font-size:22px;font-weight:700;margin-top:6px;">Health Service Office</div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:28px;">
+              <h1 style="margin:0 0 12px;font-size:22px;line-height:1.3;color:#0f172a;">${input.headline}</h1>
+              <p style="margin:0 0 20px;font-size:15px;line-height:1.55;color:#334155;">${input.leadHtml}</p>
+              <table role="presentation" width="100%" style="border-top:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0;margin:8px 0 20px;">
+                ${rowsHtml}
+              </table>
+              <p style="margin:0;font-size:13px;line-height:1.5;color:#64748b;">
+                ${input.footerNote}
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
 }
 
 function buildEmail(input: {
@@ -104,8 +173,22 @@ function buildEmail(input: {
   let lead: string;
   let statusLabel: string;
   let detailsRows: [string, string][];
+  let footerNote: string;
 
-  if (input.kind === 'cancelled') {
+  if (input.kind === 'follow_up') {
+    subject = 'Follow-up reminder — CampusCare Health Service';
+    headline = 'Your follow-up is tomorrow';
+    lead = `Hi ${name}, this is a reminder that your clinic follow-up with <strong>${doctor}</strong> is scheduled for <strong>${date}</strong>.`;
+    statusLabel = 'Follow-up reminder';
+    detailsRows = [
+      ['Provider', doctor],
+      ['Follow-up date', date],
+      ['Location', location],
+      ['Status', statusLabel],
+    ];
+    footerNote =
+      'Please book an appointment or arrive as advised by the Health Service Office. This message was sent by CampusCare.';
+  } else if (input.kind === 'cancelled') {
     subject = 'Your appointment was cancelled — CampusCare Health Service';
     headline = 'Your appointment was cancelled';
     lead = `Hi ${name}, your appointment with <strong>${doctor}</strong> on <strong>${date}</strong> at <strong>${time}</strong> has been cancelled.`;
@@ -118,6 +201,8 @@ function buildEmail(input: {
       ['Why', cancelWhyHtml],
       ['Status', statusLabel],
     ];
+    footerNote =
+      'You can book a new slot anytime in the CampusCare app. If you have questions, contact the Health Service Office.';
   } else if (input.kind === 'confirmed') {
     subject = 'Your appointment is confirmed — CampusCare Health Service';
     headline = 'Your appointment is confirmed';
@@ -131,6 +216,8 @@ function buildEmail(input: {
       ...(reason ? ([['Reason', reason]] as [string, string][]) : []),
       ['Status', statusLabel],
     ];
+    footerNote =
+      'This message was sent by the Campus Health Service Office via CampusCare. If you did not request this appointment, please contact the Health Service Office.';
   } else {
     subject = 'We received your appointment request — CampusCare Health Service';
     headline = 'Appointment request received';
@@ -144,61 +231,24 @@ function buildEmail(input: {
       ...(reason ? ([['Reason', reason]] as [string, string][]) : []),
       ['Status', statusLabel],
     ];
+    footerNote =
+      'This message was sent by the Campus Health Service Office via CampusCare. If you did not request this appointment, please contact the Health Service Office.';
   }
 
-  const rowsHtml = detailsRows
-    .map(
-      ([label, value]) => `
-      <tr>
-        <td style="padding:10px 0;color:#64748b;font-size:14px;width:120px;vertical-align:top;">${label}</td>
-        <td style="padding:10px 0;color:#0f172a;font-size:14px;font-weight:600;">${value}</td>
-      </tr>`,
-    )
-    .join('');
-
-  const footerNote =
-    input.kind === 'cancelled'
-      ? 'You can book a new slot anytime in the CampusCare app. If you have questions, contact the Health Service Office.'
-      : 'This message was sent by the Campus Health Service Office via CampusCare. If you did not request this appointment, please contact the Health Service Office.';
-
-  const html = `<!DOCTYPE html>
-<html>
-<body style="margin:0;padding:0;background:#f1f5f9;font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f1f5f9;padding:32px 16px;">
-    <tr>
-      <td align="center">
-        <table role="presentation" width="100%" style="max-width:560px;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #e2e8f0;">
-          <tr>
-            <td style="background:#0f766e;padding:24px 28px;">
-              <div style="color:#ccfbf1;font-size:12px;letter-spacing:0.08em;text-transform:uppercase;font-weight:600;">CampusCare</div>
-              <div style="color:#ffffff;font-size:22px;font-weight:700;margin-top:6px;">Health Service Office</div>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:28px;">
-              <h1 style="margin:0 0 12px;font-size:22px;line-height:1.3;color:#0f172a;">${headline}</h1>
-              <p style="margin:0 0 20px;font-size:15px;line-height:1.55;color:#334155;">${lead}</p>
-              <table role="presentation" width="100%" style="border-top:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0;margin:8px 0 20px;">
-                ${rowsHtml}
-              </table>
-              <p style="margin:0;font-size:13px;line-height:1.5;color:#64748b;">
-                ${footerNote}
-              </p>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>`;
-
-  const textLines: (string | null)[] = [
+  const html = buildEmailShell({
     headline,
-    '',
-  ];
+    leadHtml: lead,
+    detailsRows,
+    footerNote,
+  });
 
-  if (input.kind === 'cancelled') {
+  const textLines: (string | null)[] = [headline, ''];
+
+  if (input.kind === 'follow_up') {
+    textLines.push(
+      `Hi ${input.patientName || 'Patient'}, your clinic follow-up with ${input.doctorName || 'your provider'} is scheduled for ${input.date}.`,
+    );
+  } else if (input.kind === 'cancelled') {
     textLines.push(
       `Hi ${input.patientName || 'Patient'}, your appointment with ${input.doctorName || 'the provider'} on ${input.date} at ${input.time} has been cancelled.`,
       '',
@@ -217,10 +267,12 @@ function buildEmail(input: {
   textLines.push(
     '',
     `Provider: ${input.doctorName || 'Provider'}`,
-    `Date: ${input.date}`,
-    `Time: ${input.time}`,
+    input.kind === 'follow_up' ? `Follow-up date: ${input.date}` : `Date: ${input.date}`,
+    input.kind === 'follow_up' ? null : `Time: ${input.time}`,
     `Location: ${input.location || 'Campus Health Service Office'}`,
-    input.kind !== 'cancelled' && input.reason ? `Reason: ${input.reason}` : null,
+    input.kind !== 'cancelled' && input.kind !== 'follow_up' && input.reason
+      ? `Reason: ${input.reason}`
+      : null,
     `Status: ${statusLabel}`,
     '',
     '— CampusCare Health Service Office',
@@ -232,7 +284,11 @@ function buildEmail(input: {
 }
 
 function resolveKind(payload: WebhookPayload): EmailKind | null {
-  const row = payload.record;
+  if (payload.type === 'FOLLOW_UP_REMINDER' || payload.table === 'follow_up_reminders') {
+    return 'follow_up';
+  }
+
+  const row = payload.record as AppointmentRow;
   if (!row) return null;
 
   if (payload.type === 'INSERT') {
@@ -251,6 +307,30 @@ function resolveKind(payload: WebhookPayload): EmailKind | null {
   }
 
   return null;
+}
+
+async function sendResendEmail(input: {
+  apiKey: string;
+  from: string;
+  to: string;
+  subject: string;
+  html: string;
+  text: string;
+}): Promise<Response> {
+  return fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${input.apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: input.from,
+      to: [input.to],
+      subject: input.subject,
+      html: input.html,
+      text: input.text,
+    }),
+  });
 }
 
 Deno.serve(async (req: Request) => {
@@ -279,23 +359,88 @@ Deno.serve(async (req: Request) => {
     return new Response('Bad JSON', { status: 400 });
   }
 
-  if (payload.table !== 'appointments' || !payload.record) {
-    return new Response(JSON.stringify({ skipped: true, reason: 'not appointments' }), {
-      headers: { 'content-type': 'application/json' },
-    });
-  }
-
   const kind = resolveKind(payload);
-  if (!kind) {
+  if (!kind || !payload.record) {
     return new Response(JSON.stringify({ skipped: true, reason: 'no email for this change' }), {
       headers: { 'content-type': 'application/json' },
     });
   }
 
-  const row = payload.record;
   const admin = createClient(SUPABASE_URL, SERVICE_ROLE, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
+
+  if (kind === 'follow_up') {
+    const row = payload.record as FollowUpReminderRow;
+    const { data: patient, error: patientError } = await admin
+      .from('patients')
+      .select('full_name, email')
+      .eq('id', row.patient_id)
+      .maybeSingle();
+
+    if (patientError) {
+      console.error('[send-appointment-email] patient lookup:', patientError);
+      return new Response('Patient lookup failed', { status: 500 });
+    }
+
+    const to = (patient?.email as string | null)?.trim();
+    if (!to) {
+      return new Response(JSON.stringify({ skipped: true, reason: 'patient has no email' }), {
+        headers: { 'content-type': 'application/json' },
+      });
+    }
+
+    let providerName = row.provider_name?.trim() || '';
+    if (!providerName && row.consultation_id) {
+      const { data: consultation } = await admin
+        .from('consultations')
+        .select('provider_name')
+        .eq('id', row.consultation_id)
+        .maybeSingle();
+      providerName = (consultation?.provider_name as string | null)?.trim() || '';
+    }
+
+    const email = buildEmail({
+      kind: 'follow_up',
+      patientName: (patient?.full_name as string) ?? 'Patient',
+      doctorName: providerName || 'Health Service provider',
+      date: formatFollowUpDate(row.follow_up_date),
+      time: '',
+      location: 'Campus Health Service Office',
+      reason: null,
+      cancellationReason: null,
+    });
+
+    const res = await sendResendEmail({
+      apiKey: RESEND_API_KEY,
+      from: FROM,
+      to,
+      subject: email.subject,
+      html: email.html,
+      text: email.text,
+    });
+
+    const body = await res.json().catch(() => null);
+    if (!res.ok) {
+      console.error('[send-appointment-email] Resend error:', res.status, body);
+      return new Response(JSON.stringify({ ok: false, status: res.status, body }), {
+        status: 502,
+        headers: { 'content-type': 'application/json' },
+      });
+    }
+
+    return new Response(JSON.stringify({ ok: true, kind, to, resend: body }), {
+      headers: { 'content-type': 'application/json' },
+    });
+  }
+
+  if (payload.table !== 'appointments') {
+    return new Response(JSON.stringify({ skipped: true, reason: 'not appointments' }), {
+      headers: { 'content-type': 'application/json' },
+    });
+  }
+
+  const row = payload.record as AppointmentRow;
 
   const { data: patient, error: patientError } = await admin
     .from('patients')
@@ -333,19 +478,13 @@ Deno.serve(async (req: Request) => {
     cancellationReason: row.cancellation_reason ?? null,
   });
 
-  const res = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${RESEND_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      from: FROM,
-      to: [to],
-      subject: email.subject,
-      html: email.html,
-      text: email.text,
-    }),
+  const res = await sendResendEmail({
+    apiKey: RESEND_API_KEY,
+    from: FROM,
+    to,
+    subject: email.subject,
+    html: email.html,
+    text: email.text,
   });
 
   const body = await res.json().catch(() => null);
@@ -357,8 +496,7 @@ Deno.serve(async (req: Request) => {
     });
   }
 
-  return new Response(
-    JSON.stringify({ ok: true, kind, to, resend: body }),
-    { headers: { 'content-type': 'application/json' } },
-  );
+  return new Response(JSON.stringify({ ok: true, kind, to, resend: body }), {
+    headers: { 'content-type': 'application/json' },
+  });
 });

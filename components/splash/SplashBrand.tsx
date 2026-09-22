@@ -4,17 +4,16 @@ import { Image, Text, View, type StyleProp, type ViewStyle } from 'react-native'
 import { hideSplashScreenOnce } from '@/lib/bootstrap/splashScreen';
 import { Inter } from '@/lib/typography/inter';
 
-/** Figma Splashscreen 206:37 — heart + CampusCare wordmark. */
-const HEART_WIDTH = 86;
-const HEART_HEIGHT = 70;
+/** Branded splash — app icon + CampusCare wordmark. */
+const ICON_SIZE = 120;
 
 type SplashBrandProps = {
   style?: StyleProp<ViewStyle>;
 };
 
 /**
- * Branded splash (heart + CampusCare). Hides the native splash only after this
- * view has laid out so the wordmark is never missing during the handoff.
+ * Branded splash. Hides the native splash only after this view has laid out
+ * so the mark is never missing during the handoff.
  */
 export function SplashBrand({ style }: SplashBrandProps) {
   const onReady = useCallback(() => {
@@ -34,10 +33,10 @@ export function SplashBrand({ style }: SplashBrandProps) {
         },
         style,
       ]}>
-      <View style={{ alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+      <View style={{ alignItems: 'center', justifyContent: 'center', gap: 4 }}>
         <Image
-          source={require('../../assets/heart-blue.png')}
-          style={{ width: HEART_WIDTH, height: HEART_HEIGHT }}
+          source={require('../../assets/images/icon.png')}
+          style={{ width: ICON_SIZE, height: ICON_SIZE }}
           resizeMode="contain"
           accessibilityLabel="CampusCare"
         />

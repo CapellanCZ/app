@@ -1,20 +1,192 @@
-import { StyleSheet, Image, Text, View, useWindowDimensions } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import {
+  StyleSheet,
+  Image,
+  Text,
+  View,
+  useWindowDimensions,
+  type LayoutChangeEvent,
+  type NativeSyntheticEvent,
+  type NativeScrollEvent,
+  type TextLayoutEventData,
+} from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import Animated, {
+  Extrapolation,
+  FadeIn,
+  interpolate,
+  useAnimatedScrollHandler,
+  useAnimatedStyle,
+  useSharedValue,
+  type SharedValue,
+} from 'react-native-reanimated';
 
 import { GetStartedGlassButton } from '@/components/auth/GetStartedGlassButton';
+import { GetStartedPagerDots } from '@/components/auth/GetStartedPagerDots';
+import {
+  GET_STARTED_SLIDES,
+  type GetStartedSlide,
+} from '@/components/auth/getStartedSlides';
 import { Inter } from '@/lib/typography/inter';
 
 const BG = '#F9F9F9';
+/** How much the model sits under the bottom panel (px). */
+const MODEL_PANEL_BLEED = 60;
+/** Auto-advance interval for the onboarding carousel. */
+const AUTO_SLIDE_MS = 3800;
 
-/** Clamp headline size so it fits small phones and still looks bold on larger ones. */
+/** panel paddingHorizontal 20×2 + textBlock paddingHorizontal 4×2 */
+const HEADLINE_HORIZONTAL_PAD = 48;
+const HEADLINE_SIZE_BUMP = 2;
+const SUBTITLE_SIZE_BUMP = 2;
+
+/** Longest lead line across slides — drives the shared type scale. */
+const LONGEST_HEADLINE_LEAD = GET_STARTED_SLIDES.reduce(
+  (max, s) => (s.headlineLead.length > max.length ? s.headlineLead : max),
+  '',
+);
+
+/**
+ * One shared headline size for every slide — sized against the longest lead line
+ * so paging never changes type scale.
+ */
 function headlineMetrics(screenW: number) {
-  // Reference: 390pt ≈ iPhone 14 → 42px. Scale gently by width.
+  const contentWidth = Math.max(240, screenW - HEADLINE_HORIZONTAL_PAD);
+
   const raw = Math.round(screenW * (42 / 390));
-  const fontSize = Math.min(44, Math.max(32, raw));
-  const lineHeight = Math.round(fontSize * 1.1);
+  let fontSize = Math.min(44, Math.max(20, raw));
+
+  const avgCharEm = 0.44;
+  const maxForSingleLine = Math.floor(
+    (contentWidth / (LONGEST_HEADLINE_LEAD.length * avgCharEm)) * 0.86,
+  );
+  fontSize = Math.min(fontSize, maxForSingleLine);
+  fontSize = Math.max(20, fontSize);
+  fontSize = Math.min(46, fontSize + HEADLINE_SIZE_BUMP);
+  fontSize = Math.max(22, fontSize);
+
+  const lineHeight = Math.round(fontSize * 1.2);
   const letterSpacing = -Math.min(3.2, Math.max(1.6, fontSize * 0.07));
   return { fontSize, lineHeight, letterSpacing };
+}
+
+/** Reference: 390pt width → 17px subtitle; stays in proportion with the headline. */
+function subtitleMetrics(screenW: number, headlineFontSize: number) {
+  const fromWidth = Math.round(screenW * (17 / 390));
+  const fromHeadline = Math.round(headlineFontSize * (17 / 38));
+  let fontSize = Math.min(fromWidth, fromHeadline);
+  fontSize = Math.min(18, Math.max(14, fontSize));
+  fontSize = Math.min(20, fontSize + SUBTITLE_SIZE_BUMP);
+  fontSize = Math.max(16, fontSize);
+
+  const lineHeight = Math.round(fontSize * (22 / 17));
+  const letterSpacing = fontSize * (-0.4 / 17);
+  return { fontSize, lineHeight, letterSpacing };
+}
+
+/** Reference: 390pt → 13px legal; stays readable and tappable on small phones. */
+function legalMetrics(screenW: number) {
+  const raw = Math.round(screenW * (13 / 390));
+  const fontSize = Math.min(14, Math.max(12, raw));
+  const lineHeight = Math.round(fontSize * (17 / 13));
+  const letterSpacing = fontSize * (-0.2 / 13);
+  return { fontSize, lineHeight, letterSpacing };
+}
+
+/** Fit a slide image inside the measured hero area. */
+function modelMetrics(
+  areaW: number,
+  areaH: number,
+  topReserve: number,
+  layout?: GetStartedSlide['layout'],
+) {
+  const align = layout?.align ?? 'bottom';
+  const aspect = layout?.aspect ?? 0.8;
+  const widthRatio =
+    layout?.widthRatio ?? (areaW < 360 ? 1.04 : areaW > 430 ? 1 : 1.02);
+
+  const usableH = Math.max(
+    220,
+    areaH - topReserve + (align === 'bottom' ? MODEL_PANEL_BLEED : 0),
+  );
+  const maxW = areaW * widthRatio;
+  const heightRatio =
+    align === 'center'
+      ? 0.72
+      : areaH < 420
+        ? 1.12
+        : areaH < 520
+          ? 1.08
+          : 1.04;
+  const maxH = usableH * heightRatio;
+
+  const widthFromHeight = maxH * aspect;
+  const heightFromWidth = maxW / aspect;
+  if (heightFromWidth <= maxH) {
+    return { width: maxW, height: heightFromWidth, align };
+  }
+  return {
+    width: Math.min(maxW, widthFromHeight),
+    height: maxH,
+    align,
+  };
+}
+
+function SlideImage({
+  slide,
+  index,
+  pageWidth,
+  pageHeight,
+  scrollX,
+  topReserve,
+}: {
+  slide: GetStartedSlide;
+  index: number;
+  pageWidth: number;
+  pageHeight: number;
+  scrollX: SharedValue<number>;
+  topReserve: number;
+}) {
+  const model = modelMetrics(pageWidth, pageHeight, topReserve, slide.layout);
+  const centered = model.align === 'center';
+
+  const style = useAnimatedStyle(() => {
+    if (pageWidth <= 0) return { opacity: index === 0 ? 1 : 0.6, transform: [{ scale: 1 }] };
+    const input = [(index - 1) * pageWidth, index * pageWidth, (index + 1) * pageWidth];
+    return {
+      opacity: interpolate(scrollX.get(), input, [0.45, 1, 0.45], Extrapolation.CLAMP),
+      transform: [
+        {
+          scale: interpolate(scrollX.get(), input, [0.92, 1, 0.92], Extrapolation.CLAMP),
+        },
+      ],
+    };
+  });
+
+  return (
+    <View
+      style={{
+        width: pageWidth,
+        height: pageHeight,
+        alignItems: 'center',
+        justifyContent: centered ? 'center' : 'flex-end',
+        paddingTop: centered ? Math.max(8, topReserve * 0.25) : 0,
+      }}>
+      <Animated.View style={style}>
+        <Image
+          source={slide.image}
+          style={{
+            width: model.width,
+            height: model.height,
+            marginBottom: centered ? Math.max(12, MODEL_PANEL_BLEED * 0.35) : -MODEL_PANEL_BLEED,
+          }}
+          resizeMode="contain"
+          accessibilityLabel={slide.imageLabel}
+        />
+      </Animated.View>
+    </View>
+  );
 }
 
 export type GetStartedHeroProps = {
@@ -25,35 +197,161 @@ export type GetStartedHeroProps = {
 
 export function GetStartedHero({ onSignIn, onTerms, onPrivacy }: GetStartedHeroProps) {
   const insets = useSafeAreaInsets();
-  const { width: screenW } = useWindowDimensions();
-  const headline = headlineMetrics(screenW);
+  const { width: screenW, height: screenH } = useWindowDimensions();
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const slide = GET_STARTED_SLIDES[activeIndex] ?? GET_STARTED_SLIDES[0];
+  const activeIndexRef = useRef(0);
+  const scrollRef = useRef<Animated.ScrollView>(null);
 
-  // Narrow phones: break earlier so "Shaping the Future of" doesn't overflow.
-  const headlineCopy =
-    screenW < 360
-      ? 'Shaping the\nFuture of\nHealth Care'
-      : 'Shaping the Future of\nHealth Care';
+  // Shared type scale — screen width only, never per-slide.
+  const headline = headlineMetrics(screenW);
+  const [headlineFontSize, setHeadlineFontSize] = useState(headline.fontSize);
+  const [imageArea, setImageArea] = useState({ width: screenW, height: screenH * 0.55 });
+
+  const scrollX = useSharedValue(0);
+
+  useEffect(() => {
+    setHeadlineFontSize(headlineMetrics(screenW).fontSize);
+  }, [screenW]);
+
+  useEffect(() => {
+    activeIndexRef.current = activeIndex;
+  }, [activeIndex]);
+
+  const topReserve = insets.top + 32;
+  const pageWidth = imageArea.width > 0 ? imageArea.width : screenW;
+
+  // Auto-advance through the 3 slides; pauses while the user is dragging.
+  useEffect(() => {
+    if (paused || pageWidth <= 0 || GET_STARTED_SLIDES.length <= 1) return;
+
+    const timer = setInterval(() => {
+      const next = (activeIndexRef.current + 1) % GET_STARTED_SLIDES.length;
+      scrollRef.current?.scrollTo({ x: next * pageWidth, y: 0, animated: true });
+      setActiveIndex(next);
+    }, AUTO_SLIDE_MS);
+
+    return () => clearInterval(timer);
+  }, [paused, pageWidth]);
+
+  const headlineLineHeight = Math.round(headlineFontSize * 1.2);
+  const headlineLetterSpacing = -Math.min(
+    3.2,
+    Math.max(1.6, headlineFontSize * 0.07),
+  );
+
+  const subtitle = subtitleMetrics(screenW, headlineFontSize);
+  const legal = legalMetrics(screenW);
+
+  const headlineStyle = [
+    styles.headline,
+    {
+      fontSize: headlineFontSize,
+      lineHeight: headlineLineHeight,
+      letterSpacing: headlineLetterSpacing,
+    },
+  ] as const;
+
+  const subtitleStyle = [
+    styles.subtitle,
+    {
+      fontSize: subtitle.fontSize,
+      lineHeight: subtitle.lineHeight,
+      letterSpacing: subtitle.letterSpacing,
+    },
+  ] as const;
+
+  const legalStyle = [
+    styles.legal,
+    {
+      fontSize: legal.fontSize,
+      lineHeight: legal.lineHeight,
+      letterSpacing: legal.letterSpacing,
+    },
+  ] as const;
+
+  // Shrink only from the hidden longest-lead probe so every slide shares one size.
+  const onMeasureLeadLayout = (e: NativeSyntheticEvent<TextLayoutEventData>) => {
+    if (e.nativeEvent.lines.length > 1) {
+      setHeadlineFontSize((size) => (size <= 22 ? size : size - 1));
+    }
+  };
+
+  const onImageAreaLayout = (e: LayoutChangeEvent) => {
+    const { width, height } = e.nativeEvent.layout;
+    setImageArea((prev) => {
+      if (prev.width === width && prev.height === height) return prev;
+      return { width, height };
+    });
+  };
+
+  const onScroll = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      scrollX.set(event.contentOffset.x);
+    },
+  });
+
+  const syncIndex = (x: number) => {
+    if (pageWidth <= 0) return;
+    const next = Math.round(x / pageWidth);
+    const clamped = Math.max(0, Math.min(GET_STARTED_SLIDES.length - 1, next));
+    setActiveIndex((prev) => (prev === clamped ? prev : clamped));
+  };
+
+  const onScrollBeginDrag = () => {
+    setPaused(true);
+  };
+
+  const onMomentumScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    syncIndex(e.nativeEvent.contentOffset.x);
+    setPaused(false);
+  };
 
   return (
     <View style={styles.root}>
-      {/* Image area — sharp cut into the bottom panel */}
-      <View style={styles.imageArea}>
-        <Image
-          source={require('../../assets/images/booking/doctor-hero.png')}
-          style={{
-            width: screenW * 0.9,
-            height: '78%',
-            position: 'absolute',
-            bottom: 28,
-            alignSelf: 'center',
-            left: screenW * 0.06,
-          }}
-          resizeMode="contain"
-        />
+      {/* Offscreen probe — measures longest lead at the shared size. */}
+      <Text
+        pointerEvents="none"
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+        style={[headlineStyle, styles.measureText]}
+        onTextLayout={onMeasureLeadLayout}
+        allowFontScaling={false}>
+        {LONGEST_HEADLINE_LEAD}
+      </Text>
+
+      <View style={styles.imageArea} onLayout={onImageAreaLayout}>
+        {pageWidth > 0 ? (
+          <Animated.ScrollView
+            ref={scrollRef}
+            horizontal
+            pagingEnabled
+            bounces={false}
+            decelerationRate="fast"
+            showsHorizontalScrollIndicator={false}
+            onScroll={onScroll}
+            scrollEventThrottle={16}
+            onScrollBeginDrag={onScrollBeginDrag}
+            onMomentumScrollEnd={onMomentumScrollEnd}
+            style={styles.carousel}
+            contentContainerStyle={styles.carouselContent}>
+            {GET_STARTED_SLIDES.map((item, index) => (
+              <SlideImage
+                key={item.id}
+                slide={item}
+                index={index}
+                pageWidth={pageWidth}
+                pageHeight={imageArea.height}
+                scrollX={scrollX}
+                topReserve={topReserve}
+              />
+            ))}
+          </Animated.ScrollView>
+        ) : null}
       </View>
 
       <SafeAreaView edges={['bottom']} style={styles.safePanel}>
-        {/* Soft top shadow (works on Android + iOS; elevation can't cast upward). */}
         <LinearGradient
           pointerEvents="none"
           colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.05)', 'rgba(0,0,0,0.12)']}
@@ -61,31 +359,38 @@ export function GetStartedHero({ onSignIn, onTerms, onPrivacy }: GetStartedHeroP
           style={styles.topShadow}
         />
         <View style={styles.panel}>
-          <View style={styles.textBlock}>
-            <Text
-              style={[
-                styles.headline,
-                {
-                  fontSize: headline.fontSize,
-                  lineHeight: headline.lineHeight,
-                  letterSpacing: headline.letterSpacing,
-                },
-              ]}
-              adjustsFontSizeToFit
-              minimumFontScale={0.85}
-              numberOfLines={screenW < 360 ? 3 : 2}>
-              {headlineCopy}
+          <GetStartedPagerDots
+            count={GET_STARTED_SLIDES.length}
+            scrollX={scrollX}
+            pageWidth={pageWidth}
+          />
+
+          <Animated.View
+            key={slide.id}
+            entering={FadeIn.duration(220)}
+            style={styles.textBlock}>
+            <View
+              style={styles.headlineBlock}
+              accessible
+              accessibilityRole="header"
+              accessibilityLabel={`${slide.headlineLead} ${slide.headlineAccent}`}>
+              <Text style={headlineStyle} allowFontScaling={false}>
+                {slide.headlineLead}
+              </Text>
+              <Text style={headlineStyle} allowFontScaling={false}>
+                {slide.headlineAccent}
+              </Text>
+            </View>
+            <Text style={subtitleStyle} allowFontScaling={false}>
+              {slide.subtitle}
             </Text>
-            <Text style={styles.subtitle}>
-              Book your appointments visits faster with the Health Service Office.
-            </Text>
-          </View>
+          </Animated.View>
 
           <View style={styles.btnStack}>
             <GetStartedGlassButton onPress={onSignIn} />
           </View>
 
-          <Text style={styles.legal}>
+          <Text style={legalStyle} allowFontScaling={false}>
             {'By proceeding, you agree to our '}
             <Text
               style={styles.legalLink}
@@ -108,7 +413,6 @@ export function GetStartedHero({ onSignIn, onTerms, onPrivacy }: GetStartedHeroP
         </View>
       </SafeAreaView>
 
-      {/* Grey heart + CampusCare wordmark */}
       <View style={[styles.logoRow, { top: insets.top + 18 }]} pointerEvents="none">
         <Image
           source={require('../../assets/heart-grey.png')}
@@ -132,6 +436,13 @@ const styles = StyleSheet.create({
     backgroundColor: BG,
     overflow: 'hidden',
   },
+  carousel: {
+    flex: 1,
+  },
+  carouselContent: {
+    flexGrow: 1,
+    alignItems: 'stretch',
+  },
   safePanel: {
     backgroundColor: '#F9F9F9',
     shadowColor: '#000000',
@@ -139,7 +450,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.16,
     shadowRadius: 20,
     zIndex: 2,
-    // Pull panel up so it covers the lower body a bit.
+    flexShrink: 0,
     marginTop: -48,
   },
   topShadow: {
@@ -152,19 +463,31 @@ const styles = StyleSheet.create({
   },
   panel: {
     backgroundColor: '#F9F9F9',
-    paddingTop: 40,
+    paddingTop: 18,
     paddingHorizontal: 20,
-    paddingBottom: 10,
-    gap: 16,
+    paddingBottom: 2,
+    gap: 12,
   },
   textBlock: {
     gap: 10,
     alignItems: 'center',
     width: '100%',
     paddingHorizontal: 4,
+    flexShrink: 0,
+  },
+  measureText: {
+    position: 'absolute',
+    opacity: 0,
+    left: 0,
+    right: 0,
+    zIndex: -1,
+  },
+  headlineBlock: {
+    alignItems: 'center',
+    width: '100%',
+    flexShrink: 0,
   },
   headline: {
-    // Weight lives in the font file — don't set fontWeight or iOS/Android may ignore Inter-Medium.
     fontFamily: Inter.medium,
     color: '#111111',
     textAlign: 'center',
@@ -172,11 +495,8 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontFamily: Inter.regular,
-    fontSize: 17,
     color: '#727272',
-    letterSpacing: -0.4,
     textAlign: 'center',
-    lineHeight: 22,
     paddingHorizontal: 12,
   },
   btnStack: {
@@ -185,12 +505,11 @@ const styles = StyleSheet.create({
   },
   legal: {
     fontFamily: Inter.regular,
-    fontSize: 14,
     color: '#A4A7AE',
     textAlign: 'center',
-    letterSpacing: -0.2,
-    lineHeight: 18,
     paddingHorizontal: 12,
+    // Extra vertical hit area so small type stays easy to tap.
+    paddingVertical: 6,
   },
   legalLink: {
     color: '#717680',

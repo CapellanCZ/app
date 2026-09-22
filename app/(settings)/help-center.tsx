@@ -8,6 +8,7 @@ import { IconsaxArrowUpIcon } from '@/components/icons/IconsaxArrowUpIcon';
 import { IconsaxCalendarIcon } from '@/components/icons/IconsaxCalendarIcon';
 import { IconsaxCloseCircleIcon } from '@/components/icons/IconsaxCloseCircleIcon';
 import { IconsaxDangerIcon } from '@/components/icons/IconsaxDangerIcon';
+import { StethoscopeIcon } from '@/components/icons/StethoscopeIcon';
 import { UserEditIcon } from '@/components/icons/UserEditIcon';
 import { ShieldSecurityIcon } from '@/components/icons/ShieldSecurityIcon';
 import { PersonalInfoNoteCard } from '@/components/profile/PersonalInfoNoteCard';
@@ -34,6 +35,11 @@ const FAQS: FAQItem[] = [
     q: 'Can I cancel a booked appointment?',
     a: 'Yes. Open the appointment from the Health Service screen and tap "Cancel Appointment." Cancellations must be made at least 2 hours before the scheduled time.',
     Icon: IconsaxCloseCircleIcon,
+  },
+  {
+    q: 'Can my friend get medicine from the school clinic on my behalf?',
+    a: 'No. For safety and proper medical record management, the student who needs the medicine should be the one assessed by the school clinic. A friend should not pretend to be the patient or provide false information to obtain medicine. The clinic may refuse to dispense the medication and document the incident. The matter may also be referred to the appropriate school office for review in accordance with the university\'s existing policies.',
+    Icon: StethoscopeIcon,
   },
   {
     q: 'Why is my account not loading data?',

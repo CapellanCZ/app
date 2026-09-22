@@ -485,7 +485,8 @@ export function HealthServiceBookScreen({
         symptoms: reason,
       });
 
-      useHealthServiceStore.getState().loadAppointments();
+      // Hydrate list before opening the status sheet so UI doesn't flash pending→confirmed.
+      await useHealthServiceStore.getState().loadAppointments();
 
       const isAutoConfirmed = bookedStatus === 'confirmed';
 

@@ -4,10 +4,16 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { AppointmentBookedCard } from '@/components/booking/AppointmentBookedCard';
 import { AppointmentBookedCheckIcon } from '@/components/booking/AppointmentBookedCheckIcon';
 import { formatVisitReasonDisplay } from '@/components/booking/BookingConsultationFields';
+import { ConsultationFollowUpNote } from '@/components/consultation/ConsultationFollowUpNote';
 import { ConsultationPrescriptionCard } from '@/components/consultation/ConsultationPrescriptionCard';
 import { BottomSheetModal } from '@/components/ui/BottomSheetModal';
 import { VitalsSignsGrid } from '@/components/vitals/VitalsSignsGrid';
 import { useAuth } from '@/lib/auth/AuthProvider';
+import {
+  fetchConsultationFollowUpDate,
+  formatConsultationFollowUpLabel,
+  subscribeConsultationFollowUpDate,
+} from '@/lib/consultation/consultationFollowUpApi';
 import { fetchConsultationPrescription } from '@/lib/consultation/consultationSummaryApi';
 import { useConsultationSummaryStore } from '@/lib/consultation/consultationSummaryStore';
 import type { ConsultationPrescription } from '@/lib/consultation/types';
@@ -31,6 +37,7 @@ export function ConsultationSummaryHost() {
 
   const [prescription, setPrescription] =
     useState<ConsultationPrescription>(EMPTY_PRESCRIPTION);
+  const [followUpDateKey, setFollowUpDateKey] = useState<string | null>(null);
 
   const vitalsRevision = useVitalsStore((s) => s.revision);
   const loadConsultationVitals = useVitalsStore((s) => s.loadConsultationVitals);
@@ -41,6 +48,7 @@ export function ConsultationSummaryHost() {
   useEffect(() => {
     if (!appointmentId) {
       setPrescription(EMPTY_PRESCRIPTION);
+      setFollowUpDateKey(null);
       return;
     }
 
@@ -50,9 +58,17 @@ export function ConsultationSummaryHost() {
     void fetchConsultationPrescription(appointmentId).then((result) => {
       if (!cancelled) setPrescription(result);
     });
+    void fetchConsultationFollowUpDate(appointmentId).then((dateKey) => {
+      if (!cancelled) setFollowUpDateKey(dateKey);
+    });
+
+    const unsubscribe = subscribeConsultationFollowUpDate(appointmentId, (dateKey) => {
+      if (!cancelled) setFollowUpDateKey(dateKey);
+    });
 
     return () => {
       cancelled = true;
+      unsubscribe();
     };
   }, [appointmentId]);
 
@@ -93,6 +109,11 @@ export function ConsultationSummaryHost() {
     if (start && end) return `${start} · ${end}`;
     return start || end || '—';
   }, [appointment?.startLabel, appointment?.endLabel]);
+
+  const followUpLabel = useMemo(
+    () => (followUpDateKey ? formatConsultationFollowUpLabel(followUpDateKey) : null),
+    [followUpDateKey],
+  );
 
   const handleClose = useCallback(() => {
     close();
@@ -135,6 +156,8 @@ export function ConsultationSummaryHost() {
         {prescription.medications.length > 0 ? (
           <ConsultationPrescriptionCard medications={prescription.medications} />
         ) : null}
+
+        {followUpLabel ? <ConsultationFollowUpNote dateLabel={followUpLabel} /> : null}
 
         <Pressable
           accessibilityRole="button"

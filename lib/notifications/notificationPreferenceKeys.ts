@@ -28,7 +28,13 @@ export function resolveNotificationPreferenceKey(source: PreferenceSource): Noti
   if (category === 'campus') return 'announcements';
 
   if (type === 'queue' || (milestone && milestone !== 'visit_completed')) return 'health';
-  if (type === 'appointment' || type === 'consultation_request') return 'appointments';
+  if (
+    type === 'appointment' ||
+    type === 'consultation_request' ||
+    meta.follow_up_reminder === true
+  ) {
+    return 'appointments';
+  }
 
   return 'health';
 }
@@ -54,6 +60,8 @@ export function resolveNotificationPreferenceKeyFromItem(item: NotificationItem)
     href.includes('visit-completed') ||
     title.includes('appointment') ||
     title.includes('visit completed') ||
+    title.includes('follow-up') ||
+    title.includes('follow up') ||
     title.includes('reminder')
   ) {
     return 'appointments';

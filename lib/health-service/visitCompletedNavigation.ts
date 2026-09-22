@@ -1,5 +1,6 @@
 import type { Appointment } from '@/lib/health-service/types';
 import { useConsultationSummaryStore } from '@/lib/consultation/consultationSummaryStore';
+import { useAppointmentStatusStore } from '@/lib/health-service/appointmentStatusStore';
 
 const recentNav = new Map<string, number>();
 const DEDUPE_MS = 8_000;
@@ -16,5 +17,7 @@ export function openVisitCompletedScreen(appointment: Appointment): void {
   if (prev != null && now - prev < DEDUPE_MS) return;
   recentNav.set(appointment.id, now);
 
+  // Avoid stacking status sheet under consultation summary.
+  useAppointmentStatusStore.getState().close();
   useConsultationSummaryStore.getState().open(appointment.id);
 }
