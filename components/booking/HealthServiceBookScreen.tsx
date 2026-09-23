@@ -1,25 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   Keyboard,
   Platform,
   Pressable,
   ScrollView,
   Text,
-  useWindowDimensions,
   View,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useReanimatedKeyboardAnimation } from 'react-native-keyboard-controller';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-} from 'react-native-reanimated';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
-import { BookingHero } from '@/components/booking/BookingHero';
+
+import { BookingHero, BookingProviderCard } from '@/components/booking/BookingHero';
 import {
   BookingCommentsField,
   BookingConsultationSelect,
@@ -30,17 +22,24 @@ import {
   BookingProviderTypeSelect,
   type BookingProviderType,
 } from '@/components/booking/BookingProviderTypeSelect';
+import { BookingSectionCard } from '@/components/booking/BookingSectionCard';
 import {
   BookingDayChip,
   BookingPeriodSection,
   BookingPrimaryButton,
   BookingSheetHeader,
 } from '@/components/booking/BookingSheetParts';
-import { TAB_BAR_HEIGHT } from '@/components/layout/BottomTabBar';
-import { useAuth } from '@/lib/auth/AuthProvider';
 import {
-  formatAppointmentBookedDate,
-} from '@/lib/health-service/appointmentDisplay';
+  BookingScreenSkeleton,
+  BookingSlotsSkeleton,
+} from '@/components/booking/BookingSlotsSkeleton';
+import { IconsaxCalendar2Icon } from '@/components/icons/IconsaxCalendar2Icon';
+import { IconsaxClipboardTextIcon } from '@/components/icons/IconsaxClipboardTextIcon';
+import { IconsaxClockIcon } from '@/components/icons/IconsaxClockIcon';
+import { IconsaxProfile2UserIcon } from '@/components/icons/IconsaxProfile2UserIcon';
+import { TAB_BAR_HEIGHT } from '@/components/layout/BottomTabBar';
+import { CircleBackButton } from '@/components/ui/CircleBackButton';
+import { useAuth } from '@/lib/auth/AuthProvider';
 import { healthServiceApi } from '@/lib/health-service/healthServiceApi';
 import { useAppointmentStatusStore } from '@/lib/health-service/appointmentStatusStore';
 import { useHealthServiceStore } from '@/lib/health-service/healthServiceStore';
@@ -78,11 +77,6 @@ const MONTH_SHORT = [
   'Nov',
   'Dec',
 ];
-
-/** Sheet height as a fraction of screen — tweak freely. */
-const SHEET_COLLAPSED_RATIO = 0.48;
-/** Expanded uses full screen minus status-bar inset (see expandedH). */
-const SHEET_SPRING = { damping: 24, stiffness: 240, mass: 0.85 } as const;
 
 type SlotItem = {
   label: string;
@@ -142,7 +136,7 @@ function resolveSpecialty(role: StaffRole, _specialty: string): string {
   return 'Clinic Staff';
 }
 
-/** Figma-style display name on booking hero: "Dr. Name, MD" / "Dr. Name, DMD". */
+/** Figma-style display name: "Dr. Name, MD" / "Dr. Name, DMD". */
 function formatDoctorDisplayName(name: string, role: StaffRole): string {
   const cleaned = name
     .replace(/^Dr\.?\s*/i, '')
@@ -171,7 +165,7 @@ function formatAppointmentDate(date: Date): string {
 }
 
 /**
- * Book appointment — Figma node 2235:1557.
+ * Book appointment — compact header + scrollable schedule section.
  * Slots come from Supabase `doctor_availability` for the selected day.
  */
 export type HealthServiceBookScreenProps = {
@@ -189,133 +183,13 @@ export function HealthServiceBookScreen({
   const { staffId: routeStaffIdParam } = useLocalSearchParams<{ staffId: string }>();
   const routeStaffId = initialStaffId ?? routeStaffIdParam;
   const insets = useSafeAreaInsets();
-  const { height: screenH } = useWindowDimensions();
-  /** Negative when open — used as translateY by the library. */
-  const { height: keyboardHeight } = useReanimatedKeyboardAnimation();
   const { staff: allStaff, loadStaff } = useHealthServiceStore();
   const { session } = useAuth();
 
-  const collapsedH = Math.round(screenH * SHEET_COLLAPSED_RATIO);
-  /** Full sheet stops under the status bar (never overlaps it). */
-  const expandedH = Math.round(screenH - insets.top);
-  const sheetH = useSharedValue(collapsedH);
-  const dragStartH = useSharedValue(collapsedH);
-  const minSheetH = useSharedValue(collapsedH);
-  const maxSheetH = useSharedValue(expandedH);
-
-  useEffect(() => {
-    minSheetH.value = collapsedH;
-    maxSheetH.value = expandedH;
-    // Keep relative position when screen size changes
-    const mid = (collapsedH + expandedH) / 2;
-    sheetH.value = sheetH.value > mid ? expandedH : collapsedH;
-  }, [collapsedH, expandedH, maxSheetH, minSheetH, sheetH]);
-
-  const sheetBottomClosed =
+  const bottomPad =
     Math.max(insets.bottom, 16) + (embeddedInTab ? TAB_BAR_HEIGHT : 0);
 
   const handleBack = onBack ?? (() => router.back());
-
-  const expandSheet = useCallback(() => {
-    sheetH.value = withSpring(maxSheetH.value, SHEET_SPRING);
-  }, [maxSheetH, sheetH]);
-
-  const collapseSheet = useCallback(() => {
-    sheetH.value = withSpring(minSheetH.value, SHEET_SPRING);
-  }, [minSheetH, sheetH]);
-
-  const dismissAndCollapse = useCallback(() => {
-    Keyboard.dismiss();
-    collapseSheet();
-  }, [collapseSheet]);
-
-  const sheetPan = useMemo(
-    () =>
-      Gesture.Pan()
-        .maxPointers(1)
-        .activeOffsetY([-8, 8])
-        .onBegin(() => {
-          dragStartH.value = sheetH.value;
-        })
-        .onUpdate((e) => {
-          const next = dragStartH.value - e.translationY;
-          const lo = minSheetH.value;
-          const hi = maxSheetH.value;
-          sheetH.value = Math.min(hi, Math.max(lo, next));
-        })
-        .onEnd((e) => {
-          const lo = minSheetH.value;
-          const hi = maxSheetH.value;
-          const mid = (lo + hi) / 2;
-          let target = sheetH.value >= mid ? hi : lo;
-          // Strong flick wins over position
-          if (e.velocityY > 900) target = lo;
-          if (e.velocityY < -900) target = hi;
-          sheetH.value = withSpring(target, SHEET_SPRING);
-        }),
-    [dragStartH, maxSheetH, minSheetH, sheetH],
-  );
-
-  /** Sheet rides flush above the keyboard — no KeyboardAvoidingView padding gap. */
-  const sheetAnimStyle = useAnimatedStyle(() => {
-    const kb = -keyboardHeight.value;
-    const available = screenH - kb - insets.top;
-    const h = Math.min(sheetH.value, Math.max(minSheetH.value, available));
-    return {
-      height: h,
-      bottom: kb,
-      // Home-indicator pad only when keyboard is closed — otherwise flush on keyboard.
-      paddingBottom: kb > 10 ? 8 : sheetBottomClosed,
-    };
-  });
-
-  /**
-   * Hero paints full-screen *behind* the sheet so the model’s hard waist-crop
-   * can tuck under the sheet lip (clipping to the sheet top exposed the cut).
-   */
-  const heroBehindStyle = useAnimatedStyle(() => ({
-    bottom: -keyboardHeight.value,
-  }));
-
-  /** Soft shadow strip rides the sheet’s top edge (native shadow is clipped by overflow). */
-  const sheetTopShadowStyle = useAnimatedStyle(() => {
-    const kb = -keyboardHeight.value;
-    const available = screenH - kb - insets.top;
-    const h = Math.min(sheetH.value, Math.max(minSheetH.value, available));
-    return {
-      bottom: h + kb,
-    };
-  });
-
-  /**
-   * Model opacity + position: keep the asset’s hard bottom edge ~36px under
-   * the sheet top so the crop is covered; fade out in full-sheet mode.
-   */
-  const modelAnimStyle = useAnimatedStyle(() => {
-    const lo = minSheetH.value;
-    const hi = maxSheetH.value;
-    const kb = -keyboardHeight.value;
-    const available = screenH - kb - insets.top;
-    const h = Math.min(sheetH.value, Math.max(lo, available));
-    const heroBand = screenH - h - kb;
-    const expandT = (sheetH.value - lo) / Math.max(1, hi - lo);
-
-    let opacity = 1;
-    if (expandT > 0.82 || heroBand < 140) {
-      opacity = 0;
-    } else {
-      opacity = 1 - Math.min(1, Math.max(0, (expandT - 0.45) / 0.37));
-    }
-
-    const tuck = 40;
-    // ~0.66 width earlier — keep height under the full hero band so it doesn’t dominate
-    const modelH = Math.max(heroBand * 0.88 + tuck, 1);
-    return {
-      opacity,
-      bottom: h + kb - tuck,
-      height: modelH,
-    };
-  });
 
   const [activeStaffId, setActiveStaffId] = useState(() => routeStaffId ?? '');
 
@@ -340,6 +214,8 @@ export function HealthServiceBookScreen({
   const [loadingSlots, setLoadingSlots] = useState(false);
   /** Days of week (0–6) this doctor has an active schedule. */
   const [workingDows, setWorkingDows] = useState<Set<number>>(() => new Set());
+
+  const scrollRef = useRef<ScrollView>(null);
 
   useEffect(() => {
     if (!allStaff.length) void loadStaff();
@@ -412,7 +288,6 @@ export function HealthServiceBookScreen({
 
   const isDayBookable = useCallback(
     (day: Date) => {
-      // Past calendar days are never selectable.
       if (isPastDay(day)) return false;
       if (workingDows.size === 0) return false;
       return workingDows.has(day.getDay());
@@ -431,7 +306,6 @@ export function HealthServiceBookScreen({
       return;
     }
 
-    // Current week has nothing left — jump to today (or next week’s first bookable).
     const fromToday = startOfDay(new Date());
     if (isDayBookable(fromToday)) {
       setSelectedDay(fromToday);
@@ -447,7 +321,6 @@ export function HealthServiceBookScreen({
       next.setDate(prev.getDate() + delta * 7);
       const nextDay = startOfDay(next);
 
-      // Don't navigate into a week that is entirely in the past.
       if (delta < 0 && isWeekFullyPast(nextDay)) {
         return prev;
       }
@@ -471,7 +344,6 @@ export function HealthServiceBookScreen({
     }
 
     const doctorLabel = formatDoctorDisplayName(staff.name, staff.role);
-    const dayKey = `${selectedDay.getFullYear()}-${String(selectedDay.getMonth() + 1).padStart(2, '0')}-${String(selectedDay.getDate()).padStart(2, '0')}`;
     const reason = buildBookingReason(consultationRequest, comments);
     setIsBooking(true);
     try {
@@ -485,13 +357,10 @@ export function HealthServiceBookScreen({
         symptoms: reason,
       });
 
-      // Hydrate list before opening the status sheet so UI doesn't flash pending→confirmed.
       await useHealthServiceStore.getState().loadAppointments();
 
       const isAutoConfirmed = bookedStatus === 'confirmed';
 
-      // Confirmed → DB trigger inserts "Appointment Confirmed!" (no client duplicate).
-      // Pending → client inserts + toast so the patient always gets feedback.
       if (!isAutoConfirmed) {
         await useNotificationStore.getState().notifySelf(session?.user?.id, {
           category: 'health',
@@ -507,15 +376,15 @@ export function HealthServiceBookScreen({
       router.replace('/appointments');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Please try again.';
-      const isSameDay = message.includes('already have an appointment on this day');
-      if (!isSameDay) {
+      const isSameDayConflict = message.includes('already have an appointment on this day');
+      if (!isSameDayConflict) {
         console.error('Failed to book appointment:', error);
       }
       showAppToast({
-        variant: isSameDay ? 'accent' : 'danger',
+        variant: isSameDayConflict ? 'accent' : 'danger',
         placement: 'top',
         duration: 4500,
-        label: isSameDay ? 'Already booked today' : 'Booking failed',
+        label: isSameDayConflict ? 'Already booked today' : 'Booking failed',
         description: message,
       });
     } finally {
@@ -523,16 +392,13 @@ export function HealthServiceBookScreen({
     }
   }, [staff, selectedSlot, selectedDay, consultationRequest, comments, isBooking, session]);
 
-  const sheetScrollRef = useRef<ScrollView>(null);
-
   const scrollCommentsIntoView = useCallback(() => {
-    expandSheet();
     requestAnimationFrame(() => {
       setTimeout(() => {
-        sheetScrollRef.current?.scrollToEnd({ animated: true });
+        scrollRef.current?.scrollToEnd({ animated: true });
       }, Platform.OS === 'ios' ? 80 : 120);
     });
-  }, [expandSheet]);
+  }, []);
 
   const handleProviderTypeChange = useCallback(
     (next: BookingProviderType) => {
@@ -557,20 +423,33 @@ export function HealthServiceBookScreen({
   );
 
   if (!staff) {
-    return (
-      <View style={{ flex: 1, backgroundColor: '#F9F9F9', alignItems: 'center', justifyContent: 'center' }}>
-        {allStaff.length === 0 ? (
-          <ActivityIndicator color="#111" />
-        ) : (
-          <View style={{ paddingHorizontal: 32, alignItems: 'center', gap: 12 }}>
-            <Text style={{ fontFamily: Inter.regular, color: '#6C6C6C', textAlign: 'center' }}>
-              Provider not found.
-            </Text>
-            <Pressable onPress={handleBack}>
-              <Text style={{ fontFamily: Inter.medium, color: '#111' }}>Go back</Text>
-            </Pressable>
+    if (allStaff.length === 0) {
+      return (
+        <View style={{ flex: 1, backgroundColor: '#F9F9F9' }}>
+          <View style={{ paddingHorizontal: 20, paddingTop: insets.top + 8 }}>
+            <CircleBackButton onPress={handleBack} />
           </View>
-        )}
+          <BookingScreenSkeleton />
+        </View>
+      );
+    }
+
+    return (
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: '#F9F9F9',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}>
+        <View style={{ paddingHorizontal: 32, alignItems: 'center', gap: 12 }}>
+          <Text style={{ fontFamily: Inter.regular, color: '#6C6C6C', textAlign: 'center' }}>
+            Provider not found.
+          </Text>
+          <Pressable onPress={handleBack}>
+            <Text style={{ fontFamily: Inter.medium, color: '#111' }}>Go back</Text>
+          </Pressable>
+        </View>
       </View>
     );
   }
@@ -587,225 +466,166 @@ export function HealthServiceBookScreen({
   const afternoonSlots = openSlots.filter((s) => slotLabelToMinutes(s.label) >= NOON_MINUTES);
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
-      <Animated.View
-        style={[
-          {
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            overflow: 'hidden',
-            zIndex: 1,
-          },
-          heroBehindStyle,
-        ]}>
-        <Pressable style={{ flex: 1 }} onPress={dismissAndCollapse}>
-          <BookingHero
-            doctorName={displayName}
-            specialty={specLabel}
-            onBack={handleBack}
-            modelStyle={modelAnimStyle}
-          />
-        </Pressable>
-      </Animated.View>
+    <View style={{ flex: 1, backgroundColor: '#F9F9F9' }}>
+      <BookingHero onBack={handleBack} />
 
-      {/* Soft upward shadow sitting on the sheet’s top edge */}
-      <Animated.View
-        pointerEvents="none"
-        style={[
-          {
-            position: 'absolute',
-            left: 0,
-            right: 0,
-            height: 32,
-            zIndex: 2,
-          },
-          sheetTopShadowStyle,
-        ]}>
-        <LinearGradient
-          colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.07)']}
-          locations={[0, 1]}
-          style={{ flex: 1 }}
+      <KeyboardAwareScrollView
+        ref={scrollRef}
+        style={{ flex: 1 }}
+        contentContainerStyle={{
+          paddingHorizontal: 20,
+          paddingTop: 4,
+          paddingBottom: 24,
+          gap: 12,
+        }}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        bottomOffset={24}
+        onScrollBeginDrag={Keyboard.dismiss}>
+        <BookingProviderCard
+          doctorName={displayName}
+          specialty={specLabel}
+          photoUrl={staff.photoUrl}
         />
-      </Animated.View>
 
-      {/* Absolute bottom sheet — rides keyboard height; resize must not reflow under the finger. */}
-      <Animated.View
-        style={[
-          {
-            position: 'absolute',
-            left: 0,
-            right: 0,
-            backgroundColor: '#FFFFFF',
-            borderTopLeftRadius: 16,
-            borderTopRightRadius: 16,
-            paddingHorizontal: 20,
-            justifyContent: 'space-between',
-            zIndex: 3,
-            overflow: 'hidden',
-          },
-          sheetAnimStyle,
-        ]}>
-          <GestureDetector gesture={sheetPan}>
-            <View
-              accessibilityRole="adjustable"
-              accessibilityLabel="Resize booking sheet"
-              style={{
-                alignItems: 'center',
-                justifyContent: 'center',
-                alignSelf: 'stretch',
-                minHeight: 52,
-                paddingVertical: 16,
-              }}>
-              <View
-                style={{
-                  width: 56,
-                  height: 5,
-                  borderRadius: 3,
-                  backgroundColor: '#C8C8C8',
-                }}
-              />
-            </View>
-          </GestureDetector>
+        <BookingSectionCard
+          title="Date"
+          tone="blue"
+          icon={<IconsaxCalendar2Icon size={18} color="#048AF3" />}>
+          <BookingSheetHeader
+            monthLabel={monthLabel}
+            onPrevWeek={() => {
+              Keyboard.dismiss();
+              shiftWeek(-1);
+            }}
+            onNextWeek={() => {
+              Keyboard.dismiss();
+              shiftWeek(1);
+            }}
+          />
 
-          <View style={{ gap: 16, flexShrink: 1, flex: 1, minHeight: 0 }}>
-            <View style={{ gap: 12 }}>
-              <BookingSheetHeader
-                monthLabel={monthLabel}
-                onPrevWeek={() => {
-                  Keyboard.dismiss();
-                  shiftWeek(-1);
-                }}
-                onNextWeek={() => {
-                  Keyboard.dismiss();
-                  shiftWeek(1);
-                }}
-              />
-
-              <View style={{ flexDirection: 'row', gap: 6 }}>
-                {weekDays.map((day) => {
-                  const past = isPastDay(day);
-                  const bookable = isDayBookable(day);
-                  return (
-                    <BookingDayChip
-                      key={`${day.getFullYear()}-${day.getMonth()}-${day.getDate()}`}
-                      weekday={DAY_SHORT[day.getDay()]}
-                      dayNumber={String(day.getDate()).padStart(2, '0')}
-                      selected={isSameDay(day, selectedDay)}
-                      disabled={past || !bookable}
-                      onPress={() => {
-                        if (past || !bookable) return;
-                        Keyboard.dismiss();
-                        setSelectedDay(startOfDay(day));
-                      }}
-                    />
-                  );
-                })}
-              </View>
-            </View>
-
-            <BookingProviderTypeSelect
-              value={providerType}
-              onChange={handleProviderTypeChange}
-            />
-
-            <View style={{ gap: 12, flex: 1, minHeight: 0 }}>
-              <Text
-                style={{
-                  fontFamily: Inter.semiBold,
-                  fontSize: 20,
-                  color: '#111111',
-                  letterSpacing: -0.8,
-                  lineHeight: 26,
-                }}>
-                Time
-              </Text>
-
-              <ScrollView
-                ref={sheetScrollRef}
-                style={{ flex: 1 }}
-                contentContainerStyle={{ gap: 18, paddingBottom: 24 }}
-                showsVerticalScrollIndicator={false}
-                nestedScrollEnabled
-                keyboardShouldPersistTaps="handled"
-                keyboardDismissMode="on-drag"
-                onScrollBeginDrag={Keyboard.dismiss}>
-                {!working ? (
-                  <Text
-                    style={{
-                      fontFamily: Inter.regular,
-                      fontSize: 14,
-                      color: '#6C6C6C',
-                      letterSpacing: -0.28,
-                    }}>
-                    No clinic hours on this day. Pick another date.
-                  </Text>
-                ) : loadingSlots ? (
-                  <ActivityIndicator color="#111" style={{ marginVertical: 8 }} />
-                ) : openCount === 0 ? (
-                  <Text
-                    style={{
-                      fontFamily: Inter.regular,
-                      fontSize: 14,
-                      color: '#6C6C6C',
-                      letterSpacing: -0.28,
-                    }}>
-                    No open slots left for this day.
-                  </Text>
-                ) : (
-                  (
-                    [
-                      { title: 'Morning', items: morningSlots },
-                      { title: 'Afternoon', items: afternoonSlots },
-                    ] as const
-                  ).map((section) => {
-                    if (section.items.length === 0) return null;
-                    return (
-                      <BookingPeriodSection
-                        key={`${selectedDay.toDateString()}-${section.title}`}
-                        title={section.title}
-                        items={section.items}
-                        selectedSlot={selectedSlot}
-                        onSelect={(label) => {
-                          Keyboard.dismiss();
-                          setSelectedSlot(label);
-                        }}
-                        initialVisible={6}
-                      />
-                    );
-                  })
-                )}
-
-                <BookingConsultationSelect
-                  value={consultationRequest}
-                  error={showRequestError && !consultationRequest}
-                  onChange={(next) => {
+          <View style={{ flexDirection: 'row', gap: 6 }}>
+            {weekDays.map((day) => {
+              const past = isPastDay(day);
+              const bookable = isDayBookable(day);
+              return (
+                <BookingDayChip
+                  key={`${day.getFullYear()}-${day.getMonth()}-${day.getDate()}`}
+                  weekday={DAY_SHORT[day.getDay()]}
+                  dayNumber={String(day.getDate()).padStart(2, '0')}
+                  selected={isSameDay(day, selectedDay)}
+                  disabled={past || !bookable}
+                  onPress={() => {
+                    if (past || !bookable) return;
                     Keyboard.dismiss();
-                    setConsultationRequest(next);
-                    setShowRequestError(false);
+                    setSelectedDay(startOfDay(day));
                   }}
                 />
-                <BookingCommentsField
-                  value={comments}
-                  onChange={setComments}
-                  onFocus={scrollCommentsIntoView}
-                />
-              </ScrollView>
-            </View>
+              );
+            })}
           </View>
+        </BookingSectionCard>
 
-          <View style={{ marginTop: 16, paddingTop: 4 }}>
-            <BookingPrimaryButton
-              disabled={!canBook}
-              loading={isBooking}
-              onPress={() => {
-                Keyboard.dismiss();
-                void handleBookAppointment();
-              }}
-            />
-          </View>
-        </Animated.View>
+        <BookingSectionCard
+          title="Provider type"
+          tone="yellow"
+          icon={<IconsaxProfile2UserIcon size={18} color="#7E6B28" />}>
+          <BookingProviderTypeSelect
+            value={providerType}
+            onChange={handleProviderTypeChange}
+            hideLabel
+          />
+        </BookingSectionCard>
+
+        <BookingSectionCard
+          title="Time"
+          tone="pink"
+          icon={<IconsaxClockIcon size={18} color="#7C52A2" />}>
+          {!working ? (
+            <Text
+              style={{
+                fontFamily: Inter.regular,
+                fontSize: 14,
+                color: '#6C6C6C',
+                letterSpacing: -0.28,
+              }}>
+              No clinic hours on this day. Pick another date.
+            </Text>
+          ) : loadingSlots ? (
+            <BookingSlotsSkeleton />
+          ) : openCount === 0 ? (
+            <Text
+              style={{
+                fontFamily: Inter.regular,
+                fontSize: 14,
+                color: '#6C6C6C',
+                letterSpacing: -0.28,
+              }}>
+              No open slots left for this day.
+            </Text>
+          ) : (
+            (
+              [
+                { title: 'Morning', items: morningSlots },
+                { title: 'Afternoon', items: afternoonSlots },
+              ] as const
+            ).map((section) => {
+              if (section.items.length === 0) return null;
+              return (
+                <BookingPeriodSection
+                  key={`${selectedDay.toDateString()}-${section.title}`}
+                  title={section.title}
+                  items={section.items}
+                  selectedSlot={selectedSlot}
+                  onSelect={(label) => {
+                    Keyboard.dismiss();
+                    setSelectedSlot(label);
+                  }}
+                  initialVisible={6}
+                />
+              );
+            })
+          )}
+        </BookingSectionCard>
+
+        <BookingSectionCard
+          title="Visit details"
+          tone="mint"
+          icon={<IconsaxClipboardTextIcon size={18} color="#4FA603" />}>
+          <BookingConsultationSelect
+            value={consultationRequest}
+            error={showRequestError && !consultationRequest}
+            onChange={(next) => {
+              Keyboard.dismiss();
+              setConsultationRequest(next);
+              setShowRequestError(false);
+            }}
+          />
+          <BookingCommentsField
+            value={comments}
+            onChange={setComments}
+            onFocus={scrollCommentsIntoView}
+          />
+        </BookingSectionCard>
+      </KeyboardAwareScrollView>
+
+      <View
+        style={{
+          paddingHorizontal: 20,
+          paddingTop: 12,
+          paddingBottom: bottomPad,
+          backgroundColor: '#F9F9F9',
+        }}>
+        <BookingPrimaryButton
+          disabled={!canBook}
+          loading={isBooking}
+          onPress={() => {
+            Keyboard.dismiss();
+            void handleBookAppointment();
+          }}
+        />
+      </View>
     </View>
   );
 }

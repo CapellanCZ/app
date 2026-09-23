@@ -96,7 +96,10 @@ function parseConsultationRow(row: Record<string, unknown>): ConsultationPrescri
   return { medications: deduped, updatedAt };
 }
 
-/** Patient-safe prescription for a completed appointment consultation. */
+/**
+ * Patient-safe prescription for an appointment.
+ * Reads `consultations.prescription` — same table doctors use on web (and follow-up).
+ */
 export async function fetchConsultationPrescription(
   appointmentId: string,
 ): Promise<ConsultationPrescription> {
@@ -104,11 +107,11 @@ export async function fetchConsultationPrescription(
 
   // Live schema: prescription (text) — no medications / prescription_* JSON columns.
   const { data, error } = await supabase
-    .from('appointment_consultations')
-    .select('prescription, completed_at, updated_at, created_at')
+    .from('consultations')
+    .select('prescription, updated_at, created_at')
     .eq('appointment_id', appointmentId)
-    .not('completed_at', 'is', null)
-    .order('completed_at', { ascending: false })
+    .not('prescription', 'is', null)
+    .order('updated_at', { ascending: false })
     .limit(1)
     .maybeSingle();
 
