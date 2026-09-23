@@ -1,60 +1,84 @@
 import { useRef, useState } from 'react';
 import {
-  Platform,
+  Alert,
   Pressable,
   StyleSheet,
   TextInput,
-  View,
   type TextInput as TextInputType,
 } from 'react-native';
 
+import {
+  RANGE_PRESETS,
+  type AppointmentRangePreset,
+} from '@/components/appointments/appointmentsFilterUtils';
 import { IconsaxCloseCircleIcon } from '@/components/icons/IconsaxCloseCircleIcon';
 import { IconsaxSearchIcon } from '@/components/icons/IconsaxSearchIcon';
+import { SettingIcon } from '@/components/icons/SettingIcon';
+import {
+  INPUT_BRAND,
+  INPUT_PLACEHOLDER,
+  INPUT_TEXT,
+  inputFieldBase,
+  inputFieldFocused,
+} from '@/lib/ui/inputFocus';
 import { Inter } from '@/lib/typography/inter';
 
-/**
- * Appointments search — same white / #E8E8E8 language as cards,
- * focus blue shared with the privacy banner (#048AF3).
- */
-const SEARCH = {
-  bg: '#FFFFFF',
-  border: '#E8E8E8',
-  focus: '#048AF3',
-  focusRing: 'rgba(4, 138, 243, 0.14)',
-  placeholder: '#9E9E9E',
-  text: '#222222',
-  icon: '#6C6C6C',
-  clear: '#A7A7A7',
-} as const;
+/** Resting outline — same light gray as appointment cards. */
+const OUTLINE = '#E8E8E8';
 
 type Props = {
   value: string;
   onChangeText: (text: string) => void;
+  range: AppointmentRangePreset;
+  onRangeChange: (preset: AppointmentRangePreset) => void;
   placeholder?: string;
 };
 
+/**
+ * Appointments search — login `AppInput` focus UX + always-visible soft outline.
+ * Filter opens native Alert (All / Last 7 / Last 30).
+ */
 export function AppointmentsSearchBar({
   value,
   onChangeText,
-  placeholder = 'Search by doctor or reason',
+  range,
+  onRangeChange,
+  placeholder = 'Search by name or condition...',
 }: Props) {
   const inputRef = useRef<TextInputType>(null);
   const [focused, setFocused] = useState(false);
   const hasValue = value.length > 0;
-  const iconColor = focused ? SEARCH.focus : SEARCH.icon;
+  const rangeActive = range !== 'all';
+  const selectedLabel =
+    RANGE_PRESETS.find((p) => p.id === range)?.label ?? RANGE_PRESETS[0].label;
+
+  const openRangeFilter = () => {
+    Alert.alert(
+      'Date range',
+      'Show appointments in this window',
+      [
+        ...RANGE_PRESETS.map((preset) => ({
+          text: preset.id === range ? `✓ ${preset.label}` : preset.label,
+          onPress: () => onRangeChange(preset.id),
+        })),
+        { text: 'Cancel', style: 'cancel' as const },
+      ],
+      { cancelable: true },
+    );
+  };
 
   return (
     <Pressable
       accessibilityRole="search"
       onPress={() => inputRef.current?.focus()}
-      style={[styles.bar, focused ? styles.barFocused : null]}>
-      <IconsaxSearchIcon size={20} color={iconColor} />
+      style={[styles.field, focused ? styles.fieldFocused : styles.fieldIdle]}>
+      <IconsaxSearchIcon size={18} color="#6C6C6C" />
       <TextInput
         ref={inputRef}
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
-        placeholderTextColor={SEARCH.placeholder}
+        placeholderTextColor={INPUT_PLACEHOLDER}
         style={styles.input}
         autoCapitalize="none"
         autoCorrect={false}
@@ -62,11 +86,11 @@ export function AppointmentsSearchBar({
         returnKeyType="search"
         enablesReturnKeyAutomatically
         blurOnSubmit
-        selectionColor={SEARCH.focus}
+        selectionColor={INPUT_BRAND}
         accessibilityLabel="Search appointments"
+        clearButtonMode="never"
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
-        clearButtonMode="never"
       />
       {hasValue ? (
         <Pressable
@@ -74,53 +98,60 @@ export function AppointmentsSearchBar({
             onChangeText('');
             inputRef.current?.focus();
           }}
-          hitSlop={10}
+          hitSlop={8}
           accessibilityRole="button"
           accessibilityLabel="Clear search"
-          style={({ pressed }) => [styles.clearBtn, pressed && styles.clearPressed]}>
-          <IconsaxCloseCircleIcon size={20} color={SEARCH.clear} />
+          style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}>
+          <IconsaxCloseCircleIcon size={18} color="#A7A7A7" />
         </Pressable>
       ) : null}
+      <Pressable
+        onPress={openRangeFilter}
+        hitSlop={8}
+        accessibilityRole="button"
+        accessibilityLabel={`Filter by date range, ${selectedLabel}`}
+        accessibilityState={{ selected: rangeActive }}
+        style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}>
+        <SettingIcon size={20} color={rangeActive || focused ? INPUT_BRAND : '#6C6C6C'} />
+      </Pressable>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  bar: {
+  field: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
     minHeight: 52,
-    paddingLeft: 16,
-    paddingRight: 12,
-    borderRadius: 16,
-    backgroundColor: SEARCH.bg,
-    borderWidth: 1,
-    borderColor: SEARCH.border,
+    paddingHorizontal: 14,
+    gap: 10,
+    ...inputFieldBase,
   },
-  barFocused: {
-    borderColor: SEARCH.focus,
-    ...Platform.select({
-      ios: { boxShadow: `0 0 0 3px ${SEARCH.focusRing}` },
-      default: {},
-    }),
+  fieldIdle: {
+    borderWidth: 1,
+    borderColor: OUTLINE,
+  },
+  fieldFocused: {
+    ...inputFieldFocused,
   },
   input: {
     flex: 1,
     fontFamily: Inter.regular,
-    fontSize: 15,
-    letterSpacing: -0.3,
-    color: SEARCH.text,
-    paddingVertical: Platform.OS === 'ios' ? 14 : 12,
+    fontSize: 16,
+    lineHeight: 22,
+    color: INPUT_TEXT,
+    letterSpacing: -0.64,
+    padding: 0,
     margin: 0,
+    textAlignVertical: 'center',
   },
-  clearBtn: {
+  iconBtn: {
     width: 28,
     height: 28,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  clearPressed: {
+  pressed: {
     opacity: 0.55,
   },
 });

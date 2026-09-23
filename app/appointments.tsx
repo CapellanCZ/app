@@ -1,4 +1,4 @@
-import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { RefreshControl, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
@@ -25,7 +25,6 @@ import {
 } from '@/components/appointments/AppointmentCard';
 import { AppointmentListSkeleton } from '@/components/appointments/AppointmentCardSkeleton';
 import { AppointmentsPrivacyBanner } from '@/components/appointments/AppointmentsPrivacyBanner';
-import { AppointmentsSearchBar } from '@/components/appointments/AppointmentsSearchBar';
 import { AppointmentsStatusSegment, type AppointmentsTabId } from '@/components/appointments/AppointmentsStatusSegment';
 import { matchesStatusFilter } from '@/components/appointments/appointmentsFilterUtils';
 import { EmptyStateAppointmentsIllustration } from '@/components/appointments/EmptyStateAppointmentsIllustration';
@@ -87,7 +86,7 @@ function buildDetailRows(item: {
 }
 
 /**
- * Appointments — Figma 4203:124 (privacy banner, tabs, search, white cards).
+ * Appointments — Figma 4203:124 (privacy banner, tabs, white cards).
  */
 export default function AppointmentsScreen() {
   const insets = useSafeAreaInsets();
@@ -96,7 +95,6 @@ export default function AppointmentsScreen() {
   const [activeTab, setActiveTab] = useState<AppointmentTab>(initialTab);
   const [panelKey, setPanelKey] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
   const directionRef = useRef<'forward' | 'back'>('forward');
   const reduceMotion = useReducedMotion();
 
@@ -201,28 +199,8 @@ export default function AppointmentsScreen() {
     transform: [{ translateX: dragX.get() }],
   }));
 
-  const deferredQuery = useDeferredValue(searchQuery);
-
   const filtered = useMemo(() => {
-    const q = deferredQuery.trim().toLowerCase();
-
-    const list = appointments.filter((a) => {
-      if (!matchesStatusFilter(a.status, activeTab)) return false;
-      if (!q) return true;
-
-      const { name, specialty } = resolveAppointmentStaffDisplay(a, staff);
-      const haystack = [
-        name,
-        specialty,
-        a.id,
-        a.reason ?? '',
-        a.checkInCode ?? '',
-        a.staffName ?? '',
-      ]
-        .join(' ')
-        .toLowerCase();
-      return haystack.includes(q);
-    });
+    const list = appointments.filter((a) => matchesStatusFilter(a.status, activeTab));
 
     const newestFirst = activeTab !== 'upcoming';
 
@@ -236,14 +214,10 @@ export default function AppointmentsScreen() {
         ? b.startLabel.localeCompare(a.startLabel)
         : a.startLabel.localeCompare(b.startLabel);
     });
-  }, [appointments, activeTab, deferredQuery, staff]);
+  }, [appointments, activeTab]);
 
-  const emptyCopy = deferredQuery.trim()
-    ? {
-        title: 'No matches',
-        body: 'Try another name, specialty, or reason',
-      }
-    : activeTab === 'upcoming'
+  const emptyCopy =
+    activeTab === 'upcoming'
       ? {
           title: 'No appointments yet',
           body: "You don't have any upcoming appointments\nright now",
@@ -328,8 +302,6 @@ export default function AppointmentsScreen() {
                 <AppointmentsPrivacyBanner />
 
                 <AppointmentsStatusSegment value={activeTab} onChange={onStatusChange} />
-
-                <AppointmentsSearchBar value={searchQuery} onChangeText={setSearchQuery} />
               </View>
 
               <Animated.View

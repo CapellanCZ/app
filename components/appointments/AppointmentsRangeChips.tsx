@@ -1,4 +1,4 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
 
 import { APPT_UI } from '@/components/appointments/appointmentsUiTokens';
 import {
@@ -36,11 +36,6 @@ export function AppointmentsRangeChips({ value, onChange }: Props) {
           </Pressable>
         );
       })}
-      {value === 'custom' ? (
-        <View style={[styles.chip, styles.chipActive]}>
-          <Text style={[styles.chipLabel, styles.chipLabelActive]}>Custom</Text>
-        </View>
-      ) : null}
     </ScrollView>
   );
 }

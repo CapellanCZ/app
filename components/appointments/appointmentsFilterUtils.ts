@@ -1,14 +1,14 @@
 /** Shared appointments filter helpers (UI stays in components/). */
 
-export type AppointmentRangePreset = 'all' | '7' | '30' | '90' | 'custom';
+export type AppointmentRangePreset = 'all' | '7' | '30';
 
 export type AppointmentStatusFilter = 'upcoming' | 'completed';
 
+/** Search-bar date filter — All / Last 7 / Last 30. */
 export const RANGE_PRESETS: { id: AppointmentRangePreset; label: string }[] = [
-  { id: 'all', label: 'All Records' },
-  { id: '7', label: 'Last 7 Days' },
+  { id: 'all', label: 'All' },
+  { id: '7', label: 'Last 7 days' },
   { id: '30', label: 'Last 30 days' },
-  { id: '90', label: 'Last 90 days' },
 ];
 
 export function toDateKey(d: Date): string {
@@ -44,11 +44,20 @@ export function rangeFromPreset(preset: AppointmentRangePreset): {
   fromKey: string;
   toKey: string;
 } | null {
-  if (preset === 'all' || preset === 'custom') return null;
-  const days = preset === '7' ? 7 : preset === '30' ? 30 : 90;
+  if (preset === 'all') return null;
+  const days = preset === '7' ? 7 : 30;
   const to = startOfDay(new Date());
   const from = addDays(to, -(days - 1));
   return { fromKey: toDateKey(from), toKey: toDateKey(to) };
+}
+
+export function matchesRangePreset(
+  dateKey: string,
+  preset: AppointmentRangePreset,
+): boolean {
+  const range = rangeFromPreset(preset);
+  if (!range) return true;
+  return dateKey >= range.fromKey && dateKey <= range.toKey;
 }
 
 export function matchesStatusFilter(
