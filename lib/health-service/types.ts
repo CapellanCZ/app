@@ -61,4 +61,9 @@ export type Appointment = {
   staffPhotoUrl?: string | null;
   /** From `appointments.provider_type` — used when `doctor_id` is missing on legacy rows. */
   providerType?: string | null;
+  /**
+   * Clinical notes after visit completion —
+   * from `appointment_consultations.clinical_notes` when present.
+   */
+  clinicalNotes?: string | null;
 };

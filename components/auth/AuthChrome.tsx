@@ -41,7 +41,7 @@ export function AuthChrome({ title, subtitle, children }: AuthChromeProps) {
             {children}
 
             <View className="mt-6">
-              <AuthLegalFooter topSpacing={false} />
+              <AuthLegalFooter />
             </View>
           </View>
         </View>

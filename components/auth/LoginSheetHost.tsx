@@ -12,6 +12,7 @@ import { useAuth } from '@/lib/auth/AuthProvider';
 import { sendOtp as apiSendOtp, verifyOtp as apiVerifyOtp } from '@/lib/auth/authApi';
 import { useLoginSheetStore } from '@/lib/auth/loginSheetStore';
 import { AuthErrorBanner } from '@/components/auth/AuthErrorBanner';
+import { AuthLegalFooter } from '@/components/auth/AuthLegalFooter';
 import { OtpCodeInput } from '@/components/auth/OtpCodeInput';
 import { AppButton } from '@/components/ui/AppButton';
 import { AppInput } from '@/components/ui/AppInput';
@@ -217,7 +218,7 @@ export function LoginSheetHost() {
       ref={sheetRef}
       visible={open}
       onClose={hide}
-      bottomPadding={32}
+      bottomPadding={12}
       dismissOnBackdropPress={step !== 'verify'}>
       {step === 'email' ? (
         <View style={styles.content}>
@@ -258,6 +259,16 @@ export function LoginSheetHost() {
             loading={loading}
             variant="dark"
             disabled={!email.trim() || !isConfigured}
+          />
+          <AuthLegalFooter
+            onTerms={() => {
+              router.push(ROUTES.terms as never);
+              hide();
+            }}
+            onPrivacy={() => {
+              router.push(ROUTES.privacy as never);
+              hide();
+            }}
           />
         </View>
       ) : (
@@ -329,7 +340,7 @@ const styles = StyleSheet.create({
     gap: 20,
     paddingHorizontal: 4,
     paddingTop: 8,
-    paddingBottom: 12,
+    paddingBottom: 0,
   },
   emailField: {
     gap: 10,

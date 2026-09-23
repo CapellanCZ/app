@@ -1,31 +1,88 @@
-import { Pressable, Text, View } from 'react-native';
+import { StyleSheet, Text, useWindowDimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 
+import { Inter } from '@/lib/typography/inter';
+import { ROUTES } from '@/lib/routes';
+
 type AuthLegalFooterProps = {
-  /** Extra margin above legal copy (default: stacked below form). */
-  topSpacing?: boolean;
+  onTerms?: () => void;
+  onPrivacy?: () => void;
 };
 
-export function AuthLegalFooter({ topSpacing = true }: AuthLegalFooterProps) {
-  const router = useRouter();
+function legalMetrics(screenW: number) {
+  const raw = Math.round(screenW * (13 / 390));
+  const fontSize = Math.min(14, Math.max(12, raw));
+  const lineHeight = Math.round(fontSize * (17 / 13));
+  const letterSpacing = fontSize * (-0.2 / 13);
+  return { fontSize, lineHeight, letterSpacing };
+}
 
-  const openTerms = () => router.push('/terms');
-  const openPrivacy = () => router.push('/privacy');
+/** Shared “By proceeding…” Terms / Privacy line for auth surfaces. */
+export function AuthLegalFooter({ onTerms, onPrivacy }: AuthLegalFooterProps) {
+  const router = useRouter();
+  const { width: screenW } = useWindowDimensions();
+  const metrics = legalMetrics(screenW);
+
+  const openTerms = () => {
+    if (onTerms) {
+      onTerms();
+      return;
+    }
+    router.push(ROUTES.terms as never);
+  };
+
+  const openPrivacy = () => {
+    if (onPrivacy) {
+      onPrivacy();
+      return;
+    }
+    router.push(ROUTES.privacy as never);
+  };
 
   return (
-    <>
-      <View className={`${topSpacing ? 'mt-6' : 'mt-0'} items-center gap-0.5 px-1`}>
-        <Text className="text-center text-sm leading-5 text-[#71727A]">
-          <Text>By continuing, you accept our </Text>
-          <Text className="font-medium underline" onPress={openTerms}>
-            Terms & Condition
-          </Text>
-          <Text> and </Text>
-        </Text>
-        <Pressable onPress={openPrivacy}>
-          <Text className="text-sm font-medium leading-5 text-[#71727A] underline">Privacy Policy</Text>
-        </Pressable>
-      </View>
-    </>
+    <Text
+      style={[
+        styles.legal,
+        {
+          fontSize: metrics.fontSize,
+          lineHeight: metrics.lineHeight,
+          letterSpacing: metrics.letterSpacing,
+        },
+      ]}
+      allowFontScaling={false}>
+      {'By proceeding, you agree to our '}
+      <Text
+        style={styles.link}
+        onPress={openTerms}
+        suppressHighlighting={false}
+        accessibilityRole="link"
+        accessibilityLabel="Terms of Use">
+        Terms of Use
+      </Text>
+      {' and acknowledge that you have read our '}
+      <Text
+        style={styles.link}
+        onPress={openPrivacy}
+        suppressHighlighting={false}
+        accessibilityRole="link"
+        accessibilityLabel="Privacy Policy">
+        Privacy Policy
+      </Text>
+    </Text>
   );
 }
+
+const styles = StyleSheet.create({
+  legal: {
+    fontFamily: Inter.regular,
+    color: '#A4A7AE',
+    textAlign: 'center',
+    paddingHorizontal: 8,
+    paddingTop: 2,
+    paddingBottom: 0,
+  },
+  link: {
+    color: '#717680',
+    textDecorationLine: 'underline',
+  },
+});

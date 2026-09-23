@@ -3,8 +3,11 @@ import { useEffect, useRef } from 'react';
 
 import { useAuth } from '@/lib/auth/AuthProvider';
 
-/** Routes that handle their own unauthenticated flow. */
+/** Route groups that handle their own unauthenticated flow. */
 const PUBLIC_ROOTS = new Set(['(auth)', 'logout']);
+
+/** Screens anyone can open while signed out (legal docs from get-started / login). */
+const PUBLIC_SCREENS = new Set(['terms', 'privacy']);
 
 /**
  * Sends signed-out users back to login when they are on a protected screen.
@@ -23,7 +26,18 @@ export function AuthSessionGuard() {
     }
 
     const root = segments[0];
-    if (!root || PUBLIC_ROOTS.has(root)) return;
+    const leaf = segments[segments.length - 1];
+
+    // Stay on auth flow, logout, or public legal pages.
+    if (!root || PUBLIC_ROOTS.has(root)) {
+      isRedirecting.current = false;
+      return;
+    }
+    if (typeof leaf === 'string' && PUBLIC_SCREENS.has(leaf)) {
+      isRedirecting.current = false;
+      return;
+    }
+
     if (isRedirecting.current) return;
 
     isRedirecting.current = true;

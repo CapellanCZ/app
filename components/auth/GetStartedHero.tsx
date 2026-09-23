@@ -414,13 +414,17 @@ export function GetStartedHero({ onSignIn, onTerms, onPrivacy }: GetStartedHeroP
       </SafeAreaView>
 
       <View style={[styles.logoRow, { top: insets.top + 18 }]} pointerEvents="none">
-        <Image
-          source={require('../../assets/heart-grey.png')}
-          style={styles.logoHeart}
-          resizeMode="contain"
-          accessibilityLabel="CampusCare"
-        />
-        <Text style={styles.logoText}>CampusCare</Text>
+        <View style={styles.logoLockup}>
+          <Image
+            source={require('../../assets/icon-grey.png')}
+            style={styles.logoIcon}
+            resizeMode="contain"
+            accessibilityLabel="CampusCare"
+          />
+          <Text style={styles.logoText} allowFontScaling={false}>
+            CampusCare
+          </Text>
+        </View>
       </View>
     </View>
   );
@@ -519,21 +523,31 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     right: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
+  },
+  /** Fixed-height lockup so icon + wordmark share one optical mid-line. */
+  logoLockup: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    zIndex: 10,
+    height: 40,
+    gap: 7,
   },
-  logoHeart: {
-    width: 28,
-    height: 24,
-    opacity: 0.45,
+  logoIcon: {
+    width: 42,
+    height: 34,
+    opacity: 0.55,
   },
   logoText: {
     fontFamily: Inter.regular,
-    fontSize: 20,
+    fontSize: 22,
+    lineHeight: 26,
+    height: 26,
     color: '#B8B8B8',
     letterSpacing: -1.6,
+    includeFontPadding: false,
+    textAlignVertical: 'center',
   },
 });

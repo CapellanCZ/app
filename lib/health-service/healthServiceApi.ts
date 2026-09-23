@@ -298,6 +298,17 @@ type AppointmentDoctorRow = {
   primary_role: string | null;
 };
 
+type AppointmentConsultationRow = {
+  clinical_notes: string | null;
+  completed_at: string | null;
+};
+
+type ConsultationNotesRow = {
+  notes: string | null;
+  updated_at?: string | null;
+  created_at?: string | null;
+};
+
 type AppointmentListRow = {
   id: string;
   doctor_id: string | null;
@@ -309,7 +320,41 @@ type AppointmentListRow = {
   reason: string | null;
   cancellation_reason: string | null;
   doctor: AppointmentDoctorRow | AppointmentDoctorRow[] | null;
+  appointment_consultations?:
+    | AppointmentConsultationRow
+    | AppointmentConsultationRow[]
+    | null;
+  consultations?: ConsultationNotesRow | ConsultationNotesRow[] | null;
 };
+
+function clinicalNotesFromAppointmentRow(row: AppointmentListRow): string | null {
+  const embedded = row.appointment_consultations;
+  if (embedded) {
+    const list = Array.isArray(embedded) ? embedded : [embedded];
+    const withNotes = list
+      .filter((c) => Boolean(c.completed_at) && Boolean(c.clinical_notes?.trim()))
+      .sort((a, b) => String(b.completed_at).localeCompare(String(a.completed_at)));
+    const fromConsult = withNotes[0]?.clinical_notes?.trim();
+    if (fromConsult) return fromConsult;
+  }
+
+  // Patient-readable fallback — `consultations.notes` (RLS allows authenticated select).
+  const legacy = row.consultations;
+  if (legacy) {
+    const list = Array.isArray(legacy) ? legacy : [legacy];
+    const withNotes = list
+      .filter((c) => Boolean(c.notes?.trim()))
+      .sort((a, b) =>
+        String(b.updated_at ?? b.created_at ?? '').localeCompare(
+          String(a.updated_at ?? a.created_at ?? ''),
+        ),
+      );
+    const notes = withNotes[0]?.notes?.trim();
+    if (notes) return notes;
+  }
+
+  return null;
+}
 
 function doctorFromAppointmentRow(
   row: AppointmentListRow,
@@ -765,6 +810,15 @@ function createSupabaseHealthServiceApi(): HealthServiceApi {
             full_name,
             avatar_url,
             primary_role
+          ),
+          appointment_consultations (
+            clinical_notes,
+            completed_at
+          ),
+          consultations (
+            notes,
+            updated_at,
+            created_at
           )
         `,
         )
@@ -797,6 +851,7 @@ function createSupabaseHealthServiceApi(): HealthServiceApi {
           endLabel: appt.ends_at ? labelFromIso(appt.ends_at) : undefined,
           reason: appt.reason ?? null,
           cancellationReason: appt.cancellation_reason ?? null,
+          clinicalNotes: clinicalNotesFromAppointmentRow(appt),
           status: mapDbStatus(String(appt.status)),
           createdAt: appt.created_at,
           ...staffFields,

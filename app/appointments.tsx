@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import { RefreshControl, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -19,12 +19,17 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import {
-  APPOINTMENT_CARD_COLORS,
   AppointmentCard,
+  type AppointmentCardDetailRow,
   type AppointmentCardVariant,
 } from '@/components/appointments/AppointmentCard';
 import { AppointmentListSkeleton } from '@/components/appointments/AppointmentCardSkeleton';
+import { AppointmentsPrivacyBanner } from '@/components/appointments/AppointmentsPrivacyBanner';
+import { AppointmentsSearchBar } from '@/components/appointments/AppointmentsSearchBar';
+import { AppointmentsStatusSegment, type AppointmentsTabId } from '@/components/appointments/AppointmentsStatusSegment';
+import { matchesStatusFilter } from '@/components/appointments/appointmentsFilterUtils';
 import { EmptyStateAppointmentsIllustration } from '@/components/appointments/EmptyStateAppointmentsIllustration';
+import { formatVisitReasonDisplay } from '@/components/booking/BookingConsultationFields';
 import { HealthServiceScreenShell } from '@/components/health-service/HealthServiceScreenShell';
 import { TAB_BAR_HEIGHT } from '@/components/layout/BottomTabBar';
 import { CircleBackButton } from '@/components/ui/CircleBackButton';
@@ -32,49 +37,57 @@ import { useConsultationSummaryStore } from '@/lib/consultation/consultationSumm
 import { useAppointmentStatusStore } from '@/lib/health-service/appointmentStatusStore';
 import {
   formatAppointmentBookedDate,
-  formatAppointmentCancelledWhen,
   formatAppointmentCardDateTime,
-  formatCancellationLabel,
 } from '@/lib/health-service/appointmentDisplay';
-import { formatVisitReasonDisplay } from '@/components/booking/BookingConsultationFields';
 import { resolveAppointmentStaffDisplay } from '@/lib/health-service/appointmentStaff';
-import { openDefaultBooking } from '@/lib/health-service/openDefaultBooking';
 import { useHealthServiceStore } from '@/lib/health-service/healthServiceStore';
 import { Inter } from '@/lib/typography/inter';
 
-/** Figma tabs: Upcoming · Past · Cancelled */
-type AppointmentTab = 'upcoming' | 'past' | 'cancelled';
+/** URL / swipe tabs — Completed maps from legacy `past`. Cancelled redirects to upcoming. */
+type AppointmentTab = AppointmentsTabId;
 
 function parseTabParam(value: string | string[] | undefined): AppointmentTab | null {
   const raw = Array.isArray(value) ? value[0] : value;
-  if (raw === 'upcoming' || raw === 'past' || raw === 'cancelled') return raw;
+  if (raw === 'upcoming') return 'upcoming';
+  if (raw === 'past' || raw === 'completed') return 'completed';
+  // Legacy cancelled deep-links land on upcoming (tab removed).
+  if (raw === 'cancelled') return 'upcoming';
   return null;
 }
 
-const TAB_ORDER: AppointmentTab[] = ['upcoming', 'past', 'cancelled'];
-
-const TABS: { id: AppointmentTab; label: string }[] = [
-  { id: 'upcoming', label: 'Upcoming' },
-  { id: 'past', label: 'Past' },
-  { id: 'cancelled', label: 'Cancelled' },
-];
+const TAB_ORDER: AppointmentTab[] = ['upcoming', 'completed'];
 
 const TAB_SWIPE_DISTANCE = 56;
 const TAB_SWIPE_VELOCITY = 650;
 const EASE_OUT = Easing.bezier(0.23, 1, 0.32, 1);
 const DRAG_SPRING = { damping: 26, stiffness: 200, mass: 0.85 } as const;
 
-function matchesTab(
-  status: string,
-  tab: AppointmentTab,
-): boolean {
-  if (tab === 'upcoming') return status === 'pending' || status === 'confirmed';
-  if (tab === 'past') return status === 'completed';
-  return status === 'cancelled';
+function buildDetailRows(item: {
+  dateKey: string;
+  startLabel: string;
+  reason?: string | null;
+  clinicalNotes?: string | null;
+}): AppointmentCardDetailRow[] {
+  const dateValue = formatAppointmentBookedDate(item.dateKey);
+  const timeValue = item.startLabel.trim();
+  const reason = formatVisitReasonDisplay(item.reason) || 'Consultation';
+
+  const rows: AppointmentCardDetailRow[] = [
+    { label: 'Date', value: dateValue },
+    { label: 'Time', value: timeValue },
+    { label: 'Reason', value: reason },
+  ];
+
+  const notes = item.clinicalNotes?.trim();
+  if (notes) {
+    rows.push({ label: 'Clinical Notes', value: notes });
+  }
+
+  return rows;
 }
 
 /**
- * Appointments — Figma 2229:500 (Upcoming), 2275:1277 (Past), 2279:1555 (Cancelled).
+ * Appointments — Figma 4203:124 (privacy banner, tabs, search, white cards).
  */
 export default function AppointmentsScreen() {
   const insets = useSafeAreaInsets();
@@ -83,6 +96,7 @@ export default function AppointmentsScreen() {
   const [activeTab, setActiveTab] = useState<AppointmentTab>(initialTab);
   const [panelKey, setPanelKey] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const directionRef = useRef<'forward' | 'back'>('forward');
   const reduceMotion = useReducedMotion();
 
@@ -103,11 +117,11 @@ export default function AppointmentsScreen() {
   }, [tab]);
 
   useEffect(() => {
-    tabIndexSV.value = TAB_ORDER.indexOf(activeTab);
+    tabIndexSV.set(TAB_ORDER.indexOf(activeTab));
   }, [activeTab, tabIndexSV]);
 
   useEffect(() => {
-    reduceMotionSV.value = Boolean(reduceMotion);
+    reduceMotionSV.set(Boolean(reduceMotion));
   }, [reduceMotion, reduceMotionSV]);
 
   useFocusEffect(
@@ -147,17 +161,27 @@ export default function AppointmentsScreen() {
     [activeTab, goToTab],
   );
 
+  const onStatusChange = useCallback(
+    (next: AppointmentTab) => {
+      const current = TAB_ORDER.indexOf(activeTab);
+      const nextIndex = TAB_ORDER.indexOf(next);
+      if (nextIndex === current) return;
+      goToTab(next, nextIndex > current ? 'forward' : 'back');
+    },
+    [activeTab, goToTab],
+  );
+
   const pan = useMemo(
     () =>
       Gesture.Pan()
         .activeOffsetX([-24, 24])
         .failOffsetY([-12, 12])
         .onUpdate((e) => {
-          if (reduceMotionSV.value) return;
-          dragX.value = e.translationX * 0.35;
+          if (reduceMotionSV.get()) return;
+          dragX.set(e.translationX * 0.35);
         })
         .onEnd((e) => {
-          const current = tabIndexSV.value;
+          const current = tabIndexSV.get();
           const shouldNext =
             e.translationX < -TAB_SWIPE_DISTANCE || e.velocityX < -TAB_SWIPE_VELOCITY;
           const shouldPrev =
@@ -168,17 +192,38 @@ export default function AppointmentsScreen() {
           } else if (shouldPrev && current > 0) {
             runOnJS(goToIndex)(current - 1);
           }
-          dragX.value = withSpring(0, DRAG_SPRING);
+          dragX.set(withSpring(0, DRAG_SPRING));
         }),
     [dragX, goToIndex, reduceMotionSV, tabIndexSV],
   );
 
   const dragStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: dragX.value }],
+    transform: [{ translateX: dragX.get() }],
   }));
 
+  const deferredQuery = useDeferredValue(searchQuery);
+
   const filtered = useMemo(() => {
-    const list = appointments.filter((a) => matchesTab(a.status, activeTab));
+    const q = deferredQuery.trim().toLowerCase();
+
+    const list = appointments.filter((a) => {
+      if (!matchesStatusFilter(a.status, activeTab)) return false;
+      if (!q) return true;
+
+      const { name, specialty } = resolveAppointmentStaffDisplay(a, staff);
+      const haystack = [
+        name,
+        specialty,
+        a.id,
+        a.reason ?? '',
+        a.checkInCode ?? '',
+        a.staffName ?? '',
+      ]
+        .join(' ')
+        .toLowerCase();
+      return haystack.includes(q);
+    });
+
     const newestFirst = activeTab !== 'upcoming';
 
     return list.sort((a, b) => {
@@ -191,24 +236,22 @@ export default function AppointmentsScreen() {
         ? b.startLabel.localeCompare(a.startLabel)
         : a.startLabel.localeCompare(b.startLabel);
     });
-  }, [appointments, activeTab]);
+  }, [appointments, activeTab, deferredQuery, staff]);
 
-  /** Figma 2286:427 — same layout/type as notifications empty state. */
-  const emptyCopy =
-    activeTab === 'upcoming'
+  const emptyCopy = deferredQuery.trim()
+    ? {
+        title: 'No matches',
+        body: 'Try another name, specialty, or reason',
+      }
+    : activeTab === 'upcoming'
       ? {
           title: 'No appointments yet',
           body: "You don't have any upcoming appointments\nright now",
         }
-      : activeTab === 'past'
-        ? {
-            title: 'No past appointments',
-            body: "You haven't completed any visits yet",
-          }
-        : {
-            title: 'No cancelled appointments',
-            body: "You haven't cancelled any appointments",
-          };
+      : {
+          title: 'No past appointments',
+          body: "You haven't completed any visits yet",
+        };
 
   const showSkeleton = !refreshing && !appointmentsLoaded && appointments.length === 0;
 
@@ -223,6 +266,9 @@ export default function AppointmentsScreen() {
     : directionRef.current === 'forward'
       ? FadeOutLeft.duration(140).easing(EASE_OUT)
       : FadeOutRight.duration(140).easing(EASE_OUT);
+
+  const cardVariant: AppointmentCardVariant =
+    activeTab === 'upcoming' ? 'upcoming' : 'past';
 
   return (
     <HealthServiceScreenShell>
@@ -255,11 +301,12 @@ export default function AppointmentsScreen() {
                 gap: 20,
               }}>
               <View style={{ gap: 16 }}>
-                <View>
+                <View style={{ gap: 4 }}>
                   <Text
+                    accessibilityRole="header"
                     style={{
                       fontFamily: Inter.medium,
-                      fontSize: 30,
+                      fontSize: 28,
                       color: '#222222',
                       letterSpacing: -2.24,
                       lineHeight: 38,
@@ -269,52 +316,20 @@ export default function AppointmentsScreen() {
                   <Text
                     style={{
                       fontFamily: Inter.regular,
-                      fontSize: 18,
+                      fontSize: 16,
                       color: '#727272',
                       letterSpacing: -0.64,
                       lineHeight: 20,
                     }}>
-                    Track the status of your appointments here
+                    All your visits, prescriptions & reports in one place
                   </Text>
                 </View>
 
-                {/* Upcoming / Past / Cancelled — full-width underline tabs */}
-                <View style={{ flexDirection: 'row', width: '100%' }}>
-                  {TABS.map((tab) => {
-                    const selected = activeTab === tab.id;
-                    return (
-                      <Pressable
-                        key={tab.id}
-                        accessibilityRole="tab"
-                        accessibilityState={{ selected }}
-                        onPress={() => {
-                          const nextIndex = TAB_ORDER.indexOf(tab.id);
-                          const current = TAB_ORDER.indexOf(activeTab);
-                          if (nextIndex === current) return;
-                          goToTab(tab.id, nextIndex > current ? 'forward' : 'back');
-                        }}
-                        style={{
-                          flex: 1,
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          paddingVertical: 8,
-                          borderBottomWidth: selected ? 1.5 : 1,
-                          borderBottomColor: selected ? '#323232' : '#E3E3E3',
-                        }}>
-                        <Text
-                          style={{
-                            fontFamily: selected ? Inter.semiBold : Inter.regular,
-                            fontSize: 15,
-                            color: selected ? '#3C3A3A' : '#9E9E9E',
-                            letterSpacing: -1.2,
-                            textAlign: 'center',
-                          }}>
-                          {tab.label}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
+                <AppointmentsPrivacyBanner />
+
+                <AppointmentsStatusSegment value={activeTab} onChange={onStatusChange} />
+
+                <AppointmentsSearchBar value={searchQuery} onChangeText={setSearchQuery} />
               </View>
 
               <Animated.View
@@ -331,7 +346,7 @@ export default function AppointmentsScreen() {
                       justifyContent: 'center',
                       alignItems: 'center',
                       paddingBottom: 48,
-                      minHeight: 320,
+                      minHeight: 280,
                     }}>
                     <View style={{ alignItems: 'center', gap: 12, maxWidth: 320 }}>
                       <EmptyStateAppointmentsIllustration size={192} />
@@ -363,53 +378,46 @@ export default function AppointmentsScreen() {
                   filtered.map((item, index) => {
                     const { name: doctorName, specialty, photoUrl: photo } =
                       resolveAppointmentStaffDisplay(item, staff);
-                    const variant = activeTab as AppointmentCardVariant;
+                    const variant = cardVariant;
 
-                    const dateLabel =
-                      variant === 'upcoming' || variant === 'past'
-                        ? formatAppointmentCardDateTime(item.dateKey, item.startLabel)
-                        : formatAppointmentCancelledWhen(item.dateKey, item.startLabel);
+                    if (variant === 'upcoming') {
+                      return (
+                        <AppointmentCard
+                          key={`${panelKey}-${item.id}`}
+                          variant="upcoming"
+                          enterIndex={index}
+                          staffName={doctorName}
+                          staffSpecialty={specialty}
+                          staffPhoto={photo}
+                          dateLabel={formatAppointmentCardDateTime(
+                            item.dateKey,
+                            item.startLabel,
+                          )}
+                          status={
+                            item.status === 'pending' || item.status === 'confirmed'
+                              ? item.status
+                              : undefined
+                          }
+                          onPress={() =>
+                            useAppointmentStatusStore.getState().open(item.id)
+                          }
+                        />
+                      );
+                    }
 
-                    const secondaryLabel =
-                      variant === 'upcoming'
-                        ? undefined
-                        : variant === 'cancelled'
-                          ? formatCancellationLabel(item.cancellationReason)
-                          : formatVisitReasonDisplay(item.reason) || 'Consultation';
+                    const detailRows = buildDetailRows(item);
 
                     return (
                       <AppointmentCard
                         key={`${panelKey}-${item.id}`}
-                        variant={variant}
-                        status={
-                          item.status === 'pending' || item.status === 'confirmed'
-                            ? item.status
-                            : undefined
-                        }
+                        variant="past"
                         enterIndex={index}
                         staffName={doctorName}
-                        staffSpecialty={specialty}
+                        subtitle="Consulted by"
                         staffPhoto={photo}
-                        dateLabel={dateLabel}
-                        secondaryLabel={secondaryLabel}
-                        backgroundColor={
-                          APPOINTMENT_CARD_COLORS[index % APPOINTMENT_CARD_COLORS.length]
-                        }
-                        onReschedule={
-                          variant === 'cancelled'
-                            ? () => {
-                                void openDefaultBooking();
-                              }
-                            : undefined
-                        }
-                        onPress={
-                          variant === 'cancelled'
-                            ? undefined
-                            : variant === 'past'
-                              ? () =>
-                                  useConsultationSummaryStore.getState().open(item.id)
-                              : () =>
-                                  useAppointmentStatusStore.getState().open(item.id)
+                        detailRows={detailRows}
+                        onPress={() =>
+                          useConsultationSummaryStore.getState().open(item.id)
                         }
                       />
                     );
