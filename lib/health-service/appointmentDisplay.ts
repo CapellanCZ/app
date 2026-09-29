@@ -86,6 +86,29 @@ export function parseStartLabelToMinutes(label: string): { hours: number; minute
   return { hours, minutes };
 }
 
+/** Minutes from midnight for sorting; large fallback keeps unparsable labels last when ascending. */
+export function startLabelSortMinutes(label: string): number {
+  const parsed = parseStartLabelToMinutes(label);
+  if (!parsed) return Number.MAX_SAFE_INTEGER;
+  return parsed.hours * 60 + parsed.minutes;
+}
+
+/** Compare by scheduled dateKey then clock time (not creation time, not alpha label). */
+export function compareAppointmentsBySchedule(
+  a: { dateKey: string; startLabel: string },
+  b: { dateKey: string; startLabel: string },
+  newestFirst: boolean,
+): number {
+  if (a.dateKey !== b.dateKey) {
+    return newestFirst
+      ? b.dateKey.localeCompare(a.dateKey)
+      : a.dateKey.localeCompare(b.dateKey);
+  }
+  const aMin = startLabelSortMinutes(a.startLabel);
+  const bMin = startLabelSortMinutes(b.startLabel);
+  return newestFirst ? bMin - aMin : aMin - bMin;
+}
+
 /** Google Calendar template URL for a clinic-local Asia/Manila appointment. */
 export function buildGoogleCalendarUrl(input: {
   title: string;

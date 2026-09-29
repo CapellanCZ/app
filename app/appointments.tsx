@@ -35,6 +35,7 @@ import { CircleBackButton } from '@/components/ui/CircleBackButton';
 import { useConsultationSummaryStore } from '@/lib/consultation/consultationSummaryStore';
 import { useAppointmentStatusStore } from '@/lib/health-service/appointmentStatusStore';
 import {
+  compareAppointmentsBySchedule,
   formatAppointmentBookedDate,
   formatAppointmentCardDateTime,
 } from '@/lib/health-service/appointmentDisplay';
@@ -204,16 +205,7 @@ export default function AppointmentsScreen() {
 
     const newestFirst = activeTab !== 'upcoming';
 
-    return list.sort((a, b) => {
-      if (a.dateKey !== b.dateKey) {
-        return newestFirst
-          ? b.dateKey.localeCompare(a.dateKey)
-          : a.dateKey.localeCompare(b.dateKey);
-      }
-      return newestFirst
-        ? b.startLabel.localeCompare(a.startLabel)
-        : a.startLabel.localeCompare(b.startLabel);
-    });
+    return list.sort((a, b) => compareAppointmentsBySchedule(a, b, newestFirst));
   }, [appointments, activeTab]);
 
   const emptyCopy =

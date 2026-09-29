@@ -15,6 +15,7 @@ import { BookingHero, BookingProviderCard } from '@/components/booking/BookingHe
 import {
   BookingCommentsField,
   BookingConsultationSelect,
+  BookingOtherReasonField,
   buildBookingReason,
   type ConsultationRequestOption,
 } from '@/components/booking/BookingConsultationFields';
@@ -206,8 +207,10 @@ export function HealthServiceBookScreen({
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const [consultationRequest, setConsultationRequest] =
     useState<ConsultationRequestOption | null>(null);
+  const [otherReason, setOtherReason] = useState('');
   const [comments, setComments] = useState('');
   const [showRequestError, setShowRequestError] = useState(false);
+  const [showOtherReasonError, setShowOtherReasonError] = useState(false);
   const [isBooking, setIsBooking] = useState(false);
   const [working, setWorking] = useState(false);
   const [slots, setSlots] = useState<SlotItem[]>([]);
@@ -343,8 +346,20 @@ export function HealthServiceBookScreen({
       return;
     }
 
+    if (consultationRequest === 'Other' && !otherReason.trim()) {
+      setShowOtherReasonError(true);
+      showAppToast({
+        variant: 'accent',
+        placement: 'top',
+        duration: 3500,
+        label: 'Reason required',
+        description: 'Please specify the reason for your consultation.',
+      });
+      return;
+    }
+
     const doctorLabel = formatDoctorDisplayName(staff.name, staff.role);
-    const reason = buildBookingReason(consultationRequest, comments);
+    const reason = buildBookingReason(consultationRequest, comments, otherReason);
     setIsBooking(true);
     try {
       const {
@@ -390,7 +405,16 @@ export function HealthServiceBookScreen({
     } finally {
       setIsBooking(false);
     }
-  }, [staff, selectedSlot, selectedDay, consultationRequest, comments, isBooking, session]);
+  }, [
+    staff,
+    selectedSlot,
+    selectedDay,
+    consultationRequest,
+    otherReason,
+    comments,
+    isBooking,
+    session,
+  ]);
 
   const scrollCommentsIntoView = useCallback(() => {
     requestAnimationFrame(() => {
@@ -600,8 +624,23 @@ export function HealthServiceBookScreen({
               Keyboard.dismiss();
               setConsultationRequest(next);
               setShowRequestError(false);
+              if (next !== 'Other') {
+                setOtherReason('');
+                setShowOtherReasonError(false);
+              }
             }}
           />
+          {consultationRequest === 'Other' ? (
+            <BookingOtherReasonField
+              value={otherReason}
+              error={showOtherReasonError && !otherReason.trim()}
+              onChange={(text) => {
+                setOtherReason(text);
+                if (text.trim()) setShowOtherReasonError(false);
+              }}
+              onFocus={scrollCommentsIntoView}
+            />
+          ) : null}
           <BookingCommentsField
             value={comments}
             onChange={setComments}

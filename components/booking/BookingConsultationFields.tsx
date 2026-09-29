@@ -39,9 +39,20 @@ export type ConsultationRequestOption = (typeof CONSULTATION_REQUEST_OPTIONS)[nu
 export function buildBookingReason(
   request: ConsultationRequestOption | null,
   comments: string,
+  otherReason?: string,
 ): string {
+  let requestLine: string | null = null;
+  if (request === 'Other') {
+    const specific = otherReason?.trim();
+    requestLine = specific
+      ? `Consultation request: Other — ${specific}`
+      : 'Consultation request: Other';
+  } else if (request) {
+    requestLine = `Consultation request: ${request}`;
+  }
+
   const lines = [
-    request ? `Consultation request: ${request}` : null,
+    requestLine,
     comments.trim() ? `Comments: ${comments.trim()}` : null,
   ].filter(Boolean);
   return lines.join('\n') || 'Clinic consultation';
@@ -52,7 +63,10 @@ export function formatVisitReasonDisplay(raw: string | null | undefined): string
   if (!raw?.trim()) return null;
   const text = raw.trim();
   const request = text.match(/Consultation request:\s*(.+?)(?:\n|$)/i)?.[1]?.trim();
-  if (request) return request;
+  if (request) {
+    // Already includes "Other — …" when custom text was saved.
+    return request;
+  }
 
   // Legacy / freeform rows: drop any "Comments:" block and collapse remaining lines.
   const withoutComments = text
@@ -286,6 +300,54 @@ type CommentsProps = {
   onFocus?: () => void;
   onBlur?: () => void;
 };
+
+/** Required free-text reason shown only when consultation request is Other. */
+export function BookingOtherReasonField({
+  value,
+  onChange,
+  error,
+  onFocus,
+  onBlur,
+}: CommentsProps & { error?: boolean }) {
+  return (
+    <View style={{ gap: 8 }}>
+      <Text
+        style={{
+          fontFamily: Inter.medium,
+          fontSize: 14,
+          color: '#6C6C6C',
+          letterSpacing: -0.28,
+        }}>
+        Specific reason for consultation
+      </Text>
+      <FocusableTextInput
+        value={value}
+        onChangeText={onChange}
+        onFocus={onFocus}
+        onBlur={onBlur}
+        hasError={error}
+        placeholder="e.g. Persistent cough for several days"
+        multiline
+        textAlignVertical="top"
+        style={{
+          minHeight: 72,
+          lineHeight: 22,
+        }}
+      />
+      {error ? (
+        <Text
+          style={{
+            fontFamily: Inter.regular,
+            fontSize: 13,
+            color: '#EF4444',
+            letterSpacing: -0.26,
+          }}>
+          Please specify the reason for your consultation.
+        </Text>
+      ) : null}
+    </View>
+  );
+}
 
 /** Booking-styled multiline comments field. */
 export function BookingCommentsField({ value, onChange, onFocus, onBlur }: CommentsProps) {

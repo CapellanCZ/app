@@ -17,6 +17,7 @@ const STATUS_BY_TITLE: Record<string, NotificationStatusType> = {
   'appointment confirmed!': 'success',
   "you're all set": 'success',
   'youre all set': 'success',
+  'consultation appointment is approaching': 'info',
   'visit in 30 minutes': 'warning',
   "it's your turn": 'info',
   'its your turn': 'info',
@@ -39,7 +40,7 @@ const TITLE_KEYWORD_RULES: readonly { test: RegExp; status: NotificationStatusTy
   { test: /\bcancel/, status: 'error' },
   { test: /\b(missed|unavailable|pick a new|reschedul|30 minute|starts soon|3rd in queue|you.?re next)\b/, status: 'warning' },
   { test: /\b(confirm|all set|completed|certificate ready|ready)\b/, status: 'success' },
-  { test: /\b(pending|your turn|5th in queue|on break|advisory|announcement|submitted|queue)\b/, status: 'info' },
+  { test: /\b(pending|your turn|5th in queue|on break|advisory|announcement|submitted|queue|approaching)\b/, status: 'info' },
 ];
 
 function normalizeTitle(title: string): string {
