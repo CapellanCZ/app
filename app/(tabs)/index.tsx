@@ -3,7 +3,6 @@ import { RefreshControl, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, type Href } from 'expo-router';
 
-import { HomeMoreSheet } from '@/components/home/HomeMoreSheet';
 import { HomeQuickActions } from '@/components/home/HomeQuickActions';
 import { HomeScreenSkeleton } from '@/components/home/HomeScreenSkeleton';
 import { HomeWelcomeHeader } from '@/components/home/HomeWelcomeHeader';
@@ -64,9 +63,7 @@ function SectionTitle({ children }: { children: string }) {
   );
 }
 
-/**
- * Patient home dashboard — Figma CampusCare node 2218:37.
- */
+/** Patient home dashboard — Figma CampusCare node 2218:37. */
 export default function HealthServiceScreen() {
   const insets = useSafeAreaInsets();
   const { patient, session, enrollmentStatus } = useAuth();
@@ -74,7 +71,6 @@ export default function HealthServiceScreen() {
   const avatarUrl = profile?.avatar_url ?? null;
 
   const [refreshing, setRefreshing] = useState(false);
-  const [moreOpen, setMoreOpen] = useState(false);
   const isHomeReady = useHomeScreenReady();
   const showHomeSkeleton = !refreshing && !isHomeReady;
 
@@ -271,7 +267,7 @@ export default function HealthServiceScreen() {
           <HomeQuickActions
             onBookings={() => router.push(ROUTES.appointments)}
             onVitals={() => router.push(ROUTES.vitalSigns)}
-            onMore={() => setMoreOpen(true)}
+            onMyQueue={() => router.push(ROUTES.myQueue as Href)}
           />
         </View>
 
@@ -292,18 +288,6 @@ export default function HealthServiceScreen() {
           </>
         )}
       </ScrollView>
-
-      <HomeMoreSheet
-        visible={moreOpen}
-        onClose={() => setMoreOpen(false)}
-        onMyQueue={() => router.push(ROUTES.myQueue as Href)}
-        onPastVisits={() =>
-          router.push({
-            pathname: ROUTES.appointments,
-            params: { tab: 'past' },
-          })
-        }
-      />
     </HealthServiceScreenShell>
   );
 }

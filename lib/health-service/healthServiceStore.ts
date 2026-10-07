@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { isExpectedUnauthDataError } from '@/lib/auth/errors';
+import { withFreshSessionRetry } from '@/lib/auth/sessionRecovery';
 import { isSupabaseConfigured, supabase } from '@/lib/supabase';
 import { resolveAppointmentStaffDisplay } from './appointmentStaff';
 import { healthServiceApi } from './healthServiceApi';
@@ -59,7 +60,9 @@ export const useHealthServiceStore = create<HealthServiceState>((set, get) => ({
 
     set({ loading: true, error: null });
     try {
-      const appointments = await healthServiceApi.listMyAppointments();
+      const appointments = await withFreshSessionRetry(supabase, () =>
+        healthServiceApi.listMyAppointments(),
+      );
       set({ appointments, loading: false, appointmentsLoaded: true });
     } catch (error) {
       if (isExpectedUnauthDataError(error)) {
@@ -81,9 +84,17 @@ export const useHealthServiceStore = create<HealthServiceState>((set, get) => ({
       return;
     }
 
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session?.user) {
+      set({ staff: [], loading: false, staffLoaded: true, error: null });
+      return;
+    }
+
     set({ loading: true, error: null });
     try {
-      const staff = await healthServiceApi.listStaff();
+      const staff = await withFreshSessionRetry(supabase, () => healthServiceApi.listStaff());
       set({ staff, loading: false, staffLoaded: true });
     } catch (error) {
       if (isExpectedUnauthDataError(error)) {

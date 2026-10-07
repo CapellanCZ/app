@@ -3,9 +3,9 @@ import { Pressable, Text, View } from 'react-native';
 
 import {
   FigmaBookingsIcon,
-  FigmaMoreIcon,
   FigmaVitalsIcon,
 } from '@/components/home/FigmaHomeIcons';
+import { IconsaxHourglassIcon } from '@/components/icons/IconsaxHourglassIcon';
 import { Inter } from '@/lib/typography/inter';
 import { androidPressProps } from '@/lib/ui/androidPress';
 
@@ -26,7 +26,7 @@ type Action = {
 type Props = {
   onBookings: () => void;
   onVitals: () => void;
-  onMore: () => void;
+  onMyQueue: () => void;
 };
 
 /**
@@ -88,9 +88,9 @@ function ActionTile({ label, icon, onPress }: Omit<Action, 'key'>) {
 }
 
 /**
- * Quick-action row: My Appointments · Vital Signs · More
+ * Quick-action row: My Appointments · Vital Signs · My Queue
  */
-export function HomeQuickActions({ onBookings, onVitals, onMore }: Props) {
+export function HomeQuickActions({ onBookings, onVitals, onMyQueue }: Props) {
   const actions: Action[] = [
     {
       key: 'bookings',
@@ -105,10 +105,10 @@ export function HomeQuickActions({ onBookings, onVitals, onMore }: Props) {
       onPress: onVitals,
     },
     {
-      key: 'more',
-      label: 'More',
-      icon: <FigmaMoreIcon size={ICON_SIZE} color="#323232" />,
-      onPress: onMore,
+      key: 'my-queue',
+      label: 'My\nQueue',
+      icon: <IconsaxHourglassIcon size={ICON_SIZE} color="#323232" />,
+      onPress: onMyQueue,
     },
   ];
 

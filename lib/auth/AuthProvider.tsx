@@ -2,7 +2,11 @@ import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import type { Session } from '@supabase/supabase-js';
 
-import { clearStaleSession, isStaleSessionError } from '@/lib/auth/sessionRecovery';
+import {
+  clearStaleSession,
+  ensureFreshSession,
+  isStaleSessionError,
+} from '@/lib/auth/sessionRecovery';
 import { consumeIntentionalSignOut } from '@/lib/auth/signOut';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { showAppToast } from '@/lib/ui/toastBridge';
@@ -57,25 +61,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let cancelled = false;
 
     void (async () => {
-      const {
-        data: { session: s },
-        error,
-      } = await client.auth.getSession();
+      // Refresh before first DB calls — avoids PGRST303 ("JWT issued at future")
+      // from a stale access token after cold start / long background.
+      const s = await ensureFreshSession(client);
 
       if (cancelled) return;
-
-      if (error && isStaleSessionError(error)) {
-        await clearStaleSession(client);
-        setSession(null);
-        setIsLoading(false);
-        return;
-      }
 
       if (s?.user) {
         hadSessionRef.current = true;
       }
 
-      setSession(s ?? null);
+      setSession(s);
       setIsLoading(false);
     })();
 
@@ -108,6 +104,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const appStateListener = AppState.addEventListener('change', (state) => {
       if (state === 'active') {
         client.auth.startAutoRefresh();
+        // Force a fresh token when returning from background before queries run.
+        void client.auth.refreshSession().then(({ error }) => {
+          if (error && isStaleSessionError(error)) {
+            void clearStaleSession(client);
+          }
+        });
       } else {
         client.auth.stopAutoRefresh();
       }

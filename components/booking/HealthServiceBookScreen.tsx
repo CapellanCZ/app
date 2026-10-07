@@ -3,11 +3,13 @@ import {
   Keyboard,
   Platform,
   Pressable,
-  ScrollView,
   Text,
   View,
 } from 'react-native';
-import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
+import {
+  KeyboardAwareScrollView,
+  type KeyboardAwareScrollViewRef,
+} from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 
@@ -15,6 +17,7 @@ import { BookingHero, BookingProviderCard } from '@/components/booking/BookingHe
 import {
   BookingCommentsField,
   BookingConsultationSelect,
+  BookingOtherRequestField,
   buildBookingReason,
   type ConsultationRequestOption,
 } from '@/components/booking/BookingConsultationFields';
@@ -206,8 +209,10 @@ export function HealthServiceBookScreen({
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const [consultationRequest, setConsultationRequest] =
     useState<ConsultationRequestOption | null>(null);
+  const [otherRequestDetail, setOtherRequestDetail] = useState('');
   const [comments, setComments] = useState('');
   const [showRequestError, setShowRequestError] = useState(false);
+  const [showOtherDetailError, setShowOtherDetailError] = useState(false);
   const [isBooking, setIsBooking] = useState(false);
   const [working, setWorking] = useState(false);
   const [slots, setSlots] = useState<SlotItem[]>([]);
@@ -215,7 +220,7 @@ export function HealthServiceBookScreen({
   /** Days of week (0–6) this doctor has an active schedule. */
   const [workingDows, setWorkingDows] = useState<Set<number>>(() => new Set());
 
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<KeyboardAwareScrollViewRef>(null);
 
   useEffect(() => {
     if (!allStaff.length) void loadStaff();
@@ -342,9 +347,20 @@ export function HealthServiceBookScreen({
       });
       return;
     }
+    if (consultationRequest === 'Other' && !otherRequestDetail.trim()) {
+      setShowOtherDetailError(true);
+      showAppToast({
+        variant: 'accent',
+        placement: 'top',
+        duration: 3500,
+        label: 'Specify consultation type',
+        description: 'Tell us what kind of visit you need.',
+      });
+      return;
+    }
 
     const doctorLabel = formatDoctorDisplayName(staff.name, staff.role);
-    const reason = buildBookingReason(consultationRequest, comments);
+    const reason = buildBookingReason(consultationRequest, comments, otherRequestDetail);
     setIsBooking(true);
     try {
       const {
@@ -390,15 +406,34 @@ export function HealthServiceBookScreen({
     } finally {
       setIsBooking(false);
     }
-  }, [staff, selectedSlot, selectedDay, consultationRequest, comments, isBooking, session]);
+  }, [
+    staff,
+    selectedSlot,
+    selectedDay,
+    consultationRequest,
+    otherRequestDetail,
+    comments,
+    isBooking,
+    session,
+  ]);
 
-  const scrollCommentsIntoView = useCallback(() => {
+  const ensureFocusedFieldVisible = useCallback(() => {
     requestAnimationFrame(() => {
       setTimeout(() => {
-        scrollRef.current?.scrollToEnd({ animated: true });
-      }, Platform.OS === 'ios' ? 80 : 120);
+        scrollRef.current?.assureFocusedInputVisible();
+      }, Platform.OS === 'ios' ? 120 : 220);
     });
   }, []);
+
+  // When "Other" reveals the specify field, keep it above the keyboard.
+  useEffect(() => {
+    if (consultationRequest !== 'Other') return;
+    const timer = setTimeout(() => {
+      scrollRef.current?.assureFocusedInputVisible();
+      scrollRef.current?.scrollToEnd({ animated: true });
+    }, Platform.OS === 'ios' ? 160 : 240);
+    return () => clearTimeout(timer);
+  }, [consultationRequest]);
 
   const handleProviderTypeChange = useCallback(
     (next: BookingProviderType) => {
@@ -458,7 +493,14 @@ export function HealthServiceBookScreen({
   const displayName = formatDoctorDisplayName(staff.name, staff.role);
   const providerType: BookingProviderType = staff.role === 'dentist' ? 'dentist' : 'doctor';
   const monthLabel = MONTH_LONG[selectedDay.getMonth()];
-  const canBook = Boolean(selectedSlot) && Boolean(consultationRequest) && working && !isBooking;
+  const otherDetailOk =
+    consultationRequest !== 'Other' || Boolean(otherRequestDetail.trim());
+  const canBook =
+    Boolean(selectedSlot) &&
+    Boolean(consultationRequest) &&
+    otherDetailOk &&
+    working &&
+    !isBooking;
   const openSlots = slots.filter((s) => !s.booked);
   const openCount = openSlots.length;
 
@@ -475,13 +517,14 @@ export function HealthServiceBookScreen({
         contentContainerStyle={{
           paddingHorizontal: 20,
           paddingTop: 4,
-          paddingBottom: 24,
+          paddingBottom: bottomPad + 12,
           gap: 12,
         }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="on-drag"
-        bottomOffset={24}
+        keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+        bottomOffset={28}
+        extraKeyboardSpace={16}
         onScrollBeginDrag={Keyboard.dismiss}>
         <BookingProviderCard
           doctorName={displayName}
@@ -600,32 +643,42 @@ export function HealthServiceBookScreen({
               Keyboard.dismiss();
               setConsultationRequest(next);
               setShowRequestError(false);
+              if (next !== 'Other') {
+                setOtherRequestDetail('');
+                setShowOtherDetailError(false);
+              }
             }}
           />
+          {consultationRequest === 'Other' ? (
+            <BookingOtherRequestField
+              value={otherRequestDetail}
+              error={showOtherDetailError && !otherRequestDetail.trim()}
+              onChange={(next) => {
+                setOtherRequestDetail(next);
+                if (next.trim()) setShowOtherDetailError(false);
+              }}
+              onFocus={ensureFocusedFieldVisible}
+            />
+          ) : null}
           <BookingCommentsField
             value={comments}
             onChange={setComments}
-            onFocus={scrollCommentsIntoView}
+            onFocus={ensureFocusedFieldVisible}
           />
         </BookingSectionCard>
-      </KeyboardAwareScrollView>
 
-      <View
-        style={{
-          paddingHorizontal: 20,
-          paddingTop: 12,
-          paddingBottom: bottomPad,
-          backgroundColor: '#F9F9F9',
-        }}>
-        <BookingPrimaryButton
-          disabled={!canBook}
-          loading={isBooking}
-          onPress={() => {
-            Keyboard.dismiss();
-            void handleBookAppointment();
-          }}
-        />
-      </View>
+        {/* Inside the scroll so it never overlays focused text fields. */}
+        <View style={{ paddingTop: 4, paddingBottom: 4 }}>
+          <BookingPrimaryButton
+            disabled={!canBook}
+            loading={isBooking}
+            onPress={() => {
+              Keyboard.dismiss();
+              void handleBookAppointment();
+            }}
+          />
+        </View>
+      </KeyboardAwareScrollView>
     </View>
   );
 }

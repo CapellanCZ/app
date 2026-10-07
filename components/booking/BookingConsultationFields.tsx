@@ -39,9 +39,17 @@ export type ConsultationRequestOption = (typeof CONSULTATION_REQUEST_OPTIONS)[nu
 export function buildBookingReason(
   request: ConsultationRequestOption | null,
   comments: string,
+  otherDetail = '',
 ): string {
+  const other = otherDetail.trim();
+  const requestLine =
+    request === 'Other' && other
+      ? `Consultation request: Other — ${other}`
+      : request
+        ? `Consultation request: ${request}`
+        : null;
   const lines = [
-    request ? `Consultation request: ${request}` : null,
+    requestLine,
     comments.trim() ? `Comments: ${comments.trim()}` : null,
   ].filter(Boolean);
   return lines.join('\n') || 'Clinic consultation';
@@ -277,6 +285,47 @@ export function BookingConsultationSelect({ value, onChange, error }: SelectProp
         </View>
       </Modal>
     </>
+  );
+}
+
+type OtherDetailProps = {
+  value: string;
+  onChange: (value: string) => void;
+  error?: boolean;
+  onFocus?: () => void;
+  onBlur?: () => void;
+};
+
+/** Shown when consultation request is "Other" — required free-text type. */
+export function BookingOtherRequestField({
+  value,
+  onChange,
+  error,
+  onFocus,
+  onBlur,
+}: OtherDetailProps) {
+  return (
+    <View style={{ gap: 8 }}>
+      <Text
+        style={{
+          fontFamily: Inter.medium,
+          fontSize: 14,
+          color: '#6C6C6C',
+          letterSpacing: -0.28,
+        }}>
+        Specify consultation type
+      </Text>
+      <FocusableTextInput
+        value={value}
+        onChangeText={onChange}
+        onFocus={onFocus}
+        onBlur={onBlur}
+        hasError={error}
+        placeholder="e.g. Vaccination, medical clearance…"
+        autoCapitalize="sentences"
+        returnKeyType="done"
+      />
+    </View>
   );
 }
 
