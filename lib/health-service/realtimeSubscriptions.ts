@@ -91,7 +91,7 @@ export function acquireAppointmentsSubscription(get: HealthStoreGet): () => void
 
           await get().loadAppointments();
 
-          // Confirmed: DB trigger inserts "Appointment Confirmed!" (toast via notifications realtime).
+          // Confirmed / rescheduled: DB trigger inserts inbox row (toast via notifications realtime).
           if (!becameCancelled && !becameCompleted) return;
 
           const {

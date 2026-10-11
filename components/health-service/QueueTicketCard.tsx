@@ -1,6 +1,7 @@
-import { Alert, Pressable, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
-import type { Appointment, QueueTicket } from '../../lib/health-service/types';
+import type { Appointment, QueueTicket } from '@/lib/health-service/types';
+import { showInfoSheet } from '@/lib/ui/confirmSheetStore';
 
 const CARD_SHADOW = {
   shadowColor: '#000',
@@ -11,11 +12,13 @@ const CARD_SHADOW = {
 } as const;
 
 function queueExplainerCopy(): void {
-  Alert.alert(
-    'Tickets after approval',
-    'When you book, your request is sent for provider review — it is not confirmed yet. After the provider approves it, your visit is confirmed and an arrival ticket is created automatically. Use that ticket when you are at the clinic for queue order (demo).',
-    [{ text: 'OK' }],
-  );
+  showInfoSheet({
+    title: 'Tickets after approval',
+    message:
+      'When you book, your request is sent for provider review — it is not confirmed yet. After the provider approves it, your visit is confirmed and an arrival ticket is created automatically. Use that ticket when you are at the clinic for queue order.',
+    okLabel: 'Got it',
+    icon: 'info',
+  });
 }
 
 export type QueueTicketCardProps = {
@@ -42,7 +45,7 @@ function TicketBody({ ticket }: { ticket: QueueTicket }) {
       </Text>
       <Text className="mt-2 text-xs leading-5 text-[#8F9098]">
         This ticket was created when your provider confirmed your visit. Staff may call numbers in order when you are
-        on site (demo).
+        on site.
       </Text>
     </>
   );
@@ -67,8 +70,7 @@ export function QueueTicketCard({ todayConfirmedWithTicket, hasPendingToday }: Q
         </Pressable>
       </View>
       <Text className="mt-1 text-xs leading-5 text-[#8F9098]">
-        After the provider confirms your booking, a ticket is created for you automatically — nothing to tap here
-        (demo).
+        After the provider confirms your booking, a ticket is created for you automatically — nothing to tap here.
       </Text>
 
       {ticket ? (
@@ -80,14 +82,13 @@ export function QueueTicketCard({ todayConfirmedWithTicket, hasPendingToday }: Q
           <Text className="text-center text-sm font-medium text-[#92400E]">Awaiting provider review</Text>
           <Text className="mt-2 text-center text-xs leading-5 text-[#A16207]">
             Your visit for today is not confirmed yet. Once the provider approves it, your ticket will appear here
-            automatically (demo).
+            automatically.
           </Text>
         </View>
       ) : (
         <View className="mt-4 rounded-2xl border border-black/5 bg-white px-4 py-4">
           <Text className="text-center text-sm leading-5 text-[#8F9098]">
-            When you have a confirmed visit for today, your arrival ticket will show here after provider approval
-            (demo).
+            When you have a confirmed visit for today, your arrival ticket will show here after provider approval.
           </Text>
         </View>
       )}

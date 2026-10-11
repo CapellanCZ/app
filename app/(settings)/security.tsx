@@ -1,9 +1,11 @@
 import { useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { ScreenNavbar } from '@/components/ScreenNavbar';
 import { FocusableTextInput } from '@/components/ui/FocusableTextInput';
 import { SCHEDULE_PARTNER } from '@/lib/health-service/bookingScheduleTheme';
+import { showAppToast } from '@/lib/ui/toastBridge';
+import { showInfoSheet } from '@/lib/ui/confirmSheetStore';
 
 const BRAND = SCHEDULE_PARTNER.brand;
 
@@ -53,18 +55,38 @@ export default function SecurityScreen() {
 
   const handleSave = () => {
     if (!current || !next || !confirm) {
-      Alert.alert('Missing fields', 'Please fill in all password fields.');
+      showAppToast({
+        variant: 'accent',
+        placement: 'top',
+        label: 'Missing fields',
+        description: 'Please fill in all password fields.',
+      });
       return;
     }
     if (next !== confirm) {
-      Alert.alert('Mismatch', 'New passwords do not match.');
+      showAppToast({
+        variant: 'accent',
+        placement: 'top',
+        label: 'Mismatch',
+        description: 'New passwords do not match.',
+      });
       return;
     }
     if (next.length < 8) {
-      Alert.alert('Too short', 'Password must be at least 8 characters.');
+      showAppToast({
+        variant: 'accent',
+        placement: 'top',
+        label: 'Too short',
+        description: 'Password must be at least 8 characters.',
+      });
       return;
     }
-    Alert.alert('Password Updated', 'Your password has been changed successfully.');
+    showInfoSheet({
+      title: 'Password updated',
+      message: 'Your password has been changed successfully.',
+      okLabel: 'Done',
+      icon: 'info',
+    });
     setCurrent('');
     setNext('');
     setConfirm('');

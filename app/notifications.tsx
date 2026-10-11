@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useFocusEffect, useNavigation, useRouter } from 'expo-router';
 import {
-  Alert,
   type ListRenderItem,
   Pressable,
   RefreshControl,
@@ -38,6 +37,7 @@ import { useNotificationStore } from '@/lib/notifications/notificationStore';
 import type { NotificationItem } from '@/lib/notifications/types';
 import { ROUTES } from '@/lib/routes';
 import { Inter } from '@/lib/typography/inter';
+import { showConfirmSheet } from '@/lib/ui/confirmSheetStore';
 
 type ReadFilter = 'all' | 'unread';
 
@@ -219,34 +219,31 @@ export default function NotificationsScreen() {
 
   const handleClearAll = useCallback(() => {
     if (!items.length || clearingRef.current) return;
-    Alert.alert(
-      'Clear all notifications?',
-      'Notifications will be archived and removed from your inbox.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Clear all',
-          style: 'destructive',
-          onPress: () => {
-            const list = readFilter === 'unread' ? items.filter((n) => !n.read) : items;
-            if (!list.length) return;
+    showConfirmSheet({
+      title: 'Clear all notifications?',
+      message: 'Notifications will be archived and removed from your inbox.',
+      icon: 'danger',
+      cancelLabel: 'Keep them',
+      confirmLabel: 'Clear all',
+      destructive: true,
+      onConfirm: () => {
+        const list = readFilter === 'unread' ? items.filter((n) => !n.read) : items;
+        if (!list.length) return;
 
-            clearingRef.current = true;
-            void (async () => {
-              try {
-                if (readFilter === 'unread') {
-                  await archiveIds(list.map((item) => item.id));
-                } else {
-                  await archiveAll();
-                }
-              } finally {
-                clearingRef.current = false;
-              }
-            })();
-          },
-        },
-      ],
-    );
+        clearingRef.current = true;
+        void (async () => {
+          try {
+            if (readFilter === 'unread') {
+              await archiveIds(list.map((item) => item.id));
+            } else {
+              await archiveAll();
+            }
+          } finally {
+            clearingRef.current = false;
+          }
+        })();
+      },
+    });
   }, [archiveAll, archiveIds, items, readFilter]);
 
   const handleBack = useCallback(() => {

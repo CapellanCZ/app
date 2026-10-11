@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 
+import { compareAppointmentsBySchedule } from '@/lib/health-service/appointmentDisplay';
 import { healthServiceApi } from '@/lib/health-service/healthServiceApi';
 import { useHealthServiceStore } from '@/lib/health-service/healthServiceStore';
 import {
@@ -64,10 +65,7 @@ export function pickUpcomingConfirmedStaffId(
     appointments
       .filter((a) => a.status === 'confirmed')
       .filter((a) => a.dateKey >= today)
-      .sort((a, b) => {
-        if (a.dateKey !== b.dateKey) return a.dateKey.localeCompare(b.dateKey);
-        return a.startLabel.localeCompare(b.startLabel);
-      })[0] ?? null;
+      .sort((a, b) => compareAppointmentsBySchedule(a, b, false))[0] ?? null;
 
   return upcoming?.staffId ?? null;
 }

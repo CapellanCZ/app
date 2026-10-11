@@ -3,6 +3,7 @@ import { useNotificationStore } from '@/lib/notifications/notificationStore';
 const recentCancelNotifs = new Map<string, number>();
 const recentConfirmNotifs = new Map<string, number>();
 const recentCompletedNotifs = new Map<string, number>();
+const recentRescheduleNotifs = new Map<string, number>();
 const DEDUPE_MS = 8_000;
 
 /**
@@ -61,6 +62,40 @@ export function notifyAppointmentConfirmed(
       : '/appointments',
     source: 'Health Service',
     notificationType: 'success',
+  });
+}
+
+/**
+ * Notify the patient that an appointment was rescheduled.
+ * Prefer the DB trigger (`Appointment Rescheduled`) — kept for rare offline/dev paths.
+ */
+export function notifyAppointmentRescheduled(
+  userId: string | null | undefined,
+  opts: { appointmentId?: string; doctorName?: string; whenLabel?: string } = {},
+): void {
+  if (!userId) return;
+
+  const key = opts.appointmentId ?? `reschedule-${Date.now()}`;
+  const now = Date.now();
+  const prev = recentRescheduleNotifs.get(key);
+  if (prev != null && now - prev < DEDUPE_MS) return;
+  recentRescheduleNotifs.set(key, now);
+
+  const name = opts.doctorName?.trim() || 'your campus provider';
+  const appointmentId = opts.appointmentId;
+  const when = opts.whenLabel?.trim();
+
+  useNotificationStore.getState().notifySelf(userId, {
+    category: 'health',
+    title: 'Appointment Rescheduled',
+    body: when
+      ? `Your appointment with ${name} was moved to ${when}. Open Appointments to review the new schedule.`
+      : `Your appointment with ${name} was rescheduled. Open Appointments to review the new schedule.`,
+    href: appointmentId
+      ? `/health-service/appointment/${appointmentId}`
+      : '/appointments',
+    source: 'Health Service',
+    notificationType: 'warning',
   });
 }
 

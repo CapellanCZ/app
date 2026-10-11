@@ -7,8 +7,15 @@ export function friendlyAuthError(raw: string): string {
   if (msg.includes('rate limit') || msg.includes('too many requests'))
     return 'You\u2019ve made too many attempts. Please wait a minute and try again.';
 
-  if (msg.includes('user not found') || msg.includes('no user') || msg.includes('user not allowed'))
-    return 'Not enrolled — contact clinic admin.';
+  if (
+    msg.includes('user not found') ||
+    msg.includes('no user') ||
+    msg.includes('user not allowed') ||
+    msg.includes('signups not allowed') ||
+    (msg.includes('signup') && msg.includes('disabled'))
+  ) {
+    return 'This school email is not enrolled yet. Ask the campus clinic to import your record, then try again.';
+  }
 
   if (msg.includes('invalid') && msg.includes('otp'))
     return 'That code is incorrect or has expired. Please try again or request a new one.';

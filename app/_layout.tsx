@@ -21,6 +21,7 @@ import { FeedbackSoundHost } from '@/components/ui/FeedbackSoundHost';
 import { ConsultationSummaryHost } from '@/components/consultation/ConsultationSummaryHost';
 import { AppointmentStatusHost } from '@/components/health-service/AppointmentStatusHost';
 import { LoginSheetHost } from '@/components/auth/LoginSheetHost';
+import { ConfirmSheetHost } from '@/components/ui/ConfirmSheetHost';
 import { configureAndroidText } from '@/lib/ui/configureAndroidText';
 import { prepareSplashScreen } from '@/lib/bootstrap/splashScreen';
 import { tamaguiConfig } from '../tamagui.config';
@@ -107,6 +108,7 @@ export default function RootLayout() {
               <ConsultationSummaryHost />
               <AppointmentStatusHost />
               <LoginSheetHost />
+              <ConfirmSheetHost />
               </AuthProvider>
             </KeyboardProvider>
           </SafeAreaProvider>

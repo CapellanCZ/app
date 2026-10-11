@@ -42,12 +42,15 @@ export function buildBookingReason(
   otherDetail = '',
 ): string {
   const other = otherDetail.trim();
-  const requestLine =
-    request === 'Other' && other
+  let requestLine: string | null = null;
+  if (request === 'Other') {
+    requestLine = other
       ? `Consultation request: Other — ${other}`
-      : request
-        ? `Consultation request: ${request}`
-        : null;
+      : 'Consultation request: Other';
+  } else if (request) {
+    requestLine = `Consultation request: ${request}`;
+  }
+
   const lines = [
     requestLine,
     comments.trim() ? `Comments: ${comments.trim()}` : null,
@@ -60,7 +63,10 @@ export function formatVisitReasonDisplay(raw: string | null | undefined): string
   if (!raw?.trim()) return null;
   const text = raw.trim();
   const request = text.match(/Consultation request:\s*(.+?)(?:\n|$)/i)?.[1]?.trim();
-  if (request) return request;
+  if (request) {
+    // Already includes "Other — …" when custom text was saved.
+    return request;
+  }
 
   // Legacy / freeform rows: drop any "Comments:" block and collapse remaining lines.
   const withoutComments = text
@@ -325,6 +331,17 @@ export function BookingOtherRequestField({
         autoCapitalize="sentences"
         returnKeyType="done"
       />
+      {error ? (
+        <Text
+          style={{
+            fontFamily: Inter.regular,
+            fontSize: 13,
+            color: '#EF4444',
+            letterSpacing: -0.26,
+          }}>
+          Please specify the type of consultation.
+        </Text>
+      ) : null}
     </View>
   );
 }

@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -16,6 +16,8 @@ import { HealthServiceScreenShell } from '../../../../components/health-service/
 import { ScreenNavbar } from '../../../../components/ScreenNavbar';
 import { SCHEDULE_PARTNER } from '../../../../lib/health-service/bookingScheduleTheme';
 import { useHealthServiceStore } from '../../../../lib/health-service/healthServiceStore';
+import { showConfirmSheet, showInfoSheet } from '@/lib/ui/confirmSheetStore';
+import { showAppToast } from '@/lib/ui/toastBridge';
 
 const BRAND = '#2970FF';
 const ICON_TINT = 'rgba(41, 112, 255, 0.12)';
@@ -77,42 +79,50 @@ export default function HealthServiceBookFeelingsScreen() {
 
     const extra = symptoms || 'No extra symptoms or comments added.';
 
-    Alert.alert(
-      'Submit booking request?',
-      `Request ${slotLabel} on ${visitDay.toLocaleDateString(undefined, {
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric',
-      })} with ${staff.name}?\n\n${extra}\n\nA provider will review it before it is confirmed. Once confirmed, an arrival ticket is created automatically.`,
-      [
-        { text: 'Not now', style: 'cancel' },
-        {
-          text: 'Submit',
-          onPress: async () => {
-            try {
-              await bookAppointment({
-                staffId: staff.id,
-                day: visitDay,
-                startLabel: slotLabel,
-                symptoms,
-              });
-              Alert.alert(
-                'Request sent',
+    const dayLabel = visitDay.toLocaleDateString(undefined, {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+    });
+
+    showConfirmSheet({
+      title: 'Submit booking request?',
+      message: `Request ${slotLabel} on ${dayLabel} with ${staff.name}?\n\n${extra}\n\nA provider will review it before it is confirmed.`,
+      icon: 'info',
+      cancelLabel: 'Not now',
+      confirmLabel: 'Submit',
+      destructive: false,
+      onConfirm: () => {
+        void (async () => {
+          try {
+            await bookAppointment({
+              staffId: staff.id,
+              day: visitDay,
+              startLabel: slotLabel,
+              symptoms,
+            });
+            showInfoSheet({
+              title: 'Request sent',
+              message:
                 'Your booking is pending provider review. You will see it under My appointments with a Pending status. After approval, your visit is confirmed and a ticket is added automatically.',
-                [{ text: 'OK', onPress: () => router.replace('/health-service') }],
-              );
-            } catch (error) {
-              const message =
-                error instanceof Error ? error.message : 'Failed to book appointment. Please try again.';
-              const isSameDay = message.includes('already have an appointment on this day');
-              Alert.alert(isSameDay ? 'Already booked today' : 'Booking failed', message, [
-                { text: 'OK' },
-              ]);
-            }
-          },
-        },
-      ],
-    );
+              okLabel: 'Done',
+              icon: 'info',
+              onClose: () => router.replace('/health-service'),
+            });
+          } catch (error) {
+            const message =
+              error instanceof Error ? error.message : 'Failed to book appointment. Please try again.';
+            const isSameDay = message.includes('already have an appointment on this day');
+            showAppToast({
+              variant: isSameDay ? 'accent' : 'danger',
+              placement: 'top',
+              label: isSameDay ? 'Already booked today' : 'Booking failed',
+              description: message,
+            });
+          }
+        })();
+      },
+    });
   }, [staff, visitDay, slotLabel, bookAppointment, feelingIds, visitComments]);
 
   if (!staff || !visitDay || !slotLabel) {

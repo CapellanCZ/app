@@ -9,6 +9,7 @@ import { displayNameWithoutMiddle } from '@/lib/profile/displayName';
 import { useProfileStore } from '@/lib/profile/profileStore';
 import { IconsaxNotificationIcon } from '@/components/icons/IconsaxNotificationIcon';
 import { IconsaxDocumentTextIcon } from '@/components/icons/IconsaxDocumentTextIcon';
+import { IconsaxArchiveIcon } from '@/components/icons/IconsaxArchiveIcon';
 import { IconsaxInfoCircleIcon } from '@/components/icons/IconsaxInfoCircleIcon';
 import { UserEditIcon } from '@/components/icons/UserEditIcon';
 import { MessageQuestionIcon } from '@/components/icons/MessageQuestionIcon';
@@ -102,6 +103,16 @@ export default function ProfileTab() {
             icon={<IconsaxDocumentTextIcon size={24} color="#111111" />}
             label="Privacy Policy"
             onPress={() => router.push(ROUTES.privacy)}
+          />
+          <ProfileMenuRow
+            icon={<IconsaxArchiveIcon size={24} color="#111111" />}
+            label="Past Visits"
+            onPress={() =>
+              router.push({
+                pathname: ROUTES.appointments,
+                params: { tab: 'past' },
+              })
+            }
           />
         </ProfileSection>
 

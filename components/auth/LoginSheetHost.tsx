@@ -197,7 +197,11 @@ export function LoginSheetHost() {
     setError(null);
     setOtpError(false);
     setCooldown(RESEND_COOLDOWN_SECONDS);
-    await apiSendOtp(email.trim().toLowerCase());
+    const result = await apiSendOtp(email.trim().toLowerCase());
+    if (!result.ok) {
+      setCooldown(0);
+      setError({ tone: 'warning', message: result.message });
+    }
   }, [email, cooldown]);
 
   const domainSuggestions = matchingSchoolEmailDomains(email);
@@ -225,7 +229,8 @@ export function LoginSheetHost() {
           <View style={styles.textBlock}>
             <Text style={styles.title}>Let&apos;s get you started</Text>
             <Text style={styles.subtitle}>
-              Enter your school email then we&apos;ll send you the One-Time Password.
+              Use the school email on file with the campus clinic. We&apos;ll send a one-time
+              password only if your record has been imported.
             </Text>
           </View>
 

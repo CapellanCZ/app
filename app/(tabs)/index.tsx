@@ -18,9 +18,9 @@ import { useAnnouncementStore } from '@/lib/announcements/announcementStore';
 import { useAuth } from '@/lib/auth/AuthProvider';
 import {
   staffDisplayForAppointment,
-  staffNameForAppointment,
   useHealthServiceStore,
 } from '@/lib/health-service/healthServiceStore';
+import { compareAppointmentsBySchedule } from '@/lib/health-service/appointmentDisplay';
 import { useStaffPresenceStore } from '@/lib/health-service/staffPresenceStore';
 import { useProfileStore } from '@/lib/profile/profileStore';
 import { useHomeScreenReady } from '@/lib/home/useHomeScreenReady';
@@ -128,10 +128,7 @@ export default function HealthServiceScreen() {
       appointments
         .filter((a) => a.status === 'confirmed')
         .filter((a) => a.dateKey >= today)
-        .sort((a, b) => {
-          if (a.dateKey !== b.dateKey) return a.dateKey.localeCompare(b.dateKey);
-          return a.startLabel.localeCompare(b.startLabel);
-        })[0] ?? null
+        .sort((a, b) => compareAppointmentsBySchedule(a, b, false))[0] ?? null
     );
   }, [appointments]);
 

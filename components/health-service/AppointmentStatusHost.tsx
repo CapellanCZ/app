@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 
 import { AppointmentBookedCard } from '@/components/booking/AppointmentBookedCard';
 import { AppointmentBookedCheckIcon } from '@/components/booking/AppointmentBookedCheckIcon';
 import { AppointmentImportantNote } from '@/components/booking/AppointmentImportantNote';
 import { formatVisitReasonDisplay } from '@/components/booking/BookingConsultationFields';
+import { IconsaxDangerIcon } from '@/components/icons/IconsaxDangerIcon';
 import { BottomSheetModal } from '@/components/ui/BottomSheetModal';
 import { useAuth } from '@/lib/auth/AuthProvider';
 import {
@@ -22,6 +23,7 @@ import { useHealthServiceStore } from '@/lib/health-service/healthServiceStore';
 import { useAppointmentStaffDisplay } from '@/lib/health-service/useAppointmentStaffDisplay';
 import { notifyAppointmentCancelled } from '@/lib/notifications/appointmentNotifications';
 import { Inter } from '@/lib/typography/inter';
+import { androidPressProps } from '@/lib/ui/androidPress';
 import { playToastFeedback } from '@/lib/ui/feedbackSound';
 import { showAppToast } from '@/lib/ui/toastBridge';
 
@@ -40,6 +42,8 @@ export function AppointmentStatusHost() {
   const [reminderSetAt, setReminderSetAt] = useState<Date | null>(null);
   const [calendarBusy, setCalendarBusy] = useState(false);
   const [cancelBusy, setCancelBusy] = useState(false);
+  /** In-sheet confirm — avoids Android system Alert / nested Modal. */
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [queueNumberLabel, setQueueNumberLabel] = useState<string | null>(null);
 
   const loadAppointments = useHealthServiceStore((s) => s.loadAppointments);
@@ -137,37 +141,38 @@ export function AppointmentStatusHost() {
 
   const requestCancel = useCallback(() => {
     if (!appointmentId || cancelBusy) return;
+    setShowCancelConfirm(true);
+  }, [appointmentId, cancelBusy]);
 
-    Alert.alert(
-      'Cancel appointment?',
-      `Cancel your appointment with ${name}?`,
-      [
-        { text: 'Keep', style: 'cancel' },
-        {
-          text: 'Cancel appointment',
-          style: 'destructive',
-          onPress: () => {
-            void (async () => {
-              setCancelBusy(true);
-              try {
-                await cancelAppointment(appointmentId);
-                notifyAppointmentCancelled(session?.user?.id, {
-                  appointmentId,
-                  doctorName: name,
-                });
-                close();
-                router.replace('/appointments');
-              } catch {
-                Alert.alert('Could not cancel', 'Please try again in a moment.');
-              } finally {
-                setCancelBusy(false);
-              }
-            })();
-          },
-        },
-      ],
-    );
+  const performCancel = useCallback(() => {
+    if (!appointmentId || cancelBusy) return;
+    void (async () => {
+      setCancelBusy(true);
+      try {
+        await cancelAppointment(appointmentId);
+        notifyAppointmentCancelled(session?.user?.id, {
+          appointmentId,
+          doctorName: name,
+        });
+        setShowCancelConfirm(false);
+        close();
+        router.replace('/appointments');
+      } catch {
+        showAppToast({
+          variant: 'danger',
+          placement: 'top',
+          label: 'Could not cancel',
+          description: 'Please try again in a moment.',
+        });
+      } finally {
+        setCancelBusy(false);
+      }
+    })();
   }, [appointmentId, cancelAppointment, cancelBusy, close, name, session?.user?.id]);
+
+  useEffect(() => {
+    if (!appointmentId) setShowCancelConfirm(false);
+  }, [appointmentId]);
 
   const handleAddToCalendar = useCallback(async () => {
     if (!dateKey || time === '—' || calendarBusy) return;
@@ -306,8 +311,17 @@ export function AppointmentStatusHost() {
   ]);
 
   const handleClose = useCallback(() => {
+    setShowCancelConfirm(false);
     close();
   }, [close]);
+
+  const isPendingCancel = appointment?.status === 'pending';
+  const cancelTitle = isPendingCancel ? 'Cancel this request?' : 'Cancel appointment?';
+  const cancelMessage = isPendingCancel
+    ? `${dateKey && time !== '—' ? `${formatAppointmentBookedDate(dateKey)} · ${time}` : 'This slot'} with ${name}. Your booking has not been confirmed yet.`
+    : `Cancel your appointment with ${name}${
+        dateKey && time !== '—' ? ` on ${formatAppointmentBookedDate(dateKey)} · ${time}` : ''
+      }?`;
 
   return (
     <BottomSheetModal
@@ -315,14 +329,61 @@ export function AppointmentStatusHost() {
       onClose={handleClose}
       backgroundColor="#F9F9F9"
       bottomPadding={16}
-      maxHeightFraction={0.92}>
+      maxHeightFraction={0.92}
+      dismissOnBackdropPress={!showCancelConfirm && !cancelBusy}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         bounces={false}
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}>
-        {isConfirmed ? (
+        {showCancelConfirm ? (
+          <View style={styles.block}>
+            <View style={styles.cancelHeader}>
+              <View style={styles.dangerIconWell}>
+                <IconsaxDangerIcon size={28} color="#D92D20" />
+              </View>
+              <Text accessibilityRole="header" style={styles.cancelTitle}>
+                {cancelTitle}
+              </Text>
+              <Text style={styles.cancelMessage}>{cancelMessage}</Text>
+            </View>
+
+            <View style={styles.actions}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Keep appointment"
+                disabled={cancelBusy}
+                onPress={() => setShowCancelConfirm(false)}
+                {...androidPressProps({ hitSlop: 2 })}
+                style={({ pressed }) => [
+                  styles.primaryBtn,
+                  { opacity: cancelBusy ? 0.7 : pressed ? 0.9 : 1 },
+                ]}>
+                <Text style={styles.primaryBtnText}>Keep</Text>
+              </Pressable>
+
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={isPendingCancel ? 'Cancel request' : 'Cancel appointment'}
+                disabled={cancelBusy}
+                onPress={performCancel}
+                {...androidPressProps({ hitSlop: 2 })}
+                style={({ pressed }) => [
+                  styles.cancelConfirmBtn,
+                  { opacity: cancelBusy ? 0.55 : pressed ? 0.88 : 1 },
+                ]}>
+                <Text style={styles.cancelConfirmBtnText}>
+                  {cancelBusy
+                    ? 'Cancelling…'
+                    : isPendingCancel
+                      ? 'Cancel request'
+                      : 'Cancel appointment'}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        ) : isConfirmed ? (
           <View style={styles.block}>
             <View style={styles.header}>
               <AppointmentBookedCheckIcon size={96} animateCheck />
@@ -536,5 +597,54 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: '#EFEFEF',
     width: '100%',
+  },
+  cancelHeader: {
+    alignItems: 'center',
+    gap: 12,
+    width: '100%',
+    paddingHorizontal: 8,
+  },
+  dangerIconWell: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: '#FEE4E2',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  cancelTitle: {
+    fontFamily: Inter.semiBold,
+    fontSize: 24,
+    color: '#222222',
+    letterSpacing: -0.96,
+    lineHeight: 30,
+    textAlign: 'center',
+  },
+  cancelMessage: {
+    fontFamily: Inter.regular,
+    fontSize: 16,
+    color: 'rgba(114, 114, 114, 0.9)',
+    letterSpacing: -0.32,
+    lineHeight: 22,
+    textAlign: 'center',
+    maxWidth: 320,
+  },
+  cancelConfirmBtn: {
+    height: 48,
+    borderRadius: 48,
+    borderCurve: 'continuous',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E3E3E3',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelConfirmBtnText: {
+    fontFamily: Inter.medium,
+    fontSize: 17,
+    color: '#C93B2E',
+    letterSpacing: -1.2,
+    lineHeight: 18,
   },
 });

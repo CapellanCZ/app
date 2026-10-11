@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
-  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -27,6 +26,8 @@ import {
   inputFieldBase,
   inputFieldFocused,
 } from '../../../lib/ui/inputFocus';
+import { showConfirmSheet, showInfoSheet } from '@/lib/ui/confirmSheetStore';
+import { showAppToast } from '@/lib/ui/toastBridge';
 
 export default function HealthServiceAdminScreen() {
   const insets = useSafeAreaInsets();
@@ -42,7 +43,12 @@ export default function HealthServiceAdminScreen() {
       setActiveTickets(tickets);
     } catch (error) {
       console.error('Failed to load active tickets:', error);
-      Alert.alert('Error', 'Failed to load active tickets');
+      showAppToast({
+        variant: 'danger',
+        placement: 'top',
+        label: 'Could not load tickets',
+        description: 'Failed to load active tickets.',
+      });
     }
   }, []);
 
@@ -58,7 +64,12 @@ export default function HealthServiceAdminScreen() {
 
   const handleCheckIn = useCallback(async () => {
     if (!ticketCode.trim()) {
-      Alert.alert('Error', 'Please enter a check-in code');
+      showAppToast({
+        variant: 'accent',
+        placement: 'top',
+        label: 'Check-in code required',
+        description: 'Please enter a check-in code.',
+      });
       return;
     }
 
@@ -67,7 +78,12 @@ export default function HealthServiceAdminScreen() {
       // The check-in code is in format "CH-XXXX"
       // First, look up the appointment by check-in code to get the appointment ID
       if (!supabase) {
-        Alert.alert('Error', 'Supabase not configured');
+        showAppToast({
+          variant: 'danger',
+          placement: 'top',
+          label: 'Unavailable',
+          description: 'Supabase not configured.',
+        });
         setLoading(false);
         return;
       }
@@ -79,7 +95,12 @@ export default function HealthServiceAdminScreen() {
         .single();
       
       if (lookupError || !appointmentData) {
-        Alert.alert('Invalid Check-in Code', 'Check-in code not found. Please check the code and try again.');
+        showInfoSheet({
+          title: 'Invalid check-in code',
+          message: 'Check-in code not found. Please check the code and try again.',
+          okLabel: 'Got it',
+          icon: 'danger',
+        });
         setTicketCode('');
         setLoading(false);
         return;
@@ -104,7 +125,12 @@ export default function HealthServiceAdminScreen() {
         .single();
       
       if (apptError || !confirmedAppointment) {
-        Alert.alert('Error', 'Failed to load appointment details.');
+        showAppToast({
+          variant: 'danger',
+          placement: 'top',
+          label: 'Could not load appointment',
+          description: 'Failed to load appointment details.',
+        });
         setTicketCode('');
         setLoading(false);
         return;
@@ -113,34 +139,44 @@ export default function HealthServiceAdminScreen() {
       const ticket = confirmedAppointment.health_queue_tickets?.[0];
       if (ticket) {
         const patientNumber = `Patient #${ticket.queue_position}`;
-        
-        Alert.alert(
-          'Appointment Confirmed',
-          `Patient Number: ${patientNumber}\nCheck-in Code: ${ticketCode}`,
-          [
-            {
-              text: 'Record Vital Signs',
-              onPress: () => {
-                router.push({
-                  pathname: '/health-service/admin/vital-signs',
-                  params: {
-                    appointmentId: ticketCode.trim(),
-                    ticketCode: ticket.ticket_code,
-                  },
-                });
+        const code = ticketCode.trim();
+        const nextTicketCode = ticket.ticket_code;
+
+        showConfirmSheet({
+          title: 'Appointment confirmed',
+          message: `Patient Number: ${patientNumber}\nCheck-in Code: ${code}`,
+          icon: 'info',
+          cancelLabel: 'Done',
+          confirmLabel: 'Record Vital Signs',
+          destructive: false,
+          onConfirm: () => {
+            router.push({
+              pathname: '/health-service/admin/vital-signs',
+              params: {
+                appointmentId: code,
+                ticketCode: nextTicketCode,
               },
-            },
-            { text: 'OK' },
-          ]
-        );
+            });
+          },
+        });
         setTicketCode('');
         await loadActiveTickets();
       } else {
-        Alert.alert('Error', 'Ticket was not created. Please try again.');
+        showAppToast({
+          variant: 'danger',
+          placement: 'top',
+          label: 'Ticket missing',
+          description: 'Ticket was not created. Please try again.',
+        });
       }
     } catch (error) {
       console.error('Check-in failed:', error);
-      Alert.alert('Error', 'Failed to check in patient. Please try again.');
+      showAppToast({
+        variant: 'danger',
+        placement: 'top',
+        label: 'Check-in failed',
+        description: 'Failed to check in patient. Please try again.',
+      });
     } finally {
       setLoading(false);
     }
@@ -259,8 +295,13 @@ export default function HealthServiceAdminScreen() {
                     <Pressable
                       style={styles.callButton}
                       onPress={() => {
-                        // TODO: Get appointment ID from ticket
-                        Alert.alert('Info', 'Use the appointment ID from the patient to generate their ticket');
+                        showInfoSheet({
+                          title: 'Check-in tip',
+                          message:
+                            'Use the appointment ID from the patient to generate their ticket.',
+                          okLabel: 'Got it',
+                          icon: 'info',
+                        });
                       }}>
                       <Text style={styles.callButtonText}>Select for Check-in</Text>
                     </Pressable>

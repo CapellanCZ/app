@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Alert,
   Image,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
@@ -20,10 +19,14 @@ import { formatDateLabel, limitSentences } from '@/lib/announcements/announcemen
 import type { Announcement } from '@/lib/announcements/types';
 import { Inter } from '@/lib/typography/inter';
 import { androidPressProps } from '@/lib/ui/androidPress';
+import { showInfoSheet } from '@/lib/ui/confirmSheetStore';
 
 const AUTO_MS = 5500;
 /** Figma image frame aspect (306×204). */
 const IMAGE_ASPECT = 306 / 204;
+const DOT_SIZE = 8;
+const DOT_GAP = 8;
+const CARD_PAD = 20;
 
 /** Soft ambient shadow — Android elevation is too hard against #F9F9F9. */
 const CARD_SOFT_SHADOW: ViewStyle =
@@ -47,11 +50,16 @@ const BODY_LINES = 3;
 const BODY_BLOCK_HEIGHT = BODY_LINE_HEIGHT * BODY_LINES;
 const FOOTER_HEIGHT = 20;
 
+/** Width reserved on the right so "Read More" never collides with fixed dots. */
+function dotRowWidth(total: number): number {
+  const count = Math.max(total, 1);
+  return count * DOT_SIZE + Math.max(0, count - 1) * DOT_GAP;
+}
+
 type SlideProps = {
   item: Announcement;
   width: number;
-  index: number;
-  total: number;
+  footerRightPad: number;
   onReadMore: (item: Announcement) => void;
 };
 
@@ -67,7 +75,7 @@ function displayTitle(raw: string): string {
     .join(' ');
 }
 
-function AnnouncementSlide({ item, width, index, total, onReadMore }: SlideProps) {
+function AnnouncementSlide({ item, width, footerRightPad, onReadMore }: SlideProps) {
   const dateLabel = formatDateLabel(item.publishedAt);
   const title = displayTitle(item.title);
   const previewBody = limitSentences(item.body ?? '');
@@ -127,7 +135,7 @@ function AnnouncementSlide({ item, width, index, total, onReadMore }: SlideProps
       {/* Copy + footer — fixed heights so card size never jumps */}
       <View
         style={{
-          padding: 20,
+          padding: CARD_PAD,
           gap: 10,
         }}>
         <View style={{ gap: 4 }}>
@@ -175,8 +183,8 @@ function AnnouncementSlide({ item, width, index, total, onReadMore }: SlideProps
             style={{
               flexDirection: 'row',
               alignItems: 'center',
-              justifyContent: 'space-between',
               height: FOOTER_HEIGHT,
+              paddingRight: footerRightPad,
             }}>
             {/* Visual affordance only — whole card opens the announcement */}
             <Text
@@ -188,22 +196,6 @@ function AnnouncementSlide({ item, width, index, total, onReadMore }: SlideProps
               }}>
               Read More →
             </Text>
-
-            <View
-              pointerEvents="none"
-              style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              {Array.from({ length: Math.max(total, 1) }).map((_, i) => (
-                <View
-                  key={`dot-${i}`}
-                  style={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: 999,
-                    backgroundColor: i === index ? '#0D0D0D' : '#D9D9D9',
-                  }}
-                />
-              ))}
-            </View>
           </View>
         </View>
       </View>
@@ -265,9 +257,12 @@ export function HealthServiceAnnouncementCard() {
   );
 
   const onReadMore = useCallback((item: Announcement) => {
-    Alert.alert(displayTitle(item.title), item.body?.trim() || 'No additional details.', [
-      { text: 'OK' },
-    ]);
+    showInfoSheet({
+      title: displayTitle(item.title),
+      message: item.body?.trim() || 'No additional details.',
+      okLabel: 'Got it',
+      icon: 'info',
+    });
   }, []);
 
   if (!hasLoaded) {
@@ -289,6 +284,8 @@ export function HealthServiceAnnouncementCard() {
       </View>
     );
   }
+
+  const footerRightPad = items.length > 1 ? dotRowWidth(items.length) + 8 : 0;
 
   return (
     <View
@@ -317,12 +314,40 @@ export function HealthServiceAnnouncementCard() {
                 key={item.id}
                 item={item}
                 width={width}
-                index={index}
-                total={items.length}
+                footerRightPad={footerRightPad}
                 onReadMore={onReadMore}
               />
             ))}
           </ScrollView>
+        ) : null}
+
+        {/* Fixed pagination — stays put while slides swipe */}
+        {items.length > 1 ? (
+          <View
+            pointerEvents="none"
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+            style={{
+              position: 'absolute',
+              right: CARD_PAD,
+              bottom: CARD_PAD,
+              height: FOOTER_HEIGHT,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: DOT_GAP,
+            }}>
+            {items.map((item, i) => (
+              <View
+                key={`dot-${item.id}`}
+                style={{
+                  width: DOT_SIZE,
+                  height: DOT_SIZE,
+                  borderRadius: 999,
+                  backgroundColor: i === index ? '#0D0D0D' : '#D9D9D9',
+                }}
+              />
+            ))}
+          </View>
         ) : null}
       </View>
     </View>

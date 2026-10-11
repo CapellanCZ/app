@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 
@@ -8,6 +8,8 @@ import { FocusableTextInput } from '../../../components/ui/FocusableTextInput';
 import { IconsaxHeartIcon } from '../../../components/icons/IconsaxHeartIcon';
 import { healthServiceApi } from '../../../lib/health-service/healthServiceApi';
 import { INPUT_PLACEHOLDER } from '../../../lib/ui/inputFocus';
+import { showInfoSheet } from '@/lib/ui/confirmSheetStore';
+import { showAppToast } from '@/lib/ui/toastBridge';
 
 type VitalSignsForm = {
   bloodPressureSystolic: string;
@@ -45,26 +47,34 @@ export default function VitalSignsScreen() {
   }, []);
 
   const handleSave = useCallback(async () => {
-    // Validate required fields
     if (!form.bloodPressureSystolic || !form.bloodPressureDiastolic || !form.heartRate) {
-      Alert.alert('Error', 'Please fill in blood pressure and heart rate');
+      showAppToast({
+        variant: 'warning',
+        placement: 'top',
+        label: 'Missing fields',
+        description: 'Please fill in blood pressure and heart rate.',
+      });
       return;
     }
 
     setLoading(true);
     try {
-      // Find the ticket ID first
       const activeTickets = await healthServiceApi.getActiveTickets();
-      const ticket = activeTickets.find(t => t.code === ticketCode);
-      
+      const ticket = activeTickets.find((t) => t.code === ticketCode);
+
       if (!ticket) {
-        Alert.alert('Error', 'Ticket not found');
+        showAppToast({
+          variant: 'danger',
+          placement: 'top',
+          label: 'Ticket not found',
+          description: 'Check the ticket code and try again.',
+        });
         return;
       }
 
       await healthServiceApi.recordVitalSigns({
         appointmentId,
-        ticketId: ticket.code, // Using code as ID for now
+        ticketId: ticket.code,
         bloodPressureSystolic: parseInt(form.bloodPressureSystolic) || undefined,
         bloodPressureDiastolic: parseInt(form.bloodPressureDiastolic) || undefined,
         heartRate: parseInt(form.heartRate) || undefined,
@@ -75,19 +85,21 @@ export default function VitalSignsScreen() {
         notes: form.notes || undefined,
       });
 
-      Alert.alert(
-        'Success',
-        'Vital signs recorded successfully',
-        [
-          {
-            text: 'OK',
-            onPress: () => router.back(),
-          },
-        ]
-      );
+      showInfoSheet({
+        title: 'Vital signs saved',
+        message: 'Vital signs were recorded successfully.',
+        okLabel: 'Done',
+        icon: 'info',
+        onClose: () => router.back(),
+      });
     } catch (error) {
       console.error('Failed to record vital signs:', error);
-      Alert.alert('Error', 'Failed to record vital signs. Please try again.');
+      showAppToast({
+        variant: 'danger',
+        placement: 'top',
+        label: 'Could not save',
+        description: 'Failed to record vital signs. Please try again.',
+      });
     } finally {
       setLoading(false);
     }

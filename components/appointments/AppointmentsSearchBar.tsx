@@ -1,6 +1,5 @@
 import { useRef, useState } from 'react';
 import {
-  Alert,
   Pressable,
   StyleSheet,
   TextInput,
@@ -21,6 +20,7 @@ import {
   inputFieldBase,
   inputFieldFocused,
 } from '@/lib/ui/inputFocus';
+import { showOptionSheet } from '@/lib/ui/confirmSheetStore';
 import { Inter } from '@/lib/typography/inter';
 
 /** Resting outline — same light gray as appointment cards. */
@@ -36,7 +36,7 @@ type Props = {
 
 /**
  * Appointments search — login `AppInput` focus UX + always-visible soft outline.
- * Filter opens native Alert (All / Last 7 / Last 30).
+ * Filter opens CampusCare option sheet (All / Last 7 / Last 30).
  */
 export function AppointmentsSearchBar({
   value,
@@ -53,18 +53,16 @@ export function AppointmentsSearchBar({
     RANGE_PRESETS.find((p) => p.id === range)?.label ?? RANGE_PRESETS[0].label;
 
   const openRangeFilter = () => {
-    Alert.alert(
-      'Date range',
-      'Show appointments in this window',
-      [
-        ...RANGE_PRESETS.map((preset) => ({
-          text: preset.id === range ? `✓ ${preset.label}` : preset.label,
-          onPress: () => onRangeChange(preset.id),
-        })),
-        { text: 'Cancel', style: 'cancel' as const },
-      ],
-      { cancelable: true },
-    );
+    showOptionSheet({
+      title: 'Date range',
+      message: 'Show appointments in this window',
+      options: RANGE_PRESETS.map((preset) => ({
+        id: preset.id,
+        label: preset.label,
+        selected: preset.id === range,
+      })),
+      onSelect: (id) => onRangeChange(id as AppointmentRangePreset),
+    });
   };
 
   return (
