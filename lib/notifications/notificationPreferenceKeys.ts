@@ -27,14 +27,19 @@ export function resolveNotificationPreferenceKey(source: PreferenceSource): Noti
     (typeof meta.category === 'string' ? meta.category : source.category ?? '').toLowerCase();
   if (category === 'campus') return 'announcements';
 
-  if (type === 'queue' || (milestone && milestone !== 'visit_completed')) return 'health';
+  const event = typeof meta.event === 'string' ? meta.event.toLowerCase() : null;
   if (
+    milestone === 'visit_completed' ||
+    event === 'cancelled' ||
+    event === 'rescheduled' ||
     type === 'appointment' ||
     type === 'consultation_request' ||
     meta.follow_up_reminder === true
   ) {
     return 'appointments';
   }
+
+  if (type === 'queue' || milestone) return 'health';
 
   return 'health';
 }

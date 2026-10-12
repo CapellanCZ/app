@@ -311,13 +311,19 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
           });
         }
 
-        toastFromNotification(item, {
-          alsoLocalOsAlert:
-            isAnnouncement ||
-            item.title.toLowerCase().includes('your turn') ||
-            item.title.toLowerCase().includes("you're next") ||
-            item.title.toLowerCase().includes('youre next') ||
-            item.title.toLowerCase().includes('in queue'),
+        // Foreground: toast only. Background OS push comes from send-push.
+        toastFromNotification({
+          ...item,
+          ticketId:
+            typeof row.metadata?.ticket_id === 'string' ? row.metadata.ticket_id : null,
+          queueMilestone:
+            typeof row.metadata?.queue_milestone === 'string'
+              ? row.metadata.queue_milestone
+              : null,
+          appointmentId:
+            typeof row.metadata?.appointment_id === 'string'
+              ? row.metadata.appointment_id
+              : null,
         });
       },
       onDelete: (row) => {

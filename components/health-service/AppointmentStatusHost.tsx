@@ -8,7 +8,6 @@ import { AppointmentImportantNote } from '@/components/booking/AppointmentImport
 import { formatVisitReasonDisplay } from '@/components/booking/BookingConsultationFields';
 import { IconsaxDangerIcon } from '@/components/icons/IconsaxDangerIcon';
 import { BottomSheetModal } from '@/components/ui/BottomSheetModal';
-import { useAuth } from '@/lib/auth/AuthProvider';
 import {
   appointmentReminderAt,
   buildGoogleCalendarUrl,
@@ -21,7 +20,6 @@ import { useAppointmentStatusStore } from '@/lib/health-service/appointmentStatu
 import { healthServiceApi } from '@/lib/health-service/healthServiceApi';
 import { useHealthServiceStore } from '@/lib/health-service/healthServiceStore';
 import { useAppointmentStaffDisplay } from '@/lib/health-service/useAppointmentStaffDisplay';
-import { notifyAppointmentCancelled } from '@/lib/notifications/appointmentNotifications';
 import { Inter } from '@/lib/typography/inter';
 import { androidPressProps } from '@/lib/ui/androidPress';
 import { playToastFeedback } from '@/lib/ui/feedbackSound';
@@ -36,7 +34,6 @@ const CLINIC_LOCATION = 'CampusCare Student Health Clinic';
 export function AppointmentStatusHost() {
   const appointmentId = useAppointmentStatusStore((s) => s.appointmentId);
   const close = useAppointmentStatusStore((s) => s.close);
-  const { session } = useAuth();
 
   const [reminderBusy, setReminderBusy] = useState(false);
   const [reminderSetAt, setReminderSetAt] = useState<Date | null>(null);
@@ -150,10 +147,7 @@ export function AppointmentStatusHost() {
       setCancelBusy(true);
       try {
         await cancelAppointment(appointmentId);
-        notifyAppointmentCancelled(session?.user?.id, {
-          appointmentId,
-          doctorName: name,
-        });
+        // Toast/push: DB trigger inserts "Appointment Cancelled".
         setShowCancelConfirm(false);
         close();
         router.replace('/appointments');
@@ -168,7 +162,7 @@ export function AppointmentStatusHost() {
         setCancelBusy(false);
       }
     })();
-  }, [appointmentId, cancelAppointment, cancelBusy, close, name, session?.user?.id]);
+  }, [appointmentId, cancelAppointment, cancelBusy, close]);
 
   useEffect(() => {
     if (!appointmentId) setShowCancelConfirm(false);

@@ -1,13 +1,10 @@
-import { AppState, Platform } from 'react-native';
+import { AppState } from 'react-native';
 
-import { isNotificationsAvailable } from '@/lib/notifications/isNotificationsAvailable';
 import type { NotificationItem, NotificationStatusType } from '@/lib/notifications/types';
 import { showAppToast } from '@/lib/ui/toastBridge';
 
 const recentToastIds = new Map<string, number>();
-const TOAST_DEDUPE_MS = 12_000;
-
-let androidChannelReady = false;
+const TOAST_DEDUPE_MS = 20_000;
 
 function prune(now: number) {
   for (const [id, at] of recentToastIds) {
@@ -38,73 +35,67 @@ function toastVariant(
   return 'accent';
 }
 
-async function ensureAndroidChannel(
-  Notifications: typeof import('expo-notifications'),
-) {
-  if (Platform.OS !== 'android' || androidChannelReady) return;
-  await Notifications.setNotificationChannelAsync('default', {
-    name: 'CampusCare',
-    importance: Notifications.AndroidImportance.HIGH,
-    vibrationPattern: [0, 250, 250, 250],
-    lightColor: '#2970FF',
-    sound: 'default',
-  });
-  androidChannelReady = true;
+function normalizeTitle(title: string): string {
+  return title.toLowerCase().replace(/[’']/g, "'").replace(/\s+/g, ' ').trim();
+}
+
+/** Extra keys so DB UUID + push receipt + client paths collapse to one toast. */
+function dedupeKeys(
+  item: Pick<NotificationItem, 'id' | 'title' | 'body' | 'notificationType'> & {
+    href?: string | null;
+    ticketId?: string | null;
+    queueMilestone?: string | null;
+    appointmentId?: string | null;
+  },
+): string[] {
+  const keys = [item.id];
+  const title = normalizeTitle(item.title);
+  const ticket = item.ticketId?.trim();
+  const milestone = item.queueMilestone?.trim().toLowerCase();
+  const appointmentId = item.appointmentId?.trim();
+
+  if (ticket && milestone) {
+    keys.push(`queue:${ticket}:${milestone}`);
+  }
+
+  if (appointmentId && (milestone === 'visit_completed' || title.includes('visit completed'))) {
+    keys.push(`visit-completed:${appointmentId}`);
+  }
+
+  if (appointmentId && (title.includes('appointment cancelled') || title.includes('appointment confirmed'))) {
+    keys.push(`appt-event:${title}:${appointmentId}`);
+  }
+
+  if (
+    title.includes("it's your turn") ||
+    title.includes('its your turn') ||
+    title.includes("you're next") ||
+    title.includes('youre next') ||
+    title.includes('in queue')
+  ) {
+    keys.push(`queue-title:${title}:${item.href ?? ''}:${item.body ?? ''}`);
+  }
+
+  return keys;
 }
 
 /**
- * Also raise a local OS notification so the user sees the alert
- * even when the in-app toast binder misses, or the app is backgrounded
- * before Expo push arrives.
+ * In-app toast only while the app is foreground.
+ * Background / killed delivery is handled by Expo push (`send-push`).
  */
-async function presentLocalOsAlert(item: {
-  id: string;
-  title: string;
-  body: string;
-  href?: string | null;
-}): Promise<void> {
-  if (!isNotificationsAvailable()) return;
-  try {
-    const Notifications = await import('expo-notifications');
-    await ensureAndroidChannel(Notifications);
-    await Notifications.scheduleNotificationAsync({
-      content: {
-        title: item.title,
-        body: item.body,
-        sound: true,
-        data: {
-          href: item.href ?? '/appointments',
-          notificationId: item.id,
-        },
-      },
-      trigger: null,
-    });
-  } catch (e) {
-    console.warn('[toast] local OS alert failed:', e);
-  }
-}
-
-function isQueueMilestoneTitle(title: string): boolean {
-  const t = title.toLowerCase();
-  return (
-    t.includes("it's your turn") ||
-    t.includes('its your turn') ||
-    t.includes("you're next") ||
-    t.includes('youre next') ||
-    t.includes('5th in queue') ||
-    t.includes('3rd in queue')
-  );
-}
-
-/** Show a top toast for a notification, deduped by notification id. */
 export function toastFromNotification(
   item: Pick<NotificationItem, 'id' | 'title' | 'body' | 'notificationType'> & {
     href?: string | null;
+    ticketId?: string | null;
+    queueMilestone?: string | null;
+    appointmentId?: string | null;
   },
-  opts?: { alsoLocalOsAlert?: boolean },
 ): void {
-  if (wasNotificationToasted(item.id)) return;
-  markNotificationToasted(item.id);
+  const keys = dedupeKeys(item);
+  if (keys.some((k) => wasNotificationToasted(k))) return;
+  for (const k of keys) markNotificationToasted(k);
+
+  if (AppState.currentState !== 'active') return;
 
   showAppToast({
     variant: toastVariant(item.notificationType),
@@ -114,16 +105,4 @@ export function toastFromNotification(
     label: item.title,
     description: item.body,
   });
-
-  const wantLocal =
-    opts?.alsoLocalOsAlert ?? isQueueMilestoneTitle(item.title);
-  // Foreground only — background/killed relies on Expo push from send-push.
-  if (wantLocal && AppState.currentState === 'active') {
-    void presentLocalOsAlert({
-      id: item.id,
-      title: item.title,
-      body: item.body,
-      href: item.href,
-    });
-  }
 }

@@ -1,8 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 import { supabase } from '@/lib/supabase';
-import { notifyAppointmentCancelled } from '@/lib/notifications/appointmentNotifications';
-import { handleOwnedQueueTicketChange } from '@/lib/notifications/queueTurnNotifications';
 import { openVisitCompletedScreen } from '@/lib/health-service/visitCompletedNavigation';
 import type { Appointment, Staff } from '@/lib/health-service/types';
 
@@ -80,10 +78,6 @@ export function acquireAppointmentsSubscription(get: HealthStoreGet): () => void
           ).toLowerCase();
           const prevStatus = prevFromPayload || localPrev;
 
-          const becameCancelled =
-            nextStatus === 'cancelled' &&
-            prevStatus !== '' &&
-            prevStatus !== 'cancelled';
           const becameCompleted =
             nextStatus === 'completed' &&
             prevStatus !== '' &&
@@ -91,62 +85,23 @@ export function acquireAppointmentsSubscription(get: HealthStoreGet): () => void
 
           await get().loadAppointments();
 
-          // Confirmed / rescheduled: DB trigger inserts inbox row (toast via notifications realtime).
-          if (!becameCancelled && !becameCompleted) return;
+          // Visit completed screen only. Toast/push come from notifications INSERT.
+          if (!becameCompleted) return;
 
-          const {
-            data: { user },
-          } = await client.auth.getUser();
-          if (!user?.id) return;
-
-          const staffMember =
-            get().staff.find((s) => s.id === payload.new?.doctor_id) ?? null;
-          const staffName = staffMember?.name;
-
-          if (becameCancelled) {
-            notifyAppointmentCancelled(user.id, {
-              appointmentId,
-              doctorName: staffName,
-            });
-          }
-
-          if (becameCompleted) {
-            // Only open if this appointment is in the patient's loaded list (owns it).
-            // Toast/inbox: DB trigger inserts "Visit Completed" → notifications realtime.
-            const appointment = get().appointments.find((a) => a.id === appointmentId);
-            if (appointment?.status === 'completed') {
-              openVisitCompletedScreen(appointment);
-            }
+          // Open visit receipt when this patient owns the completed appointment.
+          const appointment = get().appointments.find((a) => a.id === appointmentId);
+          if (appointment?.status === 'completed') {
+            openVisitCompletedScreen(appointment);
           }
         },
       )
-      // Queue ticket status/position changes (called, standing moves).
-      // Patient "It's Your Turn" toast: DB notification + client fallback below.
+      // Queue ticket changes — reload list only.
+      // "It's Your Turn" toast comes from notifications INSERT (DB trigger), not here.
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'health_queue_tickets' },
-        (payload: {
-          eventType: string;
-          old?: {
-            status?: string;
-            patient_id?: string | null;
-          };
-          new?: {
-            id?: string;
-            status?: string;
-            patient_id?: string | null;
-            appointment_id?: string | null;
-            station?: string | null;
-            queue_position?: number | null;
-            queue_number?: number | null;
-          };
-        }) => {
+        () => {
           void get().loadAppointments();
-          handleOwnedQueueTicketChange({
-            eventType: payload.eventType,
-            next: payload.new,
-            prev: payload.old,
-          });
         },
       )
       .subscribe((status) => {
