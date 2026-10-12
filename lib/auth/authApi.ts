@@ -1,4 +1,5 @@
 import { isSupabaseConfigured, supabase } from '@/lib/supabase';
+import { isValidEmail } from './constants';
 import { friendlyAuthError } from './friendlyAuthError';
 
 type ApiResult = { ok: boolean; message: string };
@@ -63,6 +64,14 @@ export async function sendOtp(email: string): Promise<ApiResult> {
   }
 
   const normalized = email.trim().toLowerCase();
+
+  if (!isValidEmail(normalized)) {
+    return {
+      ok: false,
+      message:
+        'Use your NU Dasma email (@students.nu-dasma.edu.ph or @nu-dasma.edu.ph).',
+    };
+  }
 
   const onRoster = await isEmailOnPatientRoster(normalized);
   if (onRoster === false) {

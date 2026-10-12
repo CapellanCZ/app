@@ -9,9 +9,23 @@ export const SCHOOL_EMAIL_DOMAINS = [
 
 export type SchoolEmailDomain = (typeof SCHOOL_EMAIL_DOMAINS)[number];
 
-/** Loose email shape check — enrollment is enforced by OTP + patients row. */
+/** True when the address uses an allowed NU Dasma campus domain. */
+export function isSchoolEmailDomain(email: string): boolean {
+  const trimmed = email.trim().toLowerCase();
+  const at = trimmed.lastIndexOf('@');
+  if (at <= 0) return false;
+  const domain = trimmed.slice(at + 1);
+  return (SCHOOL_EMAIL_DOMAINS as readonly string[]).includes(domain);
+}
+
+/**
+ * Campus email only — `@students.nu-dasma.edu.ph` or `@nu-dasma.edu.ph`.
+ * Enrollment is still enforced by roster check before OTP.
+ */
 export function isValidEmail(email: string): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  const trimmed = email.trim();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) return false;
+  return isSchoolEmailDomain(trimmed);
 }
 
 /**

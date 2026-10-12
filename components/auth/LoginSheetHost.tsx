@@ -130,7 +130,9 @@ export function LoginSheetHost() {
       return;
     }
     if (!isValidEmail(trimmed)) {
-      setFieldError('Please enter a valid email address.');
+      setFieldError(
+        'Use your NU Dasma email (@students.nu-dasma.edu.ph or @nu-dasma.edu.ph).',
+      );
       return;
     }
     Keyboard.dismiss();
