@@ -141,6 +141,96 @@ function vitalsMatchServiceDate(vitals: LatestVitals, serviceDate: string | null
   return dateKeyInClinicTz(vitals.updatedAt) === serviceDate.trim();
 }
 
+function todayInClinicTz(): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: CLINIC_TZ,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date());
+}
+
+function mapTicketVitals(row: {
+  vitals_bp_systolic?: number | null;
+  vitals_bp_diastolic?: number | null;
+  vitals_heart_rate?: number | null;
+  vitals_temperature_c?: number | string | null;
+  vitals_spo2?: number | null;
+  vitals_height_cm?: number | string | null;
+  vitals_weight_kg?: number | string | null;
+  intake_completed_at?: string | null;
+  updated_at?: string | null;
+}): LatestVitals {
+  const sys = row.vitals_bp_systolic;
+  const dia = row.vitals_bp_diastolic;
+  const bloodPressure =
+    sys != null && dia != null ? `${sys}/${dia}` : sys != null ? String(sys) : null;
+
+  const vitals: LatestVitals = {
+    bloodPressure,
+    heartRate: formatHeartRate(asTrimmedString(row.vitals_heart_rate)),
+    temperature: formatTemperature(asTrimmedString(row.vitals_temperature_c)),
+    weight: formatWeight(asTrimmedString(row.vitals_weight_kg)),
+    height: formatHeight(asTrimmedString(row.vitals_height_cm)),
+    oxygenSaturation: formatOxygen(asTrimmedString(row.vitals_spo2)),
+    updatedAt: row.intake_completed_at ?? row.updated_at ?? null,
+  };
+
+  return hasAnyVitalValue(vitals) ? vitals : EMPTY_VITALS;
+}
+
+/** Today's nurse intake vitals from the patient's queue ticket (RLS: own tickets). */
+async function fetchTodayNurseTicketVitals(params: {
+  studentId?: string | null;
+  employeeId?: string | null;
+}): Promise<LatestVitals> {
+  if (!supabase) return EMPTY_VITALS;
+
+  const campusId = params.studentId?.trim() || params.employeeId?.trim() || null;
+  if (!campusId) return EMPTY_VITALS;
+
+  const today = todayInClinicTz();
+  const { data, error } = await supabase
+    .from('health_queue_tickets')
+    .select(
+      `
+      vitals_bp_systolic,
+      vitals_bp_diastolic,
+      vitals_heart_rate,
+      vitals_temperature_c,
+      vitals_spo2,
+      vitals_height_cm,
+      vitals_weight_kg,
+      intake_completed_at,
+      updated_at
+    `,
+    )
+    .eq('campus_id', campusId)
+    .eq('service_date', today)
+    .not('intake_completed_at', 'is', null)
+    .not('vitals_bp_systolic', 'is', null)
+    .order('intake_completed_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.warn('[vitals] nurse ticket:', error.message);
+    return EMPTY_VITALS;
+  }
+  if (!data) return EMPTY_VITALS;
+  return mapTicketVitals(data);
+}
+
+function pickNewerVitals(a: LatestVitals, b: LatestVitals): LatestVitals {
+  const aHas = hasAnyVitalValue(a);
+  const bHas = hasAnyVitalValue(b);
+  if (!aHas) return bHas ? b : EMPTY_VITALS;
+  if (!bHas) return a;
+  const aAt = a.updatedAt ? Date.parse(a.updatedAt) : 0;
+  const bAt = b.updatedAt ? Date.parse(b.updatedAt) : 0;
+  return bAt >= aAt ? b : a;
+}
+
 async function fetchPatientRecordVitals(params: {
   studentId?: string | null;
   employeeId?: string | null;
@@ -188,7 +278,12 @@ export async function fetchLatestVitalsForPatient(params: {
   studentId?: string | null;
   employeeId?: string | null;
 }): Promise<LatestVitals> {
-  return fetchPatientRecordVitals({ ...params, throwOnError: true });
+  const [fromRecord, fromNurseTicket] = await Promise.all([
+    fetchPatientRecordVitals({ ...params, throwOnError: true }),
+    fetchTodayNurseTicketVitals(params),
+  ]);
+  // Prefer the newer source so nurse intake shows up before physician chart save.
+  return pickNewerVitals(fromRecord, fromNurseTicket);
 }
 
 /**
@@ -206,9 +301,16 @@ export async function fetchVitalsForAppointment(params: {
   const appointmentId = params.appointmentId?.trim();
   if (!supabase || !appointmentId) return EMPTY_VITALS;
 
-  return fetchPatientRecordVitals({
-    studentId: params.studentId,
-    employeeId: params.employeeId,
-    serviceDate: params.serviceDate,
-  });
+  const [fromRecord, fromNurseTicket] = await Promise.all([
+    fetchPatientRecordVitals({
+      studentId: params.studentId,
+      employeeId: params.employeeId,
+      serviceDate: params.serviceDate,
+    }),
+    fetchTodayNurseTicketVitals({
+      studentId: params.studentId,
+      employeeId: params.employeeId,
+    }),
+  ]);
+  return pickNewerVitals(fromRecord, fromNurseTicket);
 }

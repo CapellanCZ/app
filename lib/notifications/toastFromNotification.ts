@@ -55,7 +55,9 @@ function dedupeKeys(
   const appointmentId = item.appointmentId?.trim();
 
   if (ticket && milestone) {
-    keys.push(`queue:${ticket}:${milestone}`);
+    // Include body so nurse vs specialty "It's Your Turn" (different station text)
+    // and recalls are not collapsed into one toast key.
+    keys.push(`queue:${ticket}:${milestone}:${item.body ?? ''}`);
   }
 
   if (appointmentId && (milestone === 'visit_completed' || title.includes('visit completed'))) {
