@@ -34,12 +34,14 @@ export function resolveNotificationPreferenceKey(source: PreferenceSource): Noti
     event === 'rescheduled' ||
     type === 'appointment' ||
     type === 'consultation_request' ||
-    meta.follow_up_reminder === true
+    meta.follow_up_reminder === true ||
+    meta.approaching === true ||
+    meta.reminder === true
   ) {
     return 'appointments';
   }
 
-  if (type === 'queue' || milestone) return 'health';
+  if (type === 'queue' || (milestone && milestone !== 'visit_completed')) return 'health';
 
   return 'health';
 }
@@ -67,6 +69,7 @@ export function resolveNotificationPreferenceKeyFromItem(item: NotificationItem)
     title.includes('visit completed') ||
     title.includes('follow-up') ||
     title.includes('follow up') ||
+    title.includes('approaching') ||
     title.includes('reminder')
   ) {
     return 'appointments';

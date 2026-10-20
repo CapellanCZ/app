@@ -35,6 +35,45 @@ interface NotificationPreferencesState {
   reset: () => void;
 }
 
+/**
+ * Ensure a preferences row exists so `send-push` can honor toggles.
+ * Missing row → upsert defaults (all on).
+ */
+async function ensurePreferenceRow(userId: string): Promise<PreferenceRow | null> {
+  if (!supabase) return null;
+
+  const { data, error } = await supabase
+    .from('notification_preferences')
+    .select('user_id, appointments, announcements, health')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (error) {
+    console.warn('[preferences] fetch failed:', error.message);
+    return null;
+  }
+
+  if (data) return data as PreferenceRow;
+
+  const payload: PreferenceRow = {
+    user_id: userId,
+    ...DEFAULT_NOTIFICATION_PREFERENCES,
+  };
+
+  const { data: created, error: upsertError } = await supabase
+    .from('notification_preferences')
+    .upsert(payload, { onConflict: 'user_id' })
+    .select('user_id, appointments, announcements, health')
+    .maybeSingle();
+
+  if (upsertError) {
+    console.warn('[preferences] ensure row failed:', upsertError.message);
+    return payload;
+  }
+
+  return (created as PreferenceRow | null) ?? payload;
+}
+
 export const useNotificationPreferencesStore = create<NotificationPreferencesState>((set, get) => ({
   preferences: DEFAULT_NOTIFICATION_PREFERENCES,
   hasLoaded: false,
@@ -49,24 +88,10 @@ export const useNotificationPreferencesStore = create<NotificationPreferencesSta
     }
 
     set({ loading: true, error: null });
-    const { data, error } = await supabase
-      .from('notification_preferences')
-      .select('user_id, appointments, announcements, health')
-      .eq('user_id', userId)
-      .maybeSingle();
-
-    if (error) {
-      set({
-        loading: false,
-        hasLoaded: true,
-        error: error.message,
-        preferences: DEFAULT_NOTIFICATION_PREFERENCES,
-      });
-      return;
-    }
+    const row = await ensurePreferenceRow(userId);
 
     set({
-      preferences: data ? rowToPreferences(data as PreferenceRow) : DEFAULT_NOTIFICATION_PREFERENCES,
+      preferences: row ? rowToPreferences(row) : DEFAULT_NOTIFICATION_PREFERENCES,
       loading: false,
       hasLoaded: true,
       error: null,

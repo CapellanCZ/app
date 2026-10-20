@@ -198,7 +198,7 @@ export default function NotificationSettingsScreen() {
           <PersonalInfoNoteCard message={`Could not save your preferences: ${error}`} />
         ) : null}
 
-        <PersonalInfoNoteCard message="You can also manage notification permissions in your device system settings." />
+        <PersonalInfoNoteCard message="These toggles control both in-app alerts and system push notifications when CampusCare is closed. You can also manage permission in your device system settings." />
       </ScrollView>
     </View>
   );

@@ -4,12 +4,13 @@ import * as Notifications from 'expo-notifications';
 import { useRouter } from 'expo-router';
 
 import { useAuth } from '@/lib/auth/AuthProvider';
+import { ensureDefaultAndroidNotificationChannel } from '@/lib/notifications/androidNotificationChannel';
 import { toastFromNotification } from '@/lib/notifications/toastFromNotification';
 import { resolveNotificationStatus } from '@/lib/notifications/resolveNotificationStatus';
 
 /**
  * Foreground → hide OS banner/sound (in-app toast handles it).
- * Background → show system notification from Expo push.
+ * Background / killed → system tray via Expo Push (FCM).
  */
 function applyPresentationForAppState(state: AppStateStatus) {
   const inForeground = state === 'active';
@@ -38,6 +39,7 @@ export function NotificationHandlerActive() {
   const responseListener = useRef<Notifications.Subscription | null>(null);
 
   useEffect(() => {
+    void ensureDefaultAndroidNotificationChannel();
     applyPresentationForAppState(AppState.currentState);
     const sub = AppState.addEventListener('change', applyPresentationForAppState);
     return () => sub.remove();

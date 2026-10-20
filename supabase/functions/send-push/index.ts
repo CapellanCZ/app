@@ -66,23 +66,30 @@ function resolvePreferenceKey(row: NotificationRow): PreferenceKey {
     (typeof meta.category === 'string' ? meta.category : row.category ?? '').toLowerCase();
   if (category === 'campus') return 'announcements';
 
-  // Visit completed + appointment lifecycle → appointments toggle.
+  // Visit completed + appointment lifecycle / approaching → appointments toggle.
   if (
     milestone === 'visit_completed' ||
     event === 'cancelled' ||
     event === 'rescheduled' ||
+    meta.approaching === true ||
+    meta.reminder === true ||
+    meta.follow_up_reminder === true ||
     title.includes('visit completed') ||
     title.includes('appointment confirmed') ||
     title.includes('appointment cancelled') ||
     title.includes('appointment rescheduled') ||
+    title.includes('consultation appointment is approaching') ||
+    title.includes('appointment is approaching') ||
+    title.includes('appointment in ') ||
     title.includes("you're all set") ||
-    title.includes('youre all set')
+    title.includes('youre all set') ||
+    type === 'appointment' ||
+    type === 'consultation_request'
   ) {
     return 'appointments';
   }
 
   if (type === 'queue' || (milestone && milestone !== 'visit_completed')) return 'health';
-  if (type === 'appointment' || type === 'consultation_request') return 'appointments';
 
   return 'health';
 }
@@ -161,7 +168,12 @@ Deno.serve(async (req: Request) => {
     return new Response('DB error', { status: 500 });
   }
 
-  if (!tokens?.length) {
+  const validTokens = (tokens ?? []).filter(
+    (t: { expo_token?: string | null }) =>
+      typeof t.expo_token === 'string' && t.expo_token.startsWith('ExponentPushToken'),
+  );
+
+  if (!validTokens.length) {
     return new Response(JSON.stringify({ sent: 0, reason: 'no tokens' }), {
       headers: { 'content-type': 'application/json' },
     });
@@ -169,20 +181,23 @@ Deno.serve(async (req: Request) => {
 
   const category = resolveCategory(row);
   const meta = row.metadata ?? {};
-  const messages: ExpoPushMessage[] = tokens.map((t: any) => ({
+  const preferenceKey = resolvePreferenceKey(row);
+  const messages: ExpoPushMessage[] = validTokens.map((t: any) => ({
     to: t.expo_token,
     title: row.title,
-    body: row.body,
+    body: row.body ?? '',
     data: {
       href: row.href ?? null,
       notificationId: row.id,
       category,
+      preferenceKey,
       type: row.type ?? null,
       queue_milestone: meta.queue_milestone ?? null,
       appointment_id: meta.appointment_id ?? null,
       ticket_id: meta.ticket_id ?? null,
       notification_type: meta.notification_type ?? null,
       event: meta.event ?? null,
+      approaching: meta.approaching ?? null,
     },
     sound: 'default',
     priority: 'high',

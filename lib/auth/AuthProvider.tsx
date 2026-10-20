@@ -133,11 +133,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     void fetchPatient(session.user.id);
   }, [session?.user?.id, isLoading, fetchPatient, resetPatient]);
 
-  // Push token only when enrolled.
+  // Push token when enrolled — also refresh on foreground (token can rotate).
   useEffect(() => {
-    if (session?.user?.id && enrollmentStatus === 'enrolled') {
-      registerPushToken(session.user.id);
-    }
+    if (!session?.user?.id || enrollmentStatus !== 'enrolled') return;
+
+    const userId = session.user.id;
+    void registerPushToken(userId);
+
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        void registerPushToken(userId);
+      }
+    });
+
+    return () => sub.remove();
   }, [session?.user?.id, enrollmentStatus]);
 
   const { loadStaff, loadAppointments, reset: resetHealthService } = useHealthServiceStore();

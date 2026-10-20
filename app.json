@@ -33,6 +33,15 @@
           "photosPermission": "CampusCare needs access to your photo library so you can attach photos and videos to incident reports."
         }
       ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/android-icon-monochrome.png",
+          "color": "#048AF3",
+          "defaultChannel": "default",
+          "sounds": []
+        }
+      ],
       "expo-web-browser",
       "expo-audio",
       "expo-asset"
@@ -63,8 +72,18 @@
       "softwareKeyboardLayoutMode": "resize",
       "permissions": [
         "android.permission.RECORD_AUDIO",
-        "android.permission.MODIFY_AUDIO_SETTINGS"
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.VIBRATE",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.SCHEDULE_EXACT_ALARM"
       ]
+    },
+    "notification": {
+      "icon": "./assets/android-icon-monochrome.png",
+      "color": "#048AF3",
+      "androidMode": "default",
+      "androidCollapsedTitle": "CampusCare"
     },
     "extra": {
       "router": {},
