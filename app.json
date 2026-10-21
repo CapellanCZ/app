@@ -56,6 +56,12 @@
     "assetBundlePatterns": [
       "**/*"
     ],
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/2a7e35cd-5393-4c24-a09d-16e08cba0545"
+    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.yscplln.campuscareapplication"
@@ -69,6 +75,7 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.yscplln.campuscareapplication",
+      "googleServicesFile": "./google-services.json",
       "softwareKeyboardLayoutMode": "resize",
       "permissions": [
         "android.permission.RECORD_AUDIO",
@@ -91,6 +98,6 @@
         "projectId": "2a7e35cd-5393-4c24-a09d-16e08cba0545"
       }
     },
-    "owner": "yscplln"
+    "owner": "campuscarehso"
   }
 }
