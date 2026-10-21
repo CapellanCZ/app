@@ -888,12 +888,26 @@ function createSupabaseHealthServiceApi(): HealthServiceApi {
         throw new Error(ALREADY_BOOKED_SAME_DAY);
       }
 
+      // Persist provider type so nurse/web handoff routes to physician vs dentist
+      // based on the staff the patient selected (not a physician default).
+      const { data: providerRow, error: providerError } = await supabase
+        .from('users')
+        .select('primary_role')
+        .eq('id', input.staffId)
+        .maybeSingle();
+      if (providerError) throw providerError;
+      const providerType =
+        String(providerRow?.primary_role ?? '').toLowerCase() === 'dentist'
+          ? 'dentist'
+          : 'physician';
+
       const { data: inserted, error } = await supabase
         .from('appointments')
         .insert({
           clinic_id: clinicId,
           patient_id: patientId,
           doctor_id: input.staffId,
+          provider_type: providerType,
           starts_at: startsAt.toISOString(),
           ends_at: endsAt.toISOString(),
           reason: input.symptoms?.trim() || null,
