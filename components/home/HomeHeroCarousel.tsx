@@ -15,9 +15,9 @@ import { IconsaxHospitalFilledIcon } from '@/components/icons/IconsaxHospitalFil
 import { IconsaxJudgeFilledIcon } from '@/components/icons/IconsaxJudgeFilledIcon';
 import { IconsaxTeacherFilledIcon } from '@/components/icons/IconsaxTeacherFilledIcon';
 
-const HERO_SOLID = '#2970FF';
+const HERO_SOLID = '#004EEB';
 const HERO_BORDER = 'rgba(0, 64, 193, 0.35)';
-const BADGE_ICON = '#2970FF';
+const BADGE_ICON = '#004EEB';
 /** Inactive pager dot (light grey). */
 const DOT_INACTIVE = '#D1D5DB';
 /** Active pager dot (darker gray). */
@@ -169,7 +169,7 @@ export function HomeHeroCarousel({ slides, className }: HomeHeroCarouselProps) {
               accessibilityLabel={item.ctaLabel}
               onPress={() => item.onCtaPress?.()}
               className="mt-5 w-full items-center justify-center rounded-full bg-white py-3.5 active:opacity-95">
-              <Text className="text-base font-semibold text-[#2970FF]">{item.ctaLabel}</Text>
+              <Text className="text-base font-semibold text-[#004EEB]">{item.ctaLabel}</Text>
             </Pressable>
           </View>
         </View>

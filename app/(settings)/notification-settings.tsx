@@ -88,7 +88,7 @@ function ToggleRow({
         value={value}
         disabled={disabled}
         onValueChange={(v) => onToggle(item.id, v)}
-        trackColor={{ false: '#E3E3E3', true: '#6BAED6' }}
+        trackColor={{ false: '#E3E3E3', true: '#004EEB' }}
         thumbColor="#FFFFFF"
         ios_backgroundColor="#E3E3E3"
       />

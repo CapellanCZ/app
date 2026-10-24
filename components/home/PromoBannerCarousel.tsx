@@ -82,7 +82,7 @@ export function PromoBannerCarousel({ items, className }: PromoBannerCarouselPro
           </View>
           <Button
             variant="primary"
-            className="h-9 self-start rounded-3xl border border-[#001229]/10 bg-[#2970FF] px-4"
+            className="h-9 self-start rounded-3xl border border-[#001229]/10 bg-[#004EEB] px-4"
             onPress={() => item.onButtonPress?.()}>
             <Button.Label className="text-sm font-semibold text-white">{item.buttonLabel}</Button.Label>
           </Button>
@@ -137,7 +137,7 @@ export function PromoBannerCarousel({ items, className }: PromoBannerCarouselPro
           {items.map((item, i) => (
             <View
               key={item.id}
-              className={`h-2 w-2 rounded-full ${i === activeIndex ? 'bg-[#2970FF]' : 'bg-[#1F2024]/10'}`}
+              className={`h-2 w-2 rounded-full ${i === activeIndex ? 'bg-[#004EEB]' : 'bg-[#1F2024]/10'}`}
               accessibilityLabel={i === activeIndex ? `Slide ${i + 1} of ${items.length}, current` : undefined}
             />
           ))}

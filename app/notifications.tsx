@@ -5,6 +5,7 @@ import {
   Pressable,
   RefreshControl,
   ScrollView,
+  SectionList,
   Text,
   View,
 } from 'react-native';
@@ -30,14 +31,17 @@ import { EmptyStateNotifIllustration } from '@/components/notifications/EmptySta
 import { NotificationItemMenu } from '@/components/notifications/NotificationItemMenu';
 import { NotificationListRow } from '@/components/notifications/NotificationListRow';
 import { NotificationListSkeleton } from '@/components/notifications/NotificationListSkeleton';
-import { IconsaxTickDoubleIcon } from '@/components/icons/IconsaxTickDoubleIcon';
 import { CircleBackButton } from '@/components/ui/CircleBackButton';
 import { useAuth } from '@/lib/auth/AuthProvider';
+import {
+  groupNotificationsBySection,
+  type NotificationListSection,
+} from '@/lib/notifications/groupNotifications';
 import { useNotificationStore } from '@/lib/notifications/notificationStore';
 import type { NotificationItem } from '@/lib/notifications/types';
 import { ROUTES } from '@/lib/routes';
 import { Inter } from '@/lib/typography/inter';
-import { showConfirmSheet } from '@/lib/ui/confirmSheetStore';
+import { BRAND } from '@/lib/ui/theme';
 
 type ReadFilter = 'all' | 'unread';
 
@@ -53,9 +57,12 @@ const TAB_SWIPE_VELOCITY = 650;
 const EASE_OUT = Easing.bezier(0.23, 1, 0.32, 1);
 const DRAG_SPRING = { damping: 26, stiffness: 200, mass: 0.85 } as const;
 
+const AnimatedSectionList = Animated.createAnimatedComponent(
+  SectionList<NotificationItem, NotificationListSection>,
+);
+
 /**
- * Notifications — Figma node 2254:925.
- * Tab swipe matches School Doctors / Medical Records; rows stay mounted across filters.
+ * Notifications inbox — floating segment, date groups, soft tinted cards.
  */
 export default function NotificationsScreen() {
   const insets = useSafeAreaInsets();
@@ -67,18 +74,13 @@ export default function NotificationsScreen() {
   const fetchAll = useNotificationStore((s) => s.fetchAll);
   const markAllRead = useNotificationStore((s) => s.markAllRead);
   const archiveNotification = useNotificationStore((s) => s.archive);
-  const archiveIds = useNotificationStore((s) => s.archiveIds);
-  const archiveAll = useNotificationStore((s) => s.archiveAll);
   const markRead = useNotificationStore((s) => s.markRead);
   const [readFilter, setReadFilter] = useState<ReadFilter>('all');
   const [panelKey, setPanelKey] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const [menuItem, setMenuItem] = useState<NotificationItem | null>(null);
-  const clearingRef = useRef(false);
   const directionRef = useRef<'forward' | 'back'>('forward');
-  /** Stagger enter only on the first list paint this visit. */
   const allowEnterAnimRef = useRef(true);
-  /** IDs already shown — used to animate only realtime / live inserts. */
   const seenIdsRef = useRef<Set<string>>(new Set());
   const seenSeededRef = useRef(false);
   const [liveEnterIds, setLiveEnterIds] = useState<Set<string>>(() => new Set());
@@ -104,8 +106,6 @@ export default function NotificationsScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      // Root NotificationSubscription already keeps data fresh — no focus refetch.
-      // Mark all as read when leaving (back, swipe, navigate away).
       return () => {
         void markAllRead();
       };
@@ -133,6 +133,9 @@ export default function NotificationsScreen() {
     return readFilter === 'unread' ? items.filter((n) => !n.read) : items;
   }, [items, readFilter]);
 
+  const sections = useMemo(() => groupNotificationsBySection(filtered), [filtered]);
+  const hasUnread = useMemo(() => items.some((n) => !n.read), [items]);
+
   useEffect(() => {
     if (!hasLoaded) return;
 
@@ -158,7 +161,6 @@ export default function NotificationsScreen() {
 
   useEffect(() => {
     if (filtered.length > 0) {
-      // After first non-empty paint, stop staggering remounts on filter changes.
       const t = setTimeout(() => {
         allowEnterAnimRef.current = false;
       }, 400);
@@ -189,7 +191,6 @@ export default function NotificationsScreen() {
   const pan = useMemo(
     () =>
       Gesture.Pan()
-        // Wait for clear horizontal intent so Android row taps / scrolls win first.
         .activeOffsetX([-28, 28])
         .failOffsetY([-10, 10])
         .onUpdate((e) => {
@@ -216,35 +217,6 @@ export default function NotificationsScreen() {
   const dragStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: dragX.value }],
   }));
-
-  const handleClearAll = useCallback(() => {
-    if (!items.length || clearingRef.current) return;
-    showConfirmSheet({
-      title: 'Clear all notifications?',
-      message: 'Notifications will be archived and removed from your inbox.',
-      icon: 'danger',
-      cancelLabel: 'Keep them',
-      confirmLabel: 'Clear all',
-      destructive: true,
-      onConfirm: () => {
-        const list = readFilter === 'unread' ? items.filter((n) => !n.read) : items;
-        if (!list.length) return;
-
-        clearingRef.current = true;
-        void (async () => {
-          try {
-            if (readFilter === 'unread') {
-              await archiveIds(list.map((item) => item.id));
-            } else {
-              await archiveAll();
-            }
-          } finally {
-            clearingRef.current = false;
-          }
-        })();
-      },
-    });
-  }, [archiveAll, archiveIds, items, readFilter]);
 
   const handleBack = useCallback(() => {
     if (navigation.canGoBack()) {
@@ -304,8 +276,8 @@ export default function NotificationsScreen() {
     <RefreshControl
       refreshing={refreshing}
       onRefresh={handleRefresh}
-      tintColor="#111111"
-      colors={['#111111']}
+      tintColor={BRAND.primary}
+      colors={[BRAND.primary]}
       progressBackgroundColor="#FFFFFF"
     />
   );
@@ -314,96 +286,84 @@ export default function NotificationsScreen() {
     <View
       style={{
         flex: 1,
-        backgroundColor: '#F9F9F9',
-        paddingTop: insets.top + 12,
-        paddingHorizontal: 20,
-        paddingBottom: Math.max(insets.bottom, 24),
+        backgroundColor: '#F8F9FB',
+        paddingTop: insets.top + 8,
+        paddingBottom: Math.max(insets.bottom, 16),
       }}>
-      <CircleBackButton onPress={handleBack} style={{ marginBottom: 16 }} />
-
-      <View style={{ gap: 16, marginBottom: 20 }}>
-        <View
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 12,
+          paddingHorizontal: 20,
+          marginBottom: 16,
+        }}>
+        <CircleBackButton onPress={handleBack} />
+        <Text
+          accessibilityRole="header"
           style={{
-            flexDirection: 'row',
-            alignItems: 'flex-start',
-            justifyContent: 'space-between',
-            gap: 12,
+            flex: 1,
+            fontFamily: Inter.medium,
+            fontSize: 28,
+            letterSpacing: -2.24,
+            lineHeight: 34,
+            color: '#222222',
           }}>
-          <View style={{ flex: 1, gap: 6 }}>
-            <Text
-              accessibilityRole="header"
-              style={{
-                fontFamily: Inter.medium,
-                fontSize: 30,
-                letterSpacing: -2.24,
-                lineHeight: 38,
-                color: '#222222',
-              }}>
-              Notifications
-            </Text>
-            <Text
-              style={{
-                fontFamily: Inter.regular,
-                fontSize: 18,
-                color: '#727272',
-                letterSpacing: -0.64,
-                lineHeight: 22,
-              }}>
-              Stay updated on visits and campus news
-            </Text>
-          </View>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Clear all notifications"
-            accessibilityState={{ disabled: items.length === 0 }}
-            disabled={items.length === 0}
-            hitSlop={12}
-            onPress={handleClearAll}
-            style={{
-              marginTop: 4,
-              padding: 4,
-              opacity: items.length === 0 ? 0.35 : 1,
-            }}>
-            <IconsaxTickDoubleIcon size={26} color="#222222" />
-          </Pressable>
-        </View>
+          Notifications
+        </Text>
+      </View>
 
-        <View style={{ flexDirection: 'row', alignItems: 'stretch' }}>
-          {FILTER_TABS.map((tab) => {
-            const active = readFilter === tab.id;
-            return (
-              <Pressable
-                key={tab.id}
-                accessibilityRole="tab"
-                accessibilityState={{ selected: active }}
-                onPress={() => {
-                  const nextIndex = FILTER_ORDER.indexOf(tab.id);
-                  const current = FILTER_ORDER.indexOf(readFilter);
-                  if (nextIndex === current) return;
-                  goToFilter(tab.id, nextIndex > current ? 'forward' : 'back');
-                }}
+      <View
+        style={{
+          marginHorizontal: 20,
+          marginBottom: 16,
+          flexDirection: 'row',
+          backgroundColor: '#EDEFF2',
+          borderRadius: 999,
+          padding: 4,
+        }}>
+        {FILTER_TABS.map((tab) => {
+          const active = readFilter === tab.id;
+          return (
+            <Pressable
+              key={tab.id}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: active }}
+              onPress={() => {
+                const nextIndex = FILTER_ORDER.indexOf(tab.id);
+                const current = FILTER_ORDER.indexOf(readFilter);
+                if (nextIndex === current) return;
+                goToFilter(tab.id, nextIndex > current ? 'forward' : 'back');
+              }}
+              style={{
+                flex: 1,
+                alignItems: 'center',
+                justifyContent: 'center',
+                paddingVertical: 10,
+                borderRadius: 999,
+                backgroundColor: active ? '#FFFFFF' : 'transparent',
+                ...(active
+                  ? {
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 1 },
+                      shadowOpacity: 0.06,
+                      shadowRadius: 4,
+                      elevation: 1,
+                    }
+                  : null),
+              }}>
+              <Text
                 style={{
-                  flex: 1,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  paddingVertical: 8,
-                  borderBottomWidth: active ? 1.5 : 1,
-                  borderBottomColor: active ? '#323232' : '#E3E3E3',
+                  fontFamily: active ? Inter.semiBold : Inter.medium,
+                  fontSize: 14,
+                  letterSpacing: -0.2,
+                  color: active ? '#111827' : '#9CA3AF',
                 }}>
-                <Text
-                  style={{
-                    fontFamily: active ? Inter.semiBold : Inter.regular,
-                    fontSize: 15,
-                    letterSpacing: -1.2,
-                    color: active ? '#3C3A3A' : '#9E9E9E',
-                    textAlign: 'center',
-                  }}>
-                  {tab.label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
+                {tab.label}
+              </Text>
+            </Pressable>
+          );
+        })}
       </View>
 
       <GestureDetector gesture={pan}>
@@ -418,7 +378,7 @@ export default function NotificationsScreen() {
                 keyboardDismissMode="on-drag"
                 showsVerticalScrollIndicator={false}
                 alwaysBounceVertical
-                contentContainerStyle={{ gap: 20, paddingBottom: 8 }}
+                contentContainerStyle={{ gap: 12, paddingHorizontal: 20, paddingBottom: 8 }}
                 style={{ flex: 1 }}
                 refreshControl={refreshControl}>
                 <NotificationListSkeleton count={4} />
@@ -433,53 +393,92 @@ export default function NotificationsScreen() {
                   justifyContent: 'center',
                   alignItems: 'center',
                   paddingBottom: 48,
+                  paddingHorizontal: 32,
                 }}
                 style={{ flex: 1 }}
                 refreshControl={refreshControl}>
-                <View style={{ alignItems: 'center', gap: 12, maxWidth: 320 }}>
-                  <EmptyStateNotifIllustration size={186} />
+                <View style={{ alignItems: 'center', gap: 12, maxWidth: 300 }}>
+                  <EmptyStateNotifIllustration size={168} />
                   <Text
                     style={{
-                      fontFamily: Inter.medium,
-                      fontSize: 28,
-                      letterSpacing: -2.24,
-                      lineHeight: 38,
-                      color: '#222222',
+                      fontFamily: Inter.semiBold,
+                      fontSize: 22,
+                      letterSpacing: -0.8,
+                      lineHeight: 28,
+                      color: '#111827',
                       textAlign: 'center',
                     }}>
-                    No notifications yet
+                    No Notification Yet
                   </Text>
                   <Text
                     style={{
                       fontFamily: Inter.regular,
-                      fontSize: 18,
-                      color: '#727272',
-                      letterSpacing: -0.64,
+                      fontSize: 15,
+                      color: '#9CA3AF',
+                      letterSpacing: -0.2,
                       lineHeight: 22,
                       textAlign: 'center',
                     }}>
-                    You’ll see updates here when they{'\n'}are available
+                    You have no notifications right now.{'\n'}Come back later.
                   </Text>
                 </View>
               </ScrollView>
             ) : (
-              <Animated.FlatList
-                data={filtered}
+              <AnimatedSectionList
+                sections={sections}
                 keyExtractor={keyExtractor}
                 renderItem={renderItem}
+                stickySectionHeadersEnabled={false}
                 keyboardDismissMode="on-drag"
                 showsVerticalScrollIndicator={false}
                 alwaysBounceVertical
                 initialNumToRender={8}
                 maxToRenderPerBatch={8}
                 windowSize={7}
-                removeClippedSubviews
                 itemLayoutAnimation={
                   reduceMotion ? undefined : LinearTransition.duration(220)
                 }
-                contentContainerStyle={{ gap: 20, paddingBottom: 8 }}
+                contentContainerStyle={{ gap: 10, paddingHorizontal: 20, paddingBottom: 8 }}
                 style={{ flex: 1 }}
                 refreshControl={refreshControl}
+                renderSectionHeader={({ section }) => (
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      paddingTop: section.key === sections[0]?.key ? 0 : 10,
+                      paddingBottom: 4,
+                    }}>
+                    <Text
+                      style={{
+                        fontFamily: Inter.semiBold,
+                        fontSize: 16,
+                        letterSpacing: -0.4,
+                        color: '#111827',
+                      }}>
+                      {section.title}
+                    </Text>
+                    {section.key === 'today' && hasUnread ? (
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel="Mark all as read"
+                        hitSlop={8}
+                        onPress={() => void markAllRead()}
+                        style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}>
+                        <Text
+                          style={{
+                            fontFamily: Inter.medium,
+                            fontSize: 13,
+                            color: BRAND.primary,
+                            letterSpacing: -0.2,
+                          }}>
+                          Mark all as read
+                        </Text>
+                      </Pressable>
+                    ) : null}
+                  </View>
+                )}
               />
             )}
           </Animated.View>

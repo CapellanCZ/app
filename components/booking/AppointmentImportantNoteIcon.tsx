@@ -6,7 +6,7 @@ type Props = {
 };
 
 /** Figma confirmed-appointment important-note badge (node 2249:422). */
-export function AppointmentImportantNoteIcon({ size = 24, color = '#048AF3' }: Props) {
+export function AppointmentImportantNoteIcon({ size = 24, color = '#004EEB' }: Props) {
   return (
     <Svg width={size} height={size} viewBox="0 0 21.4875 21.455" fill="none">
       <Path

@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 
-const SELECTED_BLUE = '#2970FF';
+const SELECTED_BLUE = '#004EEB';
 const PRESS_SPRING = { damping: 18, stiffness: 420, mass: 0.35 } as const;
 const PRESS_SCALE = 0.94;
 const MAX_DOTS = 4;
@@ -123,7 +123,7 @@ export type HomeDateStripCalendarProps = {
 
 /**
  * Full-width week row (Sun–Sat): seven equal cells, no horizontal scroll.
- * Blue selected pill (`#2970FF`); inactive `#F5F8FF` pills with white border;
+ * Blue selected pill (`#004EEB`); inactive `#F5F8FF` pills with white border;
  * weekday label above number; bottom dots = appointment load.
  */
 export function HomeDateStripCalendar({

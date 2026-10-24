@@ -7,7 +7,7 @@ type Props = {
 };
 
 /** `assets/icons/iconsax-calendar-2.svg` */
-export function IconsaxCalendar2Icon({ size = 20, color = '#2970FF' }: Props) {
+export function IconsaxCalendar2Icon({ size = 20, color = '#004EEB' }: Props) {
   const clipId = useId().replace(/:/g, '');
 
   return (

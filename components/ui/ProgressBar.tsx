@@ -11,7 +11,7 @@ type Props = {
 export function ProgressBar({
   value,
   trackColor = '#E8E9F1',
-  fillColor = '#2970FF',
+  fillColor = '#004EEB',
 }: Props) {
   // Convert 0-1 value to step count (0, 1, 2, or 3)
   const filledSteps = Math.ceil(value * 3);

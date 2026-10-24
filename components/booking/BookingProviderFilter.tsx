@@ -2,6 +2,7 @@ import { Pressable, Text, View } from 'react-native';
 
 import { Inter } from '@/lib/typography/inter';
 import { androidPressProps } from '@/lib/ui/androidPress';
+import { BRAND } from '@/lib/ui/theme';
 
 export type BookingProviderFilterId = 'all' | 'doctor' | 'dentist';
 
@@ -17,7 +18,7 @@ type Props = {
 };
 
 /**
- * Doctor · Dentist filter row — white chips on grey, black selected (Book tab).
+ * Doctor · Dentist filter row — white chips on grey, brand selected (Book tab).
  */
 export function BookingProviderFilter({ value, onChange }: Props) {
   return (
@@ -40,7 +41,7 @@ export function BookingProviderFilter({ value, onChange }: Props) {
               alignItems: 'center',
               justifyContent: 'center',
               paddingHorizontal: 8,
-              backgroundColor: selected ? '#111111' : '#FFFFFF',
+              backgroundColor: selected ? BRAND.primary : '#FFFFFF',
               borderWidth: selected ? 0 : 1,
               borderColor: '#E3E3E3',
               opacity: pressed ? 0.88 : 1,

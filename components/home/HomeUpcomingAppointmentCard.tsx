@@ -8,9 +8,11 @@ import { StaffPresenceDot } from '@/components/ui/StaffPresenceDot';
 import type { DoctorPresenceDotStatus } from '@/lib/health-service/staffPresenceDot';
 import { Inter } from '@/lib/typography/inter';
 import { androidPressProps } from '@/lib/ui/androidPress';
+import { BRAND } from '@/lib/ui/theme';
 
-const CARD_BG = '#D3E9FA';
-const MUTED = '#3F3F3F';
+const CARD_BG = BRAND.primaryCard;
+const TEXT = '#FFFFFF';
+const TEXT_MUTED = 'rgba(255,255,255,0.85)';
 
 export type HomeUpcomingAppointmentCardProps = {
   doctorName: string;
@@ -28,7 +30,7 @@ export type HomeUpcomingAppointmentCardProps = {
 };
 
 /**
- * Figma light-blue upcoming appointment card with floating badge.
+ * Solid brand upcoming appointment card with floating white badge.
  */
 export function HomeUpcomingAppointmentCard({
   doctorName,
@@ -53,7 +55,7 @@ export function HomeUpcomingAppointmentCard({
           top: 0,
           left: '4%',
           zIndex: 2,
-          backgroundColor: 'rgba(255,255,255,0.72)',
+          backgroundColor: '#FFFFFF',
           borderWidth: 1,
           borderColor: '#FFFFFF',
           borderRadius: 19,
@@ -81,7 +83,7 @@ export function HomeUpcomingAppointmentCard({
           backgroundColor: CARD_BG,
           borderRadius: 16,
           borderWidth: 1,
-          borderColor: '#FFFFFF',
+          borderColor: BRAND.primaryCardDeep,
           paddingTop: 18,
           paddingBottom: 12,
           paddingHorizontal: 16,
@@ -96,7 +98,7 @@ export function HomeUpcomingAppointmentCard({
               justifyContent: 'space-between',
               paddingBottom: 14,
               borderBottomWidth: 1,
-              borderBottomColor: 'rgba(0,0,0,0.16)',
+              borderBottomColor: 'rgba(255,255,255,0.28)',
             }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1, minWidth: 0 }}>
               <View style={{ width: 44, height: 44, flexShrink: 0 }}>
@@ -106,17 +108,16 @@ export function HomeUpcomingAppointmentCard({
                     height: 44,
                     borderRadius: 22,
                     overflow: 'hidden',
-                    backgroundColor: '#FFFFFF',
+                    backgroundColor: 'rgba(255,255,255,0.2)',
                     alignItems: 'center',
                     justifyContent: 'center',
                   }}>
                   {photoUrl ? (
                     <Image source={{ uri: photoUrl }} style={{ width: 44, height: 44 }} resizeMode="cover" />
                   ) : (
-                    <Ionicons name="person" size={22} color="#A4A7AE" />
+                    <Ionicons name="person" size={22} color="rgba(255,255,255,0.85)" />
                   )}
                 </View>
-                {/* Keep fully inside the 44×44 box — Android clips anything outside. */}
                 <StaffPresenceDot
                   status={presenceStatus ?? 'offline'}
                   size={12}
@@ -129,7 +130,7 @@ export function HomeUpcomingAppointmentCard({
                   style={{
                     fontFamily: Inter.regular,
                     fontSize: 18,
-                    color: '#000000',
+                    color: TEXT,
                     letterSpacing: -0.64,
                   }}>
                   {doctorName}
@@ -139,7 +140,7 @@ export function HomeUpcomingAppointmentCard({
                   style={{
                     fontFamily: Inter.regular,
                     fontSize: 16,
-                    color: MUTED,
+                    color: TEXT_MUTED,
                     letterSpacing: -1.12,
                   }}>
                   {specialtyLabel}
@@ -156,14 +157,14 @@ export function HomeUpcomingAppointmentCard({
                 width: 42,
                 height: 42,
                 borderRadius: 999,
-                backgroundColor: 'rgba(255,255,255,0.51)',
+                backgroundColor: '#FFFFFF',
                 alignItems: 'center',
                 justifyContent: 'center',
                 flexShrink: 0,
                 overflow: 'hidden',
                 opacity: pressed ? 0.85 : 1,
               })}>
-              <IconsaxCallFilledIcon size={18} color="#6C6C6C" />
+              <IconsaxCallFilledIcon size={18} color={BRAND.primary} />
             </Pressable>
           </View>
 
@@ -177,24 +178,24 @@ export function HomeUpcomingAppointmentCard({
               minHeight: 36,
             }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
-              <IconsaxCalendarIcon size={18} color={MUTED} />
+              <IconsaxCalendarIcon size={18} color={TEXT_MUTED} />
               <Text
                 style={{
                   fontFamily: Inter.regular,
                   fontSize: 16,
-                  color: MUTED,
+                  color: TEXT_MUTED,
                   letterSpacing: -1.12,
                 }}>
                 {dateLabel}
               </Text>
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 }}>
-              <IconsaxTimerIcon size={18} color={MUTED} />
+              <IconsaxTimerIcon size={18} color={TEXT_MUTED} />
               <Text
                 style={{
                   fontFamily: Inter.regular,
                   fontSize: 16,
-                  color: MUTED,
+                  color: TEXT_MUTED,
                   letterSpacing: -1.12,
                 }}
                 numberOfLines={1}>
@@ -218,7 +219,7 @@ export function HomeUpcomingEmptyCard() {
           top: 0,
           left: '4%',
           zIndex: 2,
-          backgroundColor: 'rgba(255,255,255,0.72)',
+          backgroundColor: '#FFFFFF',
           borderWidth: 1,
           borderColor: '#FFFFFF',
           borderRadius: 19,
@@ -241,7 +242,7 @@ export function HomeUpcomingEmptyCard() {
           backgroundColor: CARD_BG,
           borderRadius: 16,
           borderWidth: 1,
-          borderColor: '#FFFFFF',
+          borderColor: BRAND.primaryCardDeep,
           paddingVertical: 28,
           paddingHorizontal: 16,
           alignItems: 'center',
@@ -251,7 +252,7 @@ export function HomeUpcomingEmptyCard() {
           style={{
             fontFamily: Inter.regular,
             fontSize: 16,
-            color: '#717680',
+            color: TEXT,
             letterSpacing: -0.32,
             textAlign: 'center',
           }}>
@@ -261,7 +262,7 @@ export function HomeUpcomingEmptyCard() {
           style={{
             fontFamily: Inter.regular,
             fontSize: 12,
-            color: '#A4A7AE',
+            color: TEXT_MUTED,
             letterSpacing: -0.24,
             textAlign: 'center',
           }}>

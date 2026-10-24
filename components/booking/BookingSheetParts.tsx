@@ -11,9 +11,10 @@ import { BookingChevronIcon } from '@/components/booking/BookingIcons';
 import { IconsaxArrowDownIcon } from '@/components/icons/IconsaxArrowDownIcon';
 import { Inter } from '@/lib/typography/inter';
 import { androidPressProps } from '@/lib/ui/androidPress';
+import { BRAND } from '@/lib/ui/theme';
 
-const SELECTED_DAY_BG = '#F3F3F3';
-const SELECTED_DAY_BORDER = '#D8D8D8';
+const SELECTED_DAY_BG = BRAND.primary;
+const SELECTED_DAY_BORDER = BRAND.primaryDeep;
 const PRESS_SPRING = { damping: 18, stiffness: 420, mass: 0.35 } as const;
 
 function usePressScale(scaleTo = 0.96) {
@@ -82,7 +83,7 @@ export function BookingDayChip({
           style={{
             fontFamily: Inter.regular,
             fontSize: 12,
-            color: disabled ? '#B0B0B0' : isSelected ? '#111111' : '#9E9E9E',
+            color: disabled ? '#B0B0B0' : isSelected ? '#FFFFFF' : '#9E9E9E',
             letterSpacing: -0.48,
           }}>
           {weekday}
@@ -91,7 +92,7 @@ export function BookingDayChip({
           style={{
             fontFamily: Inter.medium,
             fontSize: 16,
-            color: disabled ? '#B0B0B0' : isSelected ? '#111111' : '#9E9E9E',
+            color: disabled ? '#B0B0B0' : isSelected ? '#FFFFFF' : '#9E9E9E',
             letterSpacing: -0.64,
             textDecorationLine: disabled ? 'line-through' : 'none',
           }}>
@@ -140,16 +141,16 @@ export function BookingSlotChip({ label, selected, booked = false, onPress }: Sl
         {...androidPressProps({ light: selected, hitSlop: 2 })}
         style={{
           borderRadius: 16,
-          backgroundColor: selected ? '#0F0E0E' : '#F4F4F4',
+          backgroundColor: selected ? BRAND.primary : '#F4F4F4',
           paddingVertical: 14,
           paddingHorizontal: 10,
           alignItems: 'center',
           justifyContent: 'center',
           overflow: 'hidden',
           opacity: booked ? 0.45 : 1,
-          shadowColor: selected ? '#D0D0D0' : 'transparent',
+          shadowColor: selected ? BRAND.primary : 'transparent',
           shadowOffset: { width: 0, height: 5 },
-          shadowOpacity: selected ? 0.45 : 0,
+          shadowOpacity: selected ? 0.28 : 0,
           shadowRadius: selected ? 12 : 0,
         }}>
         <Text
@@ -230,7 +231,7 @@ type SheetHeaderProps = {
   onNextWeek: () => void;
 };
 
-/** Month label + circular week nav (prev light / next black). */
+/** Month label + circular week nav (prev light / next brand). */
 export function BookingSheetHeader({ monthLabel, onPrevWeek, onNextWeek }: SheetHeaderProps) {
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -248,14 +249,14 @@ export function BookingSheetHeader({ monthLabel, onPrevWeek, onNextWeek }: Sheet
         <BookingNavCircle
           accessibilityLabel="Previous week"
           onPress={onPrevWeek}
-          backgroundColor="#F0F0F0"
-          chevronColor="#6C6C6C"
+          backgroundColor={BRAND.soft}
+          chevronColor={BRAND.primary}
           mirror
         />
         <BookingNavCircle
           accessibilityLabel="Next week"
           onPress={onNextWeek}
-          backgroundColor="#000000"
+          backgroundColor={BRAND.primary}
           chevronColor="#FFFFFF"
         />
       </View>
@@ -393,14 +394,13 @@ export function BookingPrimaryButton({ disabled, loading, onPress }: BookButtonP
             height: 48,
             borderRadius: 48,
             overflow: 'hidden',
-            backgroundColor: '#000000',
+            backgroundColor: BRAND.primary,
             alignItems: 'center',
             justifyContent: 'center',
             opacity: inactive ? 0.45 : 1,
-            // Soft light lift — no extra fill behind the black pill
-            shadowColor: '#C8C8C8',
+            shadowColor: BRAND.primary,
             shadowOffset: { width: 0, height: 6 },
-            shadowOpacity: inactive ? 0 : 0.5,
+            shadowOpacity: inactive ? 0 : 0.28,
             shadowRadius: 14,
             elevation: inactive ? 0 : 6,
           },

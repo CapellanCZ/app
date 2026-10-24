@@ -90,22 +90,22 @@ export default function ProfileTab() {
 
         <ProfileSection title="Account">
           <ProfileMenuRow
-            icon={<UserEditIcon size={24} color="#111111" />}
+            icon={<UserEditIcon size={24} color="#004EEB" />}
             label="Edit Profile"
             onPress={() => router.push(ROUTES.personalInfo)}
           />
           <ProfileMenuRow
-            icon={<IconsaxNotificationIcon size={24} color="#111111" />}
+            icon={<IconsaxNotificationIcon size={24} color="#004EEB" />}
             label="Notifications"
             onPress={() => router.push(ROUTES.notificationSettings)}
           />
           <ProfileMenuRow
-            icon={<IconsaxDocumentTextIcon size={24} color="#111111" />}
+            icon={<IconsaxDocumentTextIcon size={24} color="#004EEB" />}
             label="Privacy Policy"
             onPress={() => router.push(ROUTES.privacy)}
           />
           <ProfileMenuRow
-            icon={<IconsaxArchiveIcon size={24} color="#111111" />}
+            icon={<IconsaxArchiveIcon size={24} color="#004EEB" />}
             label="Past Visits"
             onPress={() =>
               router.push({
@@ -118,12 +118,12 @@ export default function ProfileTab() {
 
         <ProfileSection title="Support & About">
           <ProfileMenuRow
-            icon={<IconsaxInfoCircleIcon size={24} color="#111111" />}
+            icon={<IconsaxInfoCircleIcon size={24} color="#004EEB" />}
             label="Terms & Policies"
             onPress={() => router.push(ROUTES.terms)}
           />
           <ProfileMenuRow
-            icon={<MessageQuestionIcon size={24} color="#111111" />}
+            icon={<MessageQuestionIcon size={24} color="#004EEB" />}
             label="Help & Support"
             onPress={() => router.push(ROUTES.helpCenter)}
           />

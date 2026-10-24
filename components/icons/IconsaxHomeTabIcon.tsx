@@ -1,10 +1,10 @@
 import { useId } from 'react';
 import Svg, { ClipPath, Defs, G, Path, Rect } from 'react-native-svg';
 
-/** Matches Android tab label inactive color (`#B0B3B8`). */
-export const HOME_TAB_ICON_INACTIVE = '#B0B3B8';
-/** Soft sky blue — same family as Upcoming Appointments card. */
-export const HOME_TAB_ICON_ACTIVE = '#6BAED6';
+/** Inactive tab icon — muted gray (floating center nav). */
+export const HOME_TAB_ICON_INACTIVE = '#9CA3AF';
+/** Active tab icon — primary brand blue. */
+export const HOME_TAB_ICON_ACTIVE = '#004EEB';
 
 type Props = {
   focused: boolean;

@@ -7,7 +7,7 @@ type Props = {
 };
 
 /** `assets/icons/PlainLogo.svg` — plain logo without the blue rounded-square background */
-export function PlainLogoIcon({ width = 68, height = 52, color = '#2970FF' }: Props) {
+export function PlainLogoIcon({ width = 68, height = 52, color = '#004EEB' }: Props) {
   return (
     <Svg width={width} height={height} viewBox="0 0 68 52" fill="none">
       <Path

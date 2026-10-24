@@ -77,7 +77,7 @@ function AppointmentCardFace({ item, preview }: AppointmentCardFaceProps) {
         className="w-full overflow-hidden rounded-xl shadow-none"
         style={{ elevation: 0, shadowOpacity: 0 }}>
         <LinearGradient
-          colors={['#2970FF', '#155EEF']}
+          colors={['#2B6AEF', '#1A55D9']}
           end={{ x: 0.5, y: 1 }}
           start={{ x: 0.5, y: 0 }}
           style={{ padding: 14, width: '100%' }}>
@@ -101,7 +101,7 @@ function AppointmentCardFace({ item, preview }: AppointmentCardFaceProps) {
               style={{ elevation: 0, shadowOpacity: 0 }}
               onPress={() => item.onCallPress?.()}
               disabled={preview}>
-              <IconsaxCallFilledIcon color="#2970FF" size={20} />
+              <IconsaxCallFilledIcon color="#004EEB" size={20} />
             </Pressable>
           </View>
 

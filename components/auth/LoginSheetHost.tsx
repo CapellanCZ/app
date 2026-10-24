@@ -27,6 +27,7 @@ import {
 } from '@/lib/auth/constants';
 import { Inter } from '@/lib/typography/inter';
 import { ROUTES } from '@/lib/routes';
+import { BRAND } from '@/lib/ui/theme';
 
 type Step = 'email' | 'verify';
 
@@ -264,7 +265,7 @@ export function LoginSheetHost() {
             label="Send One-Time Password"
             onPress={handleSend}
             loading={loading}
-            variant="dark"
+            variant="primary"
             disabled={!email.trim() || !isConfigured}
           />
           <AuthLegalFooter
@@ -304,7 +305,7 @@ export function LoginSheetHost() {
               label="Continue"
               onPress={handleContinue}
               loading={verifying}
-              variant="dark"
+              variant="primary"
               disabled={otpCode.length !== 6 || verifying}
             />
             <Pressable
@@ -402,7 +403,7 @@ const styles = StyleSheet.create({
   resendLink: {
     fontFamily: Inter.medium,
     fontSize: 14,
-    color: '#2970FF',
+    color: BRAND.primary,
   },
   notMeBtn: {
     height: 48,

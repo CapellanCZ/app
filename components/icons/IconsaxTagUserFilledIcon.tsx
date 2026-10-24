@@ -7,7 +7,7 @@ type Props = {
 };
 
 /** `assets/icons/iconsax-tag-user-filled.svg` */
-export function IconsaxTagUserFilledIcon({ size = 24, color = '#2970FF' }: Props) {
+export function IconsaxTagUserFilledIcon({ size = 24, color = '#004EEB' }: Props) {
   const clipId = useId().replace(/:/g, '');
 
   return (

@@ -19,11 +19,12 @@ import { openClinicCall } from '@/lib/health-service/clinicContact';
 import type { AppointmentStatus } from '@/lib/health-service/types';
 import { Inter } from '@/lib/typography/inter';
 import { androidPressProps } from '@/lib/ui/androidPress';
+import { BRAND, CARD_ELEVATION } from '@/lib/ui/theme';
 
 const PRESS_SPRING = { damping: 18, stiffness: 380, mass: 0.35 } as const;
 
 /** Soft outline — white cards on #F9F9F9. */
-const CARD_BORDER = '#E8E8E8';
+const CARD_BORDER = '#ECECEC';
 const CARD_BG = '#FFFFFF';
 
 /** Same blue / yellow / pink wells as notifications + home vitals. */
@@ -34,7 +35,7 @@ const STATUS_TAG: Partial<
   >
 > = {
   pending: { bg: '#F4EDD6', color: '#7E6B28', label: 'Pending', kind: 'clock' },
-  confirmed: { bg: '#D3E9FA', color: '#048AF3', label: 'Confirmed', kind: 'check' },
+  confirmed: { bg: '#E8F0FF', color: '#004EEB', label: 'Confirmed', kind: 'check' },
   cancelled: { bg: '#F4E2FC', color: '#7C52A2', label: 'Cancelled', kind: 'clock' },
 };
 
@@ -177,7 +178,7 @@ export function AppointmentCard({
                     styles.callBtn,
                     pressed && { opacity: 0.85 },
                   ]}>
-                  <IconsaxCallFilledIcon size={18} color="#6C6C6C" />
+                  <IconsaxCallFilledIcon size={18} color={BRAND.primary} />
                 </Pressable>
               </View>
 
@@ -290,6 +291,7 @@ const styles = StyleSheet.create({
     padding: 16,
     width: '100%',
     gap: 20,
+    ...CARD_ELEVATION,
   },
   cardUpcoming: {
     paddingTop: 18,
@@ -315,7 +317,7 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 999,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: BRAND.soft,
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,

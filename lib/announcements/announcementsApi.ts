@@ -5,8 +5,8 @@ import type { Announcement } from './types';
 
 const ATTACHMENT_BUCKET = 'announcement-attachments';
 const SIGNED_URL_TTL_SEC = 60 * 60; // 1 hour
-/** Home carousel + store: only keep the newest posts. */
-export const MAX_ANNOUNCEMENT_SLIDES = 3;
+/** Home announcement list: newest published posts. */
+export const MAX_ANNOUNCEMENT_SLIDES = 10;
 const MAX_SENTENCES = 3;
 
 /** Keep at most N sentences for the card preview. */
@@ -116,6 +116,7 @@ export async function fetchPublishedAnnouncements(
         id: row.id,
         title: row.title,
         body: row.body ?? '',
+        audience: row.audience?.trim() || null,
         publishedAt: row.published_at,
         imageUrl,
       } satisfies Announcement;

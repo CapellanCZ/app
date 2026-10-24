@@ -10,6 +10,10 @@ type Props = {
   statusColor: string;
   backgroundColor: string;
   icon: ReactNode;
+  /** Overrides label color (e.g. white on solid brand cards). */
+  labelColor?: string;
+  /** Overrides value color. */
+  valueColor?: string;
   /** Taller card for the vital signs detail screen. */
   variant?: 'home' | 'detail';
 };
@@ -21,6 +25,8 @@ export function VitalMetricCard({
   statusColor,
   backgroundColor,
   icon,
+  labelColor = '#373636',
+  valueColor = '#111111',
   variant = 'home',
 }: Props) {
   const isDetail = variant === 'detail';
@@ -32,7 +38,7 @@ export function VitalMetricCard({
         backgroundColor,
         borderRadius: 16,
         borderWidth: 1,
-        borderColor: '#FFFFFF',
+        borderColor: backgroundColor,
         paddingHorizontal: 16,
         paddingVertical: isDetail ? 20 : 18,
         gap: isDetail ? 28 : 24,
@@ -44,7 +50,7 @@ export function VitalMetricCard({
             flex: 1,
             fontFamily: Inter.regular,
             fontSize: isDetail ? 15 : 14,
-            color: '#373636',
+            color: labelColor,
             letterSpacing: -0.48,
           }}>
           {label}
@@ -58,7 +64,7 @@ export function VitalMetricCard({
           style={{
             fontFamily: Inter.regular,
             fontSize: isDetail ? 30 : 26,
-            color: '#111111',
+            color: valueColor,
             lineHeight: isDetail ? 36 : 32,
           }}>
           {value}

@@ -1,16 +1,13 @@
-import { Platform } from 'react-native';
-
-/** Visible white bar height on Android (excludes safe-area inset). */
+/** Visible floating pill height (excludes safe-area / float gap). */
 export const ANDROID_TAB_BAR_HEIGHT = 64;
-/** How far the center FAB sticks above the Android bar top (centers on the cutout). */
-export const ANDROID_TAB_FAB_OVERHANG = 28;
+/** Space between the floating pill and the home-indicator / screen bottom. */
+export const ANDROID_TAB_FLOAT_GAP = 12;
 
 /**
  * Bottom padding for scroll content above the tab bar.
- * iOS: NativeTabs liquid-glass bar.
- * Android: custom floating dock (bar + FAB overhang).
+ * Floating pill + float gap (safe area is applied separately by screens).
  */
-export const TAB_BAR_HEIGHT =
-  Platform.OS === 'android'
-    ? ANDROID_TAB_BAR_HEIGHT + ANDROID_TAB_FAB_OVERHANG
-    : 88;
+export const TAB_BAR_HEIGHT = ANDROID_TAB_BAR_HEIGHT + ANDROID_TAB_FLOAT_GAP;
+
+/** @deprecated Prefer ANDROID_TAB_FLOAT_GAP — alias for older FAB overhang imports. */
+export const ANDROID_TAB_FAB_OVERHANG = ANDROID_TAB_FLOAT_GAP;

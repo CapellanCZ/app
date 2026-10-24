@@ -17,7 +17,7 @@ export function AuthSuccessModal({
   visible,
   onClose,
   icon,
-  iconColor = '#2970FF',
+  iconColor = '#004EEB',
   iconBg = 'rgba(41,112,255,0.08)',
   title,
   message,
@@ -123,7 +123,7 @@ export function AuthSuccessModal({
             accessibilityLabel={buttonLabel}
             className="active:opacity-80"
             style={{
-              backgroundColor: '#2970FF',
+              backgroundColor: '#004EEB',
               borderRadius: 14,
               paddingVertical: 14,
               alignItems: 'center',

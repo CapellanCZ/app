@@ -19,24 +19,26 @@ import {
   BookingConsultationSelect,
   BookingOtherRequestField,
   buildBookingReason,
+  isConsultationOptionForProvider,
   type ConsultationRequestOption,
 } from '@/components/booking/BookingConsultationFields';
+import {
+  BookingMonthCalendar,
+  startOfMonth,
+} from '@/components/booking/BookingMonthCalendar';
 import {
   BookingProviderTypeSelect,
   type BookingProviderType,
 } from '@/components/booking/BookingProviderTypeSelect';
 import { BookingSectionCard } from '@/components/booking/BookingSectionCard';
 import {
-  BookingDayChip,
   BookingPeriodSection,
   BookingPrimaryButton,
-  BookingSheetHeader,
 } from '@/components/booking/BookingSheetParts';
 import {
   BookingScreenSkeleton,
   BookingSlotsSkeleton,
 } from '@/components/booking/BookingSlotsSkeleton';
-import { IconsaxCalendar2Icon } from '@/components/icons/IconsaxCalendar2Icon';
 import { IconsaxClipboardTextIcon } from '@/components/icons/IconsaxClipboardTextIcon';
 import { IconsaxClockIcon } from '@/components/icons/IconsaxClockIcon';
 import { IconsaxProfile2UserIcon } from '@/components/icons/IconsaxProfile2UserIcon';
@@ -51,21 +53,6 @@ import { useNotificationStore } from '@/lib/notifications/notificationStore';
 import { Inter } from '@/lib/typography/inter';
 import { showAppToast } from '@/lib/ui/toastBridge';
 
-const DAY_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const MONTH_LONG = [
-  'January',
-  'February',
-  'March',
-  'April',
-  'May',
-  'June',
-  'July',
-  'August',
-  'September',
-  'October',
-  'November',
-  'December',
-];
 const MONTH_SHORT = [
   'Jan',
   'Feb',
@@ -108,28 +95,19 @@ function isPastDay(day: Date): boolean {
   return startOfDay(day).getTime() < startOfDay(new Date()).getTime();
 }
 
-function isSameDay(a: Date, b: Date): boolean {
-  return startOfDay(a).getTime() === startOfDay(b).getTime();
-}
-
-function getWeekDays(anchor: Date): Date[] {
-  const s = startOfDay(anchor);
-  const dow = s.getDay();
-  const daysToMon = dow === 0 ? -6 : 1 - dow;
-  const mon = new Date(s);
-  mon.setDate(s.getDate() + daysToMon);
-  return Array.from({ length: 6 }, (_, i) => {
-    const d = new Date(mon);
-    d.setDate(mon.getDate() + i);
-    return d;
-  });
-}
-
-/** True when every day in the Mon–Sat week of `anchor` is already past. */
-function isWeekFullyPast(anchor: Date): boolean {
-  const days = getWeekDays(anchor);
-  const last = days[days.length - 1];
-  return last ? isPastDay(last) : true;
+/** Next bookable day from `from` within `horizonDays` (inclusive of from). */
+function findNextBookableDay(
+  from: Date,
+  isDayBookable: (day: Date) => boolean,
+  horizonDays = 90,
+): Date | null {
+  const cursor = startOfDay(from);
+  for (let i = 0; i < horizonDays; i += 1) {
+    const day = new Date(cursor);
+    day.setDate(cursor.getDate() + i);
+    if (isDayBookable(day)) return startOfDay(day);
+  }
+  return null;
 }
 
 function resolveSpecialty(role: StaffRole, _specialty: string): string {
@@ -206,6 +184,7 @@ export function HealthServiceBookScreen({
   );
 
   const [selectedDay, setSelectedDay] = useState(() => startOfDay(new Date()));
+  const [visibleMonth, setVisibleMonth] = useState(() => startOfMonth(new Date()));
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const [consultationRequest, setConsultationRequest] =
     useState<ConsultationRequestOption | null>(null);
@@ -289,8 +268,6 @@ export function HealthServiceBookScreen({
     }
   }, [selectedSlot, slots]);
 
-  const weekDays = useMemo(() => getWeekDays(selectedDay), [selectedDay]);
-
   const isDayBookable = useCallback(
     (day: Date) => {
       if (isPastDay(day)) return false;
@@ -300,37 +277,31 @@ export function HealthServiceBookScreen({
     [workingDows],
   );
 
+  // Keep calendar month in sync when selection moves (e.g. auto-jump).
+  useEffect(() => {
+    setVisibleMonth(startOfMonth(selectedDay));
+  }, [selectedDay]);
+
   // If selected day is past or off-schedule, jump to the next bookable day.
   useEffect(() => {
     if (!staff || workingDows.size === 0) return;
     if (isDayBookable(selectedDay)) return;
 
-    const inWeek = weekDays.find((d) => isDayBookable(d));
-    if (inWeek) {
-      setSelectedDay(startOfDay(inWeek));
-      return;
-    }
+    const next = findNextBookableDay(startOfDay(new Date()), isDayBookable);
+    if (next) setSelectedDay(next);
+  }, [staff, workingDows, selectedDay, isDayBookable]);
 
-    const fromToday = startOfDay(new Date());
-    if (isDayBookable(fromToday)) {
-      setSelectedDay(fromToday);
-      return;
-    }
-    const upcoming = getWeekDays(fromToday).find((d) => isDayBookable(d));
-    if (upcoming) setSelectedDay(startOfDay(upcoming));
-  }, [staff, workingDows, selectedDay, weekDays, isDayBookable]);
+  const currentMonthStart = startOfMonth(new Date());
+  const canGoPrevMonth =
+    startOfMonth(visibleMonth).getTime() > currentMonthStart.getTime();
 
-  const shiftWeek = (delta: number) => {
-    setSelectedDay((prev) => {
-      const next = new Date(prev);
-      next.setDate(prev.getDate() + delta * 7);
-      const nextDay = startOfDay(next);
-
-      if (delta < 0 && isWeekFullyPast(nextDay)) {
+  const shiftMonth = (delta: number) => {
+    setVisibleMonth((prev) => {
+      const next = startOfMonth(new Date(prev.getFullYear(), prev.getMonth() + delta, 1));
+      if (delta < 0 && next.getTime() < currentMonthStart.getTime()) {
         return prev;
       }
-
-      return nextDay;
+      return next;
     });
   };
 
@@ -452,10 +423,24 @@ export function HealthServiceBookScreen({
         return;
       }
       setSelectedSlot(null);
+      setConsultationRequest(null);
+      setOtherRequestDetail('');
+      setShowRequestError(false);
+      setShowOtherDetailError(false);
       setActiveStaffId(match.id);
     },
     [allStaff, staff?.role],
   );
+
+  // Drop consultation choice if it does not belong to the active provider type.
+  useEffect(() => {
+    if (!staff || !consultationRequest) return;
+    const kind = staff.role === 'dentist' ? 'dentist' : 'doctor';
+    if (!isConsultationOptionForProvider(consultationRequest, kind)) {
+      setConsultationRequest(null);
+      setOtherRequestDetail('');
+    }
+  }, [staff, consultationRequest]);
 
   if (!staff) {
     if (allStaff.length === 0) {
@@ -492,7 +477,6 @@ export function HealthServiceBookScreen({
   const specLabel = resolveSpecialty(staff.role, staff.specialtyLabel);
   const displayName = formatDoctorDisplayName(staff.name, staff.role);
   const providerType: BookingProviderType = staff.role === 'dentist' ? 'dentist' : 'doctor';
-  const monthLabel = MONTH_LONG[selectedDay.getMonth()];
   const otherDetailOk =
     consultationRequest !== 'Other' || Boolean(otherRequestDetail.trim());
   const canBook =
@@ -526,49 +510,30 @@ export function HealthServiceBookScreen({
         bottomOffset={28}
         extraKeyboardSpace={16}
         onScrollBeginDrag={Keyboard.dismiss}>
+        <BookingMonthCalendar
+          visibleMonth={visibleMonth}
+          selectedDay={selectedDay}
+          isDayBookable={isDayBookable}
+          canGoPrev={canGoPrevMonth}
+          onSelectDay={(day) => {
+            Keyboard.dismiss();
+            setSelectedDay(day);
+          }}
+          onPrevMonth={() => {
+            Keyboard.dismiss();
+            shiftMonth(-1);
+          }}
+          onNextMonth={() => {
+            Keyboard.dismiss();
+            shiftMonth(1);
+          }}
+        />
+
         <BookingProviderCard
           doctorName={displayName}
           specialty={specLabel}
           photoUrl={staff.photoUrl}
         />
-
-        <BookingSectionCard
-          title="Date"
-          tone="blue"
-          icon={<IconsaxCalendar2Icon size={18} color="#048AF3" />}>
-          <BookingSheetHeader
-            monthLabel={monthLabel}
-            onPrevWeek={() => {
-              Keyboard.dismiss();
-              shiftWeek(-1);
-            }}
-            onNextWeek={() => {
-              Keyboard.dismiss();
-              shiftWeek(1);
-            }}
-          />
-
-          <View style={{ flexDirection: 'row', gap: 6 }}>
-            {weekDays.map((day) => {
-              const past = isPastDay(day);
-              const bookable = isDayBookable(day);
-              return (
-                <BookingDayChip
-                  key={`${day.getFullYear()}-${day.getMonth()}-${day.getDate()}`}
-                  weekday={DAY_SHORT[day.getDay()]}
-                  dayNumber={String(day.getDate()).padStart(2, '0')}
-                  selected={isSameDay(day, selectedDay)}
-                  disabled={past || !bookable}
-                  onPress={() => {
-                    if (past || !bookable) return;
-                    Keyboard.dismiss();
-                    setSelectedDay(startOfDay(day));
-                  }}
-                />
-              );
-            })}
-          </View>
-        </BookingSectionCard>
 
         <BookingSectionCard
           title="Provider type"
@@ -638,6 +603,7 @@ export function HealthServiceBookScreen({
           icon={<IconsaxClipboardTextIcon size={18} color="#4FA603" />}>
           <BookingConsultationSelect
             value={consultationRequest}
+            providerType={providerType}
             error={showRequestError && !consultationRequest}
             onChange={(next) => {
               Keyboard.dismiss();

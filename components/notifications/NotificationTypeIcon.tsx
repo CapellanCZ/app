@@ -54,17 +54,17 @@ function SuccessGlyph({ color }: { color: string }) {
   );
 }
 
-function WarningGlyph() {
+function WarningGlyph({ color }: { color: string }) {
   return (
-    <Svg width={16} height={20} viewBox="0 0 15.3836 20" fill="none">
+    <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
       <Path
-        d="M15.0294 12.49L14.0294 10.83C13.8194 10.46 13.6294 9.76 13.6294 9.35V6.82C13.6294 4.47 12.2494 2.44 10.2594 1.49C9.73936 0.57 8.77936 0 7.67936 0C6.58936 0 5.6094 0.59 5.0894 1.52C3.1394 2.49 1.7894 4.5 1.7894 6.82V9.35C1.7894 9.76 1.5994 10.46 1.3894 10.82L0.379396 12.49C-0.0206042 13.16 -0.110604 13.9 0.139396 14.58C0.379396 15.25 0.949396 15.77 1.6894 16.02C3.6294 16.68 5.6694 17 7.70936 17C9.74936 17 11.7894 16.68 13.7294 16.03C14.4294 15.8 14.9694 15.27 15.2294 14.58C15.4894 13.89 15.4194 13.13 15.0294 12.49Z"
-        fill="#7E6B28"
+        d="M12 3.2L21.5 19.5H2.5L12 3.2Z"
+        stroke={color}
+        strokeWidth="1.6"
+        strokeLinejoin="round"
       />
-      <Path
-        d="M10.5194 18.01C10.0994 19.17 8.98936 20 7.68936 20C6.89936 20 6.11936 19.68 5.56939 19.11C5.24939 18.81 5.00939 18.41 4.86939 18C4.99939 18.02 5.12939 18.03 5.26939 18.05C5.49939 18.08 5.73936 18.11 5.97936 18.13C6.54936 18.18 7.12936 18.21 7.70936 18.21C8.27936 18.21 8.84936 18.18 9.40936 18.13C9.61936 18.11 9.82936 18.1 10.0294 18.07C10.1894 18.05 10.3494 18.03 10.5194 18.01Z"
-        fill="#7C52A2"
-      />
+      <Path d="M12 10V14" stroke={color} strokeWidth="1.8" strokeLinecap="round" />
+      <Path d="M12 17.2H12.01" stroke={color} strokeWidth="2.2" strokeLinecap="round" />
     </Svg>
   );
 }
@@ -127,7 +127,7 @@ export function NotificationTypeIcon({ variant = 'info', size = 44 }: Props) {
       glyph = <SuccessGlyph color={tokens.accent} />;
       break;
     case 'warning':
-      glyph = <WarningGlyph />;
+      glyph = <WarningGlyph color={tokens.accent} />;
       break;
     case 'error':
       glyph = <ErrorGlyph color={tokens.accent} />;

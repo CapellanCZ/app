@@ -6,7 +6,7 @@ import { IconsaxArrowUpIcon } from '@/components/icons/IconsaxArrowUpIcon';
 import type { LatestVitals } from '@/lib/vitals/vitalsApi';
 import { buildVitalsGridRows } from '@/lib/vitals/vitalsDisplay';
 import { healthUiText } from '@/lib/typography/healthUiText';
-import { SCHEDULE_PARTNER } from '@/lib/ui/theme';
+import { CARD_ELEVATION, SCHEDULE_PARTNER } from '@/lib/ui/theme';
 import { androidPressProps } from '@/lib/ui/androidPress';
 
 type VitalsSignsGridProps = {
@@ -101,12 +101,13 @@ export function VitalsSignsGrid({
       style={{
         borderRadius: 16,
         borderWidth: 1,
-        borderColor: SCHEDULE_PARTNER.cardBorder,
+        borderColor: '#ECECEC',
         backgroundColor: '#FFFFFF',
         paddingHorizontal: 16,
         paddingTop: 16,
         paddingBottom: isOpen ? 20 : 16,
         gap: isOpen ? 16 : 0,
+        ...CARD_ELEVATION,
       }}>
       {header}
 

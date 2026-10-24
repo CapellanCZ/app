@@ -6,7 +6,7 @@ type Props = {
 };
 
 /** `assets/icons/iconsax-call-filled.svg` — solid filled phone. */
-export function IconsaxCallFilledIcon({ size = 18, color = '#6C6C6C' }: Props) {
+export function IconsaxCallFilledIcon({ size = 18, color = '#004EEB' }: Props) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Path

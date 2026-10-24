@@ -21,7 +21,7 @@ export async function ensureDefaultAndroidNotificationChannel(): Promise<void> {
       description: 'Appointment, queue, and campus notifications',
       importance: Notifications.AndroidImportance.MAX,
       vibrationPattern: [0, 250, 250, 250],
-      lightColor: '#048AF3',
+      lightColor: '#004EEB',
       lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
       bypassDnd: false,
       enableVibrate: true,

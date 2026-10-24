@@ -13,6 +13,9 @@ import { LogoutIcon } from '@/components/icons/LogoutIcon';
 import { AppButton } from '@/components/ui/AppButton';
 import { Inter } from '@/lib/typography/inter';
 import { androidPressProps } from '@/lib/ui/androidPress';
+import { BRAND } from '@/lib/ui/theme';
+
+const LOGOUT_RED = '#E53935';
 
 export type LogoutModalProps = {
   visible: boolean;
@@ -126,11 +129,11 @@ export function LogoutModal({ visible, onConfirm, onCancel }: LogoutModalProps) 
                 width: 64,
                 height: 64,
                 borderRadius: 32,
-                backgroundColor: '#D3E9FA',
+                backgroundColor: BRAND.soft,
                 alignItems: 'center',
                 justifyContent: 'center',
               }}>
-              <LogoutIcon size={26} color="#4D7A9A" />
+              <LogoutIcon size={26} color={BRAND.primary} />
             </View>
 
             <View style={{ alignItems: 'center', gap: 8, paddingHorizontal: 8 }}>
@@ -164,7 +167,7 @@ export function LogoutModal({ visible, onConfirm, onCancel }: LogoutModalProps) 
           <View style={{ gap: 12 }}>
             <AppButton
               label="Stay signed in"
-              variant="dark"
+              variant="primary"
               onPress={() => animateOut('cancel')}
               accessibilityLabel="Stay signed in"
             />
@@ -179,14 +182,14 @@ export function LogoutModal({ visible, onConfirm, onCancel }: LogoutModalProps) 
                 alignItems: 'center',
                 justifyContent: 'center',
                 borderRadius: 48,
-                backgroundColor: '#F9F9F9',
+                backgroundColor: '#F3F4F6',
                 opacity: pressed ? 0.88 : 1,
               })}>
               <Text
                 style={{
                   fontFamily: Inter.medium,
                   fontSize: 16,
-                  color: '#C93B2E',
+                  color: LOGOUT_RED,
                   letterSpacing: -0.32,
                   lineHeight: 22,
                 }}>

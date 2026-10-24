@@ -429,7 +429,7 @@ export function AppointmentStatusHost() {
                       style={[
                         styles.linkBtnText,
                         {
-                          color: reminderSetAt || !reminderAvailable ? '#6C6C6C' : '#048AF3',
+                          color: reminderSetAt || !reminderAvailable ? '#6C6C6C' : '#004EEB',
                         },
                       ]}>
                       {reminderBusy ? 'Setting reminder…' : reminderLinkLabel}

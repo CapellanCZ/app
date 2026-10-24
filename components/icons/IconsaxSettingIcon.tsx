@@ -7,7 +7,7 @@ type Props = {
 };
 
 /** Settings/gear icon (Iconsax style) */
-export function IconsaxSettingIcon({ size = 24, color = '#2970FF' }: Props) {
+export function IconsaxSettingIcon({ size = 24, color = '#004EEB' }: Props) {
   const clipId = useId().replace(/:/g, '_');
 
   return (

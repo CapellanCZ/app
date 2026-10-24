@@ -1,55 +1,83 @@
 import type { ImageSourcePropType } from 'react-native';
 
 export type GetStartedSlideLayout = {
-  /** Width / height of the image box. Defaults to portrait photo framing. */
+  /** Width / height of the image box. */
   aspect?: number;
   /** 0–1 of available width. */
   widthRatio?: number;
-  /** Align inside the hero area. Photos sit on the bottom; icons center. */
+  /** Photos sit bottom; phone mockups center. */
   align?: 'bottom' | 'center';
 };
 
-export type GetStartedSlide = {
-  id: string;
-  image: ImageSourcePropType;
-  imageLabel: string;
-  /** First line of the 2-line headline. */
-  headlineLead: string;
-  /** Second line of the 2-line headline. */
-  headlineAccent: string;
-  subtitle: string;
-  layout?: GetStartedSlideLayout;
+export type GetStartedHeadlinePart = {
+  text: string;
+  /** Brand-blue span. */
+  accent?: boolean;
 };
 
-/** Three onboarding slides for the get-started screen. */
+export type GetStartedPreviewKind = 'home' | 'book';
+
+export type GetStartedSlide = {
+  id: string;
+  imageLabel: string;
+  headline: GetStartedHeadlinePart[];
+  subtitle: string;
+  layout?: GetStartedSlideLayout;
+  /** Static photo (slide 1). */
+  image?: ImageSourcePropType;
+  /** Live HD phone mock of Home / Book with mock data (slides 2–3). */
+  preview?: GetStartedPreviewKind;
+};
+
+/**
+ * Three onboarding slides — shared composed chrome so logo / copy / CTA / legal
+ * stay vertically aligned across every page.
+ */
 export const GET_STARTED_SLIDES: GetStartedSlide[] = [
   {
-    id: 'students',
+    id: 'connection',
     image: require('../../assets/student-model.optimized.png'),
     imageLabel: 'CampusCare students',
-    headlineLead: 'Shaping the Future of',
-    headlineAccent: 'HealthCare',
-    subtitle: 'Book your appointment visits faster with the Health Service Office.',
-  },
-  {
-    id: 'care',
-    image: require('../../assets/images/booking/doctor-hero.png'),
-    imageLabel: 'Campus health providers',
-    headlineLead: 'Care When You',
-    headlineAccent: 'Need It Most',
-    subtitle: 'See school doctors and nurses without the wait or the paperwork pile-up.',
-  },
-  {
-    id: 'book',
-    image: require('../../assets/3d-calendar.png'),
-    imageLabel: 'Appointment calendar',
-    headlineLead: 'Your Schedule,',
-    headlineAccent: 'Your Visit',
-    subtitle: 'Pick a time that works, get reminders, and show up ready.',
-    // Square icon — center in the hero, don't use full-bleed portrait framing.
+    headline: [
+      { text: 'Your Direct Connection to the ' },
+      { text: 'Health Services Office', accent: true },
+    ],
+    subtitle:
+      'Seamlessly access dental and medical consultations, complete your health profiling, and secure medical certifications for sports, off-campus activities, and internships all in one platform.',
     layout: {
-      aspect: 1,
-      widthRatio: 0.62,
+      aspect: 0.85,
+      widthRatio: 0.92,
+      align: 'bottom',
+    },
+  },
+  {
+    id: 'wellness',
+    preview: 'home',
+    imageLabel: 'CampusCare home dashboard',
+    headline: [
+      { text: 'Track Your\n' },
+      { text: 'Wellness at a Glance', accent: true },
+    ],
+    subtitle:
+      'Monitor your upcoming clinic appointments, check real-time vital signs, and stay updated on campus announcements instantly.',
+    layout: {
+      /** Near full-bleed phone — sized by band fill in GetStartedHero. */
+      widthRatio: 0.94,
+      align: 'center',
+    },
+  },
+  {
+    id: 'scheduling',
+    preview: 'book',
+    imageLabel: 'CampusCare book appointment',
+    headline: [
+      { text: 'Hassle-Free', accent: true },
+      { text: '\nClinic Scheduling' },
+    ],
+    subtitle:
+      'Book consultations with school physicians and specialists in just a few taps, anytime and anywhere on campus.',
+    layout: {
+      widthRatio: 0.94,
       align: 'center',
     },
   },

@@ -2,7 +2,7 @@ import { Text, View } from 'react-native';
 
 import { IconsaxInfoCircleIcon } from '@/components/icons/IconsaxInfoCircleIcon';
 import { Inter } from '@/lib/typography/inter';
-import { SCHEDULE_PARTNER } from '@/lib/ui/theme';
+import { BRAND, CARD_ELEVATION } from '@/lib/ui/theme';
 
 type Props = {
   message: string;
@@ -18,12 +18,13 @@ export function PersonalInfoNoteCard({ message }: Props) {
         gap: 12,
         borderRadius: 16,
         borderWidth: 1,
-        borderColor: SCHEDULE_PARTNER.cardBorder,
+        borderColor: '#ECECEC',
         backgroundColor: '#FFFFFF',
         padding: 16,
+        ...CARD_ELEVATION,
       }}>
       <View style={{ marginTop: 1 }}>
-        <IconsaxInfoCircleIcon size={20} color="#6BAED6" />
+        <IconsaxInfoCircleIcon size={20} color={BRAND.primary} />
       </View>
       <Text
         style={{

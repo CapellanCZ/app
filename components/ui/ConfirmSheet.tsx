@@ -38,9 +38,9 @@ function SheetIcon({ icon }: { icon: ConfirmSheetIcon }) {
     <View
       style={[
         styles.iconWell,
-        { backgroundColor: isDanger ? '#FEE4E2' : '#D3E9FA' },
+        { backgroundColor: isDanger ? '#FEE4E2' : '#E8F0FF' },
       ]}>
-      <IconsaxDangerIcon size={26} color={isDanger ? '#D92D20' : '#4D7A9A'} />
+      <IconsaxDangerIcon size={26} color={isDanger ? '#D92D20' : '#004EEB'} />
     </View>
   );
 }
@@ -424,7 +424,7 @@ const styles = StyleSheet.create({
   optionRowSelected: {
     backgroundColor: '#F5F8FF',
     borderWidth: 1,
-    borderColor: '#2970FF',
+    borderColor: '#004EEB',
   },
   optionLabel: {
     fontFamily: Inter.medium,
@@ -433,7 +433,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.32,
   },
   optionLabelSelected: {
-    color: '#155EEF',
+    color: '#0039C7',
     fontFamily: Inter.semiBold,
   },
 });

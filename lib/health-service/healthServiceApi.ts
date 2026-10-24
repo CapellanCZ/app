@@ -911,7 +911,8 @@ function createSupabaseHealthServiceApi(): HealthServiceApi {
           starts_at: startsAt.toISOString(),
           ends_at: endsAt.toISOString(),
           reason: input.symptoms?.trim() || null,
-          status: 'pending',
+          // Student bookings auto-confirm — ticket + confirmed emails/notifications fire on insert.
+          status: 'confirmed',
         })
         .select('id, created_at, status')
         .single();
@@ -924,26 +925,11 @@ function createSupabaseHealthServiceApi(): HealthServiceApi {
         throw error;
       }
 
-      // Resolve final status: web auto-confirm may update the row right after insert.
-      let status = mapDbStatus(String(inserted.status ?? 'pending'));
-      if (status !== 'confirmed') {
-        for (let attempt = 0; attempt < 3; attempt++) {
-          await new Promise((r) => setTimeout(r, 300));
-          const { data: fresh } = await supabase
-            .from('appointments')
-            .select('status')
-            .eq('id', inserted.id)
-            .maybeSingle();
-          status = mapDbStatus(String(fresh?.status ?? 'pending'));
-          if (status === 'confirmed') break;
-        }
-      }
-
       return {
         id: inserted.id as string,
         checkInCode: '—',
         createdAt: inserted.created_at as string,
-        status,
+        status: mapDbStatus(String(inserted.status ?? 'confirmed')),
       };
     },
 

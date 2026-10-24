@@ -20,7 +20,7 @@ import { IconsaxCalendarIcon } from '../icons/IconsaxCalendarIcon';
 import { IconsaxClockIcon } from '../icons/IconsaxClockIcon';
 import { IconsaxArrowRightIcon } from '../icons/IconsaxArrowRightIcon';
 
-const BRAND = '#2970FF';
+const BRAND = '#004EEB';
 const GRAY_50 = '#FAFAFA';
 const GRAY_100 = '#F5F5F5';
 const GRAY_200 = '#E9EAEB';

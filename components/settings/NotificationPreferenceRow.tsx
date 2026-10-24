@@ -4,7 +4,7 @@ import { Switch, Text, View } from 'react-native';
 import { Inter } from '@/lib/typography/inter';
 import { SCHEDULE_PARTNER } from '@/lib/ui/theme';
 
-const BRAND = '#6BAED6';
+const BRAND = '#004EEB';
 
 export type NotificationPreference = {
   id: string;
@@ -41,7 +41,7 @@ export function NotificationPreferenceRow({ item, value, onToggle, isLast, disab
             width: 40,
             height: 40,
             borderRadius: 12,
-            backgroundColor: '#D3E9FA',
+            backgroundColor: '#E8F0FF',
             alignItems: 'center',
             justifyContent: 'center',
             flexShrink: 0,

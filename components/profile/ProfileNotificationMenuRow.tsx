@@ -7,7 +7,7 @@ import { Inter } from '@/lib/typography/inter';
 import { androidPressProps } from '@/lib/ui/androidPress';
 
 const ICON_BG = '#EAF5FC';
-const ICON_COLOR = '#6BAED6';
+const ICON_COLOR = '#004EEB';
 const BADGE_BG = '#EF4444';
 
 type Props = {

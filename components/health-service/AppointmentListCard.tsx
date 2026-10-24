@@ -7,7 +7,7 @@ import { IconsaxClockIcon } from '../icons/IconsaxClockIcon';
 
 const STATUS_DOT: Record<string, string> = {
   pending: '#F79009',
-  confirmed: '#2970FF',
+  confirmed: '#004EEB',
   completed: '#12B76A',
   cancelled: '#A4A7AE',
 };
@@ -45,7 +45,7 @@ export function AppointmentListCard({
   statusLabelOverride,
   onPress,
 }: AppointmentListCardProps) {
-  const dotColor = STATUS_DOT[appointment.status] ?? '#2970FF';
+  const dotColor = STATUS_DOT[appointment.status] ?? '#004EEB';
   const statusLabel =
     statusLabelOverride ?? STATUS_LABEL[appointment.status] ?? appointment.status;
   const dateLabel = formatDateLabel(appointment.dateKey);

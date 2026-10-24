@@ -66,7 +66,7 @@ export function QueueTicketCard({ todayConfirmedWithTicket, hasPendingToday }: Q
           onPress={queueExplainerCopy}
           hitSlop={8}
           className="active:opacity-70">
-          <Text className="text-sm font-semibold text-[#2970FF]">How it works</Text>
+          <Text className="text-sm font-semibold text-[#004EEB]">How it works</Text>
         </Pressable>
       </View>
       <Text className="mt-1 text-xs leading-5 text-[#8F9098]">

@@ -42,7 +42,7 @@ export function AppointmentsStatusSegment({ value, onChange }: Props) {
                 styles.label,
                 {
                   fontFamily: selected ? Inter.semiBold : Inter.regular,
-                  color: selected ? APPT_UI.inkStrong : APPT_UI.inkFaint,
+                  color: selected ? APPT_UI.brand : APPT_UI.inkFaint,
                 },
               ]}>
               {seg.label}

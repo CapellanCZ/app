@@ -13,8 +13,8 @@ export type UpcomingAppointmentListItem = {
 };
 
 const TONE = {
-  purple: { bg: '#F3F0FF', accent: '#7C3AED' },
-  blue: { bg: '#EFF6FF', accent: '#3B82F6' },
+  purple: { bg: '#E8F0FF', accent: '#004EEB' },
+  blue: { bg: '#E8F0FF', accent: '#004EEB' },
   orange: { bg: '#FFF7ED', accent: '#EA580C' },
 } as const;
 

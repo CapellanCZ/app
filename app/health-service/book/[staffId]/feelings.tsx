@@ -19,7 +19,7 @@ import { useHealthServiceStore } from '../../../../lib/health-service/healthServ
 import { showConfirmSheet, showInfoSheet } from '@/lib/ui/confirmSheetStore';
 import { showAppToast } from '@/lib/ui/toastBridge';
 
-const BRAND = '#2970FF';
+const BRAND = '#004EEB';
 const ICON_TINT = 'rgba(41, 112, 255, 0.12)';
 
 function startOfDay(d: Date): Date {
@@ -132,7 +132,7 @@ export default function HealthServiceBookFeelingsScreen() {
         <View className="flex-1 items-center justify-center px-8">
           <Text className="text-center text-[#535862]">Missing visit information. Go back and choose a time slot.</Text>
           <Pressable onPress={() => router.back()} className="mt-4">
-            <Text className="font-semibold text-[#2970FF]">Go back</Text>
+            <Text className="font-semibold text-[#004EEB]">Go back</Text>
           </Pressable>
         </View>
       </HealthServiceScreenShell>
@@ -285,7 +285,7 @@ export default function HealthServiceBookFeelingsScreen() {
             onPress={onSubmit}
             className="overflow-hidden rounded-2xl active:opacity-90">
             <View
-              style={{ backgroundColor: '#2970FF', paddingVertical: 16, alignItems: 'center', justifyContent: 'center' }}>
+              style={{ backgroundColor: '#004EEB', paddingVertical: 16, alignItems: 'center', justifyContent: 'center' }}>
               <Text className="text-base font-semibold text-white">Book Now</Text>
             </View>
           </Pressable>

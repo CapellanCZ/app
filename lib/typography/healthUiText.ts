@@ -109,14 +109,14 @@ export const healthUiText = {
   link: {
     fontFamily: Inter.medium,
     fontSize: 15,
-    color: '#2970FF',
+    color: '#004EEB',
     letterSpacing: -0.2,
     lineHeight: 20,
   },
   badge: {
     fontFamily: Inter.medium,
     fontSize: 13,
-    color: '#4D7A9A',
+    color: '#004EEB',
     letterSpacing: -0.2,
     lineHeight: 18,
   },

@@ -7,7 +7,7 @@ type Props = {
 };
 
 /** `assets/icons/iconsax-stickynote.svg` */
-export function IconsaxStickynoteIcon({ size = 24, color = '#2970FF' }: Props) {
+export function IconsaxStickynoteIcon({ size = 24, color = '#004EEB' }: Props) {
   const clipId = useId().replace(/:/g, '_');
 
   return (

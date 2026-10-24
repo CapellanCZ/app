@@ -7,7 +7,7 @@ type Props = {
 };
 
 /** `assets/icons/iconsax-briefcase.svg` */
-export function IconsaxBriefcaseIcon({ size = 24, color = '#2970FF' }: Props) {
+export function IconsaxBriefcaseIcon({ size = 24, color = '#004EEB' }: Props) {
   const clipId = useId().replace(/:/g, '_');
 
   return (

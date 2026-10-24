@@ -6,7 +6,7 @@ type Props = {
 };
 
 /** `assets/icons/iconsax-hourglass.svg`. */
-export function IconsaxHourglassIcon({ size = 20, color = '#079455' }: Props) {
+export function IconsaxHourglassIcon({ size = 20, color = '#004EEB' }: Props) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Path

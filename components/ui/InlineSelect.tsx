@@ -4,7 +4,7 @@ import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-nativ
 import { AppInput } from './AppInput';
 import { IconsaxArrowDownIcon } from '@/components/icons/IconsaxArrowDownIcon';
 
-const BRAND = '#2970FF';
+const BRAND = '#004EEB';
 const BORDER = '#E9EAEB';
 const TEXT = '#252B37';
 const MUTED = '#717680';

@@ -6,7 +6,7 @@ import { useConsultationSummaryStore } from '@/lib/consultation/consultationSumm
 import { useAppointmentStatusStore } from '@/lib/health-service/appointmentStatusStore';
 import { useAppointmentFromStore } from '@/lib/health-service/useAppointmentStaffDisplay';
 
-const BRAND = '#2970FF';
+const BRAND = '#004EEB';
 const WHITE = '#FFFFFF';
 
 /**

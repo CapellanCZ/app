@@ -2,14 +2,15 @@ import { type ReactNode } from 'react';
 import { StyleSheet, Text, View, type ViewProps } from 'react-native';
 
 import { Inter } from '@/lib/typography/inter';
+import { BRAND, CARD_ELEVATION } from '@/lib/ui/theme';
 
 export type BookingSectionTone = 'blue' | 'yellow' | 'pink' | 'mint';
 
 const TONE: Record<BookingSectionTone, { well: string; accent: string }> = {
-  blue: { well: '#D3E9FA', accent: '#048AF3' },
-  yellow: { well: '#F4EDD6', accent: '#7E6B28' },
-  pink: { well: '#F4E2FC', accent: '#7C52A2' },
-  mint: { well: 'rgba(101, 217, 0, 0.22)', accent: '#4FA603' },
+  blue: { well: BRAND.soft, accent: BRAND.primary },
+  yellow: { well: BRAND.soft, accent: BRAND.primary },
+  pink: { well: BRAND.softSurface, accent: BRAND.primary },
+  mint: { well: BRAND.soft, accent: BRAND.primary },
 };
 
 type Props = ViewProps & {
@@ -53,9 +54,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#E8E8E8',
+    borderColor: '#ECECEC',
     padding: 16,
     gap: 14,
+    ...CARD_ELEVATION,
   },
   header: {
     flexDirection: 'row',

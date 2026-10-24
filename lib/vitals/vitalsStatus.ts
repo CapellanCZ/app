@@ -84,3 +84,17 @@ export function vitalStatusColor(tone: VitalStatusTone): string {
       return '#373636';
   }
 }
+
+/** Status label colors that stay readable on solid brand-blue cards. */
+export function vitalStatusColorOnBrand(tone: VitalStatusTone): string {
+  switch (tone) {
+    case 'good':
+      return '#BBF7D0';
+    case 'watch':
+      return '#FDE68A';
+    case 'alert':
+      return '#FECACA';
+    default:
+      return 'rgba(255,255,255,0.8)';
+  }
+}

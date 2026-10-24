@@ -1,7 +1,7 @@
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const BRAND = '#2970FF';
+const BRAND = '#004EEB';
 
 type Props<T extends string> = {
   visible: boolean;

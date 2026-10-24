@@ -33,8 +33,8 @@ export function PersonalInfoPhotoSection({
   const isBusy = isLoading || isSaved;
 
   const pillLabel = isLoading ? 'Saving…' : isSaved ? 'Saved' : actionLabel;
-  const pillBackground = isSaved ? '#E4F4E8' : '#D3E9FA';
-  const pillColor = isSaved ? '#3D7A4A' : '#4D7A9A';
+  const pillBackground = isSaved ? '#E4F4E8' : '#E8F0FF';
+  const pillColor = isSaved ? '#3D7A4A' : '#004EEB';
 
   const helperText = isLoading
     ? 'Updating your profile photo…'
@@ -68,9 +68,9 @@ export function PersonalInfoPhotoSection({
         <Svg width={220} height={220} viewBox="0 0 220 220">
           <Defs>
             <RadialGradient id="photoSectionGlow" cx="100%" cy="0%" r="100%" fx="100%" fy="0%">
-              <Stop offset="0%" stopColor="#D3E9FA" stopOpacity={0.95} />
-              <Stop offset="45%" stopColor="#D3E9FA" stopOpacity={0.35} />
-              <Stop offset="100%" stopColor="#D3E9FA" stopOpacity={0} />
+              <Stop offset="0%" stopColor="#E8F0FF" stopOpacity={0.95} />
+              <Stop offset="45%" stopColor="#E8F0FF" stopOpacity={0.35} />
+              <Stop offset="100%" stopColor="#E8F0FF" stopOpacity={0} />
             </RadialGradient>
           </Defs>
           <Rect x="0" y="0" width="220" height="220" fill="url(#photoSectionGlow)" />
@@ -107,7 +107,7 @@ export function PersonalInfoPhotoSection({
                 alignItems: 'center',
                 justifyContent: 'center',
               }}>
-              <ActivityIndicator size="small" color="#6BAED6" />
+              <ActivityIndicator size="small" color="#004EEB" />
             </View>
           ) : null}
 
@@ -129,7 +129,7 @@ export function PersonalInfoPhotoSection({
             {isSaved ? (
               <IconsaxTickCircleIcon size={18} color="#65D900" />
             ) : isLoading ? null : (
-              <IconsaxEditIcon size={16} color="#6BAED6" />
+              <IconsaxEditIcon size={16} color="#004EEB" />
             )}
           </View>
         </View>

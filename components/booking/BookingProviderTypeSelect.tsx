@@ -5,10 +5,11 @@ import Svg, { Path } from 'react-native-svg';
 import { StethoscopeIcon } from '@/components/icons/StethoscopeIcon';
 import { Inter } from '@/lib/typography/inter';
 import { androidPressProps } from '@/lib/ui/androidPress';
+import { BRAND } from '@/lib/ui/theme';
 import type { StaffRole } from '@/lib/health-service/types';
 
 const CHIP_BG = '#F9F9F9';
-const SELECTED_BG = '#0F0E0E';
+const SELECTED_BG = BRAND.primary;
 
 export type BookingProviderType = Extract<StaffRole, 'doctor' | 'dentist'>;
 

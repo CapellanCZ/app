@@ -8,6 +8,7 @@ import { CircleBackButton } from '@/components/ui/CircleBackButton';
 import { VitalsSignsGrid } from '@/components/vitals/VitalsSignsGrid';
 import { useAuth } from '@/lib/auth/AuthProvider';
 import { healthUiText } from '@/lib/typography/healthUiText';
+import { BRAND } from '@/lib/ui/theme';
 import { formatVitalsUpdatedAt, hasVitalsReadings } from '@/lib/vitals/vitalsDisplay';
 import { useVitalsStore } from '@/lib/vitals/vitalsStore';
 
@@ -85,9 +86,11 @@ export default function VitalSignsScreen() {
               paddingHorizontal: 12,
               paddingVertical: 6,
               borderRadius: 999,
-              backgroundColor: '#D3E9FA',
+              backgroundColor: BRAND.primary,
             }}>
-            <Text style={healthUiText.badge}>Last updated · {updatedLabel}</Text>
+            <Text style={[healthUiText.badge, { color: '#FFFFFF' }]}>
+              Last updated · {updatedLabel}
+            </Text>
           </View>
         ) : null}
 

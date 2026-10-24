@@ -5,7 +5,7 @@ import { IconsaxCalendar2Icon } from '@/components/icons/IconsaxCalendar2Icon';
 import { IconsaxMedalIcon } from '@/components/icons/IconsaxMedalIcon';
 import { IconsaxTagUserIcon } from '@/components/icons/IconsaxTagUserIcon';
 
-const ICON_COLOR = '#2970FF';
+const ICON_COLOR = '#004EEB';
 
 const PRESS_SPRING = { damping: 18, stiffness: 380, mass: 0.35 } as const;
 const PRESS_SCALE = 0.96;

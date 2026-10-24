@@ -348,7 +348,7 @@ const styles = StyleSheet.create({
   queueCount: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#2970FF',
+    color: '#004EEB',
   },
   checkInContainer: {
     gap: 12,
@@ -373,7 +373,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#2970FF',
+    backgroundColor: '#004EEB',
     borderRadius: 12,
     paddingVertical: 16,
     gap: 8,
@@ -447,7 +447,7 @@ const styles = StyleSheet.create({
     color: '#1F2937',
   },
   callButton: {
-    backgroundColor: '#2970FF',
+    backgroundColor: '#004EEB',
     borderRadius: 8,
     paddingVertical: 8,
     alignItems: 'center',

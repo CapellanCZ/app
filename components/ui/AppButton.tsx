@@ -9,8 +9,8 @@ import {
 import { androidPressProps } from '@/lib/ui/androidPress';
 import { Inter } from '@/lib/typography/inter';
 
-const BRAND = '#2970FF';
-const BRAND_DARK = '#155EEF';
+const BRAND = '#004EEB';
+const BRAND_DARK = '#0039C7';
 const BRAND_SOFT = '#F5F8FF';
 const DISABLED = '#D5D7DA';
 const BLACK = '#000000';

@@ -16,16 +16,16 @@ import {
 import type { PatientQueueView } from '@/lib/queue/types';
 import { ROUTES } from '@/lib/routes';
 import { Inter } from '@/lib/typography/inter';
-import { SCHEDULE_PARTNER } from '@/lib/ui/theme';
+import { BRAND, CARD_ELEVATION, SCHEDULE_PARTNER } from '@/lib/ui/theme';
 
 function statusBadgeColors(status: PatientQueueView['ticket']['status']) {
   if (status === 'called') {
     return { bg: '#D1FAE5', text: '#065F46' };
   }
   if (status === 'waiting') {
-    return { bg: '#FEF3C7', text: '#92400E' };
+    return { bg: BRAND.soft, text: BRAND.primary };
   }
-  return { bg: '#D3E9FA', text: '#1E4A63' };
+  return { bg: BRAND.soft, text: BRAND.primary };
 }
 
 function QueueEmptyState() {
@@ -35,22 +35,23 @@ function QueueEmptyState() {
         backgroundColor: '#FFFFFF',
         borderRadius: 16,
         borderWidth: 1,
-        borderColor: SCHEDULE_PARTNER.cardBorder,
+        borderColor: '#ECECEC',
         paddingHorizontal: 24,
         paddingVertical: 32,
         alignItems: 'center',
         gap: 12,
+        ...CARD_ELEVATION,
       }}>
       <View
         style={{
           width: 56,
           height: 56,
           borderRadius: 28,
-          backgroundColor: '#D3E9FA',
+          backgroundColor: BRAND.soft,
           alignItems: 'center',
           justifyContent: 'center',
         }}>
-        <IconsaxHourglassIcon size={26} color="#4D7A9A" />
+        <IconsaxHourglassIcon size={26} color={BRAND.primary} />
       </View>
       <Text
         style={{
@@ -89,10 +90,11 @@ function QueueStatusCard({ queue }: { queue: PatientQueueView }) {
       style={{
         borderRadius: 16,
         borderWidth: 1,
-        borderColor: SCHEDULE_PARTNER.cardBorder,
+        borderColor: '#ECECEC',
         backgroundColor: '#FFFFFF',
         padding: 16,
         gap: 16,
+        ...CARD_ELEVATION,
       }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
         <Text
@@ -373,7 +375,7 @@ export default function MyQueueScreen() {
               style={{
                 fontFamily: Inter.medium,
                 fontSize: 15,
-                color: '#2970FF',
+                color: '#004EEB',
                 letterSpacing: -0.2,
               }}>
               View appointment details

@@ -1,5 +1,6 @@
+import type { ReactNode } from 'react';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { Pressable, Text, useWindowDimensions, View } from 'react-native';
+import { Platform, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
   useAnimatedStyle,
@@ -13,30 +14,30 @@ import { IconsaxHomeTabIcon } from '@/components/icons/IconsaxHomeTabIcon';
 import { IconsaxProfileTabIcon } from '@/components/icons/IconsaxProfileTabIcon';
 import {
   ANDROID_TAB_BAR_HEIGHT,
-  ANDROID_TAB_FAB_OVERHANG,
+  ANDROID_TAB_FLOAT_GAP,
 } from '@/components/layout/BottomTabBar';
 import { openDefaultBooking } from '@/lib/health-service/openDefaultBooking';
 import { Inter } from '@/lib/typography/inter';
+import { BRAND } from '@/lib/ui/theme';
 
-const FAB_SIZE = 56;
-/** Clear gap between the FAB edge and the circular cutout. */
-const FAB_GAP = 12;
-/** Circular notch radius = button radius + breathing room. */
-const NOTCH_RADIUS = FAB_SIZE / 2 + FAB_GAP;
-/** Softens only the sharp lip where the flat top meets the cutout. */
-const LIP_R = 11;
-/** Soft sky blue — matches home “Upcoming Appointments” card (`#D3E9FA`). */
-const SOFT_BLUE = '#D3E9FA';
-/** Readable soft blue for active Home / Profile. */
-const ACTIVE = '#6BAED6';
-const INACTIVE = '#B0B3B8';
-/** Plus mark on the light FAB — mid soft blue (between dark navy and white). */
-const FAB_ICON = '#5A9BC4';
+const ACTIVE = BRAND.primary;
+const INACTIVE = '#9CA3AF';
+const ACTIVE_PILL_BG = '#EFEFEF';
 const PRESS_IN = { damping: 18, stiffness: 420, mass: 0.35 } as const;
 const PRESS_OUT = { damping: 16, stiffness: 280, mass: 0.4 } as const;
 
-function PlusIcon({ color = '#FFFFFF', size = 28 }: { color?: string; size?: number }) {
-  const stroke = Math.max(2, size * 0.075);
+const DOCK_ELEVATION =
+  Platform.OS === 'android'
+    ? { elevation: 0, boxShadow: '0 8px 24px rgba(0, 0, 0, 0.08)' }
+    : {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.1,
+        shadowRadius: 16,
+      };
+
+function PlusIcon({ color = ACTIVE, size = 22 }: { color?: string; size?: number }) {
+  const stroke = Math.max(2, size * 0.09);
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Path
@@ -49,42 +50,70 @@ function PlusIcon({ color = '#FFFFFF', size = 28 }: { color?: string; size?: num
   );
 }
 
-/**
- * Dock silhouette: flat outer edges + circular FAB cutout with smooth lips only.
- */
-function buildDockPath(width: number, height: number, cx: number): string {
-  const r = NOTCH_RADIUS;
-  const lip = LIP_R;
+type TabItemProps = {
+  label: string;
+  focused: boolean;
+  onPress: () => void;
+  children: ReactNode;
+};
 
-  return [
-    `M0,0`,
-    `H${cx - r - lip}`,
-    // Left lip — rounds the sharp join into the cutout
-    `A${lip} ${lip} 0 0 1 ${cx - r},${lip}`,
-    // Main circular cutout
-    `A${r} ${r} 0 0 0 ${cx + r},${lip}`,
-    // Right lip
-    `A${lip} ${lip} 0 0 1 ${cx + r + lip},0`,
-    `H${width}`,
-    `V${height}`,
-    `H0`,
-    `Z`,
-  ].join(' ');
+function FloatingTabItem({ label, focused, onPress, children }: TabItemProps) {
+  const pressed = useSharedValue(0);
+  const animStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: 1 - pressed.get() * 0.06 }],
+  }));
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ selected: focused }}
+      accessibilityLabel={label}
+      onPress={onPress}
+      onPressIn={() => {
+        pressed.set(withSpring(1, PRESS_IN));
+        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }}
+      onPressOut={() => {
+        pressed.set(withSpring(0, PRESS_OUT));
+      }}
+      hitSlop={6}
+      style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+      <Animated.View
+        style={[
+          {
+            minWidth: 72,
+            paddingHorizontal: 14,
+            paddingVertical: 8,
+            borderRadius: 999,
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 4,
+            backgroundColor: focused ? ACTIVE_PILL_BG : 'transparent',
+          },
+          animStyle,
+        ]}>
+        {children}
+        <Text
+          style={{
+            fontFamily: Inter.medium,
+            fontSize: 11,
+            color: focused ? ACTIVE : INACTIVE,
+            letterSpacing: -0.2,
+          }}>
+          {label}
+        </Text>
+      </Animated.View>
+    </Pressable>
+  );
 }
 
 /**
- * Android floating tab bar — white bar with smooth center notch + blue FAB (+).
- * Matches the common cutout dock pattern (Home · Book · Profile).
+ * Floating center navigation — white pill dock with active gray highlight.
+ * Home · Book · Profile (Book opens booking without staying on the book route).
  */
-export function AndroidFloatingTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
+export function AndroidFloatingTabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
-  const { width } = useWindowDimensions();
-  const bottomPad = Math.max(insets.bottom, 8);
-  const barHeight = ANDROID_TAB_BAR_HEIGHT + bottomPad;
-  const totalHeight = barHeight + ANDROID_TAB_FAB_OVERHANG;
-
-  const cx = width / 2;
-  const notchPath = buildDockPath(width, barHeight, cx);
+  const bottomPad = Math.max(insets.bottom, ANDROID_TAB_FLOAT_GAP);
 
   const routes = state.routes;
   const home = routes.find((r) => r.name === 'index');
@@ -93,6 +122,7 @@ export function AndroidFloatingTabBar({ state, descriptors, navigation }: Bottom
   const focusedName = routes[state.index]?.name;
   const homeFocused = focusedName === 'index';
   const profileFocused = focusedName === 'profiles';
+  const bookFocused = focusedName === 'book';
 
   const go = (routeName: string, routeKey: string, isFocused: boolean) => {
     const event = navigation.emit({
@@ -105,20 +135,6 @@ export function AndroidFloatingTabBar({ state, descriptors, navigation }: Bottom
     }
   };
 
-  const fabPressed = useSharedValue(0);
-  const fabStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: 1 - fabPressed.get() * 0.1 }],
-  }));
-
-  const onFabPressIn = () => {
-    fabPressed.set(withSpring(1, PRESS_IN));
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  };
-
-  const onFabPressOut = () => {
-    fabPressed.set(withSpring(0, PRESS_OUT));
-  };
-
   return (
     <View
       pointerEvents="box-none"
@@ -127,137 +143,42 @@ export function AndroidFloatingTabBar({ state, descriptors, navigation }: Bottom
         left: 0,
         right: 0,
         bottom: 0,
-        height: totalHeight,
+        paddingHorizontal: 28,
+        paddingBottom: bottomPad,
       }}>
-      {/* White dock with smooth cutout */}
       <View
         style={{
-          position: 'absolute',
-          left: 0,
-          right: 0,
-          bottom: 0,
-          height: barHeight,
-        }}>
-        <Svg
-          width={width}
-          height={barHeight}
-          pointerEvents="none"
-          style={{ position: 'absolute' }}>
-          <Path
-            d={notchPath}
-            fill="#FFFFFF"
-            stroke="#E5E5E5"
-            strokeWidth={1}
-          />
-        </Svg>
-
-        {/* Side tabs */}
-        <View
-          style={{
-            flex: 1,
-            flexDirection: 'row',
-            alignItems: 'stretch',
-            paddingTop: 6,
-            paddingBottom: Math.max(bottomPad - 4, 4),
-            paddingHorizontal: 8,
-          }}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityState={{ selected: homeFocused }}
-            accessibilityLabel={descriptors[home?.key ?? '']?.options.title ?? 'Home'}
-            onPress={() => home && go('index', home.key, homeFocused)}
-            hitSlop={8}
-            style={({ pressed }) => ({
-              flex: 1,
-              minHeight: 48,
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 4,
-              opacity: pressed ? 0.85 : 1,
-            })}
-            android_ripple={{ color: 'rgba(107,174,214,0.18)', borderless: true, radius: 36 }}>
-            <IconsaxHomeTabIcon focused={homeFocused} size={24} />
-            <Text
-              style={{
-                fontFamily: Inter.medium,
-                fontSize: 12,
-                color: homeFocused ? ACTIVE : INACTIVE,
-                letterSpacing: -0.2,
-              }}>
-              Home
-            </Text>
-          </Pressable>
-
-          {/* Spacer matches circular cutout + lips */}
-          <View style={{ width: (NOTCH_RADIUS + LIP_R) * 2 + 8 }} pointerEvents="none" />
-
-          <Pressable
-            accessibilityRole="button"
-            accessibilityState={{ selected: profileFocused }}
-            accessibilityLabel={descriptors[profile?.key ?? '']?.options.title ?? 'Profile'}
-            onPress={() => profile && go('profiles', profile.key, profileFocused)}
-            hitSlop={8}
-            style={({ pressed }) => ({
-              flex: 1,
-              minHeight: 48,
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 4,
-              opacity: pressed ? 0.85 : 1,
-            })}
-            android_ripple={{ color: 'rgba(107,174,214,0.18)', borderless: true, radius: 36 }}>
-            <IconsaxProfileTabIcon focused={profileFocused} size={24} />
-            <Text
-              style={{
-                fontFamily: Inter.medium,
-                fontSize: 12,
-                color: profileFocused ? ACTIVE : INACTIVE,
-                letterSpacing: -0.2,
-              }}>
-              Profile
-            </Text>
-          </Pressable>
-        </View>
-      </View>
-
-      {/* Center floating + — sits slightly below the bar top inside the cutout */}
-      <View
-        pointerEvents="box-none"
-        style={{
-          position: 'absolute',
-          left: 0,
-          right: 0,
-          top: ANDROID_TAB_FAB_OVERHANG - FAB_SIZE / 2 + 8,
+          height: ANDROID_TAB_BAR_HEIGHT,
+          borderRadius: 999,
+          backgroundColor: '#FFFFFF',
+          borderWidth: 1,
+          borderColor: '#ECECEC',
+          flexDirection: 'row',
           alignItems: 'center',
+          justifyContent: 'space-evenly',
+          paddingHorizontal: 6,
+          ...DOCK_ELEVATION,
         }}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Book"
-          onPress={() => void openDefaultBooking()}
-          onPressIn={onFabPressIn}
-          onPressOut={onFabPressOut}
-          hitSlop={14}
-          style={{
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: FAB_SIZE,
-            height: FAB_SIZE,
-          }}>
-          <Animated.View
-            style={[
-              {
-                width: FAB_SIZE,
-                height: FAB_SIZE,
-                borderRadius: FAB_SIZE / 2,
-                backgroundColor: SOFT_BLUE,
-                alignItems: 'center',
-                justifyContent: 'center',
-              },
-              fabStyle,
-            ]}>
-            <PlusIcon color={FAB_ICON} size={28} />
-          </Animated.View>
-        </Pressable>
+        <FloatingTabItem
+          label="Home"
+          focused={homeFocused}
+          onPress={() => home && go('index', home.key, homeFocused)}>
+          <IconsaxHomeTabIcon focused={homeFocused} size={22} />
+        </FloatingTabItem>
+
+        <FloatingTabItem
+          label="Book"
+          focused={bookFocused}
+          onPress={() => void openDefaultBooking()}>
+          <PlusIcon color={bookFocused ? ACTIVE : INACTIVE} size={22} />
+        </FloatingTabItem>
+
+        <FloatingTabItem
+          label="Profile"
+          focused={profileFocused}
+          onPress={() => profile && go('profiles', profile.key, profileFocused)}>
+          <IconsaxProfileTabIcon focused={profileFocused} size={22} />
+        </FloatingTabItem>
       </View>
     </View>
   );

@@ -2,7 +2,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { IconDocumentUploadIcon } from '@/components/icons/IconDocumentUploadIcon';
 
-const BLUE = '#2970FF';
+const BLUE = '#004EEB';
 const BLUE_BG = '#EFF4FF';
 const TITLE_COLOR = '#181D27';
 const SUBTITLE_COLOR = '#717680';

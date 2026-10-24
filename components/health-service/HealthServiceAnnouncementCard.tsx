@@ -1,16 +1,12 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect } from 'react';
 import {
   Image,
-  type NativeScrollEvent,
-  type NativeSyntheticEvent,
   Platform,
   Pressable,
-  ScrollView,
   Text,
   View,
   type ViewStyle,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 
 import { AnnouncementCardSkeleton } from '@/components/health-service/AnnouncementCardSkeleton';
 import { useAuth } from '@/lib/auth/AuthProvider';
@@ -20,48 +16,24 @@ import type { Announcement } from '@/lib/announcements/types';
 import { Inter } from '@/lib/typography/inter';
 import { androidPressProps } from '@/lib/ui/androidPress';
 import { showInfoSheet } from '@/lib/ui/confirmSheetStore';
+import { BRAND } from '@/lib/ui/theme';
 
-const AUTO_MS = 5500;
-/** Figma image frame aspect (306×204). */
-const IMAGE_ASPECT = 306 / 204;
-const DOT_SIZE = 8;
-const DOT_GAP = 8;
-const CARD_PAD = 20;
+const THUMB_SIZE = 88;
+const THUMB_RADIUS = 12;
+const PREVIEW_SENTENCES = 2;
 
-/** Soft ambient shadow — Android elevation is too hard against #F9F9F9. */
 const CARD_SOFT_SHADOW: ViewStyle =
   Platform.OS === 'android'
     ? {
         elevation: 0,
-        boxShadow: '0 6px 20px rgba(0, 0, 0, 0.05)',
+        boxShadow: '0 4px 14px rgba(0, 0, 0, 0.04)',
       }
     : {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.06,
-        shadowRadius: 14,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 10,
       };
-
-/** Fixed copy block so slides never resize with shorter/longer text. */
-const DATE_LINE_HEIGHT = 16;
-const TITLE_LINE_HEIGHT = 22;
-const BODY_LINE_HEIGHT = 19;
-const BODY_LINES = 3;
-const BODY_BLOCK_HEIGHT = BODY_LINE_HEIGHT * BODY_LINES;
-const FOOTER_HEIGHT = 20;
-
-/** Width reserved on the right so "Read More" never collides with fixed dots. */
-function dotRowWidth(total: number): number {
-  const count = Math.max(total, 1);
-  return count * DOT_SIZE + Math.max(0, count - 1) * DOT_GAP;
-}
-
-type SlideProps = {
-  item: Announcement;
-  width: number;
-  footerRightPad: number;
-  onReadMore: (item: Announcement) => void;
-};
 
 /** Soft title case for ALL-CAPS admin titles → "World Hepatitis Day". */
 function displayTitle(raw: string): string {
@@ -75,188 +47,137 @@ function displayTitle(raw: string): string {
     .join(' ');
 }
 
-function AnnouncementSlide({ item, width, footerRightPad, onReadMore }: SlideProps) {
+function audienceLabel(raw: string | null | undefined): string {
+  const t = (raw ?? '').trim();
+  if (!t) return 'All';
+  return t.charAt(0).toUpperCase() + t.slice(1).toLowerCase();
+}
+
+type RowProps = {
+  item: Announcement;
+  onPress: (item: Announcement) => void;
+};
+
+function AnnouncementListRow({ item, onPress }: RowProps) {
   const dateLabel = formatDateLabel(item.publishedAt);
   const title = displayTitle(item.title);
-  const previewBody = limitSentences(item.body ?? '');
+  const previewBody = limitSentences(item.body ?? '', PREVIEW_SENTENCES);
+  const audience = audienceLabel(item.audience);
+  const meta = [audience, dateLabel].filter(Boolean).join(' · ');
 
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${title}. Read more`}
+      accessibilityLabel={`${title}. ${meta}`}
       accessibilityHint="Opens the full announcement"
-      onPress={() => onReadMore(item)}
+      onPress={() => onPress(item)}
       {...androidPressProps({ hitSlop: 0 })}
       style={({ pressed }) => ({
-        width,
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: 14,
         backgroundColor: '#FFFFFF',
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: '#ECECEC',
+        padding: 12,
         opacity: pressed ? 0.92 : 1,
+        ...CARD_SOFT_SHADOW,
       })}>
-      {/* Hero — full poster visible (contain), Figma 2240:291 */}
       <View
         style={{
-          marginHorizontal: 2,
-          marginTop: 2,
-          borderRadius: 16,
+          width: THUMB_SIZE,
+          height: THUMB_SIZE,
+          borderRadius: THUMB_RADIUS,
           overflow: 'hidden',
-          aspectRatio: IMAGE_ASPECT,
-          backgroundColor: '#FFFFFF',
+          backgroundColor: BRAND.soft,
+          flexShrink: 0,
         }}>
         {item.imageUrl ? (
           <Image
             source={{ uri: item.imageUrl }}
             style={{ width: '100%', height: '100%' }}
-            resizeMode="contain"
+            resizeMode="cover"
             accessibilityLabel={title}
           />
         ) : (
-          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F3F4F6' }}>
-            <Text style={{ fontFamily: Inter.regular, fontSize: 12, color: '#9CA3AF' }}>
+          <View
+            style={{
+              flex: 1,
+              alignItems: 'center',
+              justifyContent: 'center',
+              paddingHorizontal: 8,
+              backgroundColor: BRAND.soft,
+            }}>
+            <Text
+              style={{
+                fontFamily: Inter.medium,
+                fontSize: 11,
+                color: BRAND.primary,
+                textAlign: 'center',
+              }}
+              numberOfLines={2}>
               CampusCare
             </Text>
           </View>
         )}
-
-        {/* Soft inset fade at bottom of image (Figma inset shadow) */}
-        <LinearGradient
-          pointerEvents="none"
-          colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.18)']}
-          locations={[0.35, 1]}
-          style={{
-            position: 'absolute',
-            left: 0,
-            right: 0,
-            bottom: 0,
-            height: 48,
-          }}
-        />
       </View>
 
-      {/* Copy + footer — fixed heights so card size never jumps */}
-      <View
-        style={{
-          padding: CARD_PAD,
-          gap: 10,
-        }}>
-        <View style={{ gap: 4 }}>
+      <View style={{ flex: 1, minWidth: 0, gap: 4, paddingTop: 2 }}>
+        <Text
+          style={{
+            fontFamily: Inter.regular,
+            fontSize: 12,
+            color: '#848282',
+            letterSpacing: -0.2,
+          }}
+          numberOfLines={1}>
+          {meta || ' '}
+        </Text>
+        <Text
+          style={{
+            fontFamily: Inter.semiBold,
+            fontSize: 16,
+            color: '#212121',
+            letterSpacing: -0.6,
+            lineHeight: 20,
+          }}
+          numberOfLines={2}>
+          {title || 'Announcement'}
+        </Text>
+        {previewBody ? (
           <Text
             style={{
               fontFamily: Inter.regular,
-              fontSize: 12,
-              color: '#848282',
-              letterSpacing: -0.4,
-              height: DATE_LINE_HEIGHT,
-              lineHeight: DATE_LINE_HEIGHT,
-            }}
-            numberOfLines={1}>
-            {dateLabel || ' '}
-          </Text>
-          <Text
-            style={{
-              fontFamily: Inter.semiBold,
-              fontSize: 18,
-              color: '#212121',
-              letterSpacing: -1.28,
-              height: TITLE_LINE_HEIGHT,
-              lineHeight: TITLE_LINE_HEIGHT,
-            }}
-            numberOfLines={1}>
-            {title || ' '}
-          </Text>
-        </View>
-
-        <View style={{ gap: 18 }}>
-          <Text
-            style={{
-              fontFamily: Inter.regular,
-              fontSize: 14,
+              fontSize: 13,
               color: '#4A4A4A',
-              letterSpacing: -0.48,
-              height: BODY_BLOCK_HEIGHT,
-              lineHeight: BODY_LINE_HEIGHT,
+              letterSpacing: -0.2,
+              lineHeight: 18,
             }}
-            numberOfLines={BODY_LINES}>
-            {previewBody || ' '}
+            numberOfLines={2}>
+            {previewBody}
           </Text>
-
-          <View
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              height: FOOTER_HEIGHT,
-              paddingRight: footerRightPad,
-            }}>
-            {/* Visual affordance only — whole card opens the announcement */}
-            <Text
-              style={{
-                fontFamily: Inter.regular,
-                fontSize: 14,
-                color: '#6BAED6',
-                letterSpacing: -0.48,
-              }}>
-              Read More →
-            </Text>
-          </View>
-        </View>
+        ) : null}
       </View>
     </Pressable>
   );
 }
 
 /**
- * Home announcement carousel — Figma node 2240:286.
- * Shows skeleton while the shared store fetch is in flight (prefetch starts on Home).
+ * Home announcements — poster thumbnail list (audience · date, title, preview).
  */
 export function HealthServiceAnnouncementCard() {
   const { patient } = useAuth();
-  const scrollRef = useRef<ScrollView>(null);
-  const [width, setWidth] = useState(0);
-  const [index, setIndex] = useState(0);
-  const indexRef = useRef(0);
 
   const items = useAnnouncementStore((s) => s.items);
   const hasLoaded = useAnnouncementStore((s) => s.hasLoaded);
   const load = useAnnouncementStore((s) => s.load);
 
-  // Kick off / continue fetch immediately on mount (overlaps with skeleton paint).
   useEffect(() => {
     void load({ patientType: patient?.patient_type });
   }, [load, patient?.patient_type]);
 
-  useEffect(() => {
-    indexRef.current = index;
-  }, [index]);
-
-  useEffect(() => {
-    indexRef.current = 0;
-    setIndex(0);
-  }, [items]);
-
-  useEffect(() => {
-    if (width <= 0 || items.length <= 1) return;
-    const id = setInterval(() => {
-      const next = (indexRef.current + 1) % items.length;
-      indexRef.current = next;
-      setIndex(next);
-      scrollRef.current?.scrollTo({ x: next * width, animated: true });
-    }, AUTO_MS);
-    return () => clearInterval(id);
-  }, [width, items.length]);
-
-  const onMomentumScrollEnd = useCallback(
-    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-      if (width <= 0) return;
-      const i = Math.min(
-        items.length - 1,
-        Math.max(0, Math.round(e.nativeEvent.contentOffset.x / width)),
-      );
-      indexRef.current = i;
-      setIndex(i);
-    },
-    [width, items.length],
-  );
-
-  const onReadMore = useCallback((item: Announcement) => {
+  const onOpen = useCallback((item: Announcement) => {
     showInfoSheet({
       title: displayTitle(item.title),
       message: item.body?.trim() || 'No additional details.',
@@ -275,6 +196,8 @@ export function HealthServiceAnnouncementCard() {
         style={{
           borderRadius: 16,
           backgroundColor: '#FFFFFF',
+          borderWidth: 1,
+          borderColor: '#ECECEC',
           padding: 20,
           ...CARD_SOFT_SHADOW,
         }}>
@@ -285,71 +208,11 @@ export function HealthServiceAnnouncementCard() {
     );
   }
 
-  const footerRightPad = items.length > 1 ? dotRowWidth(items.length) + 8 : 0;
-
   return (
-    <View
-      onLayout={(e) => {
-        const w = e.nativeEvent.layout.width;
-        if (w > 0 && Math.abs(w - width) > 1) setWidth(w);
-      }}
-      style={{
-        borderRadius: 16,
-        backgroundColor: '#FFFFFF',
-        ...CARD_SOFT_SHADOW,
-      }}>
-      {/* Inner clip so soft shadow isn’t cut off by overflow:hidden */}
-      <View style={{ borderRadius: 16, overflow: 'hidden', backgroundColor: '#FFFFFF' }}>
-        {width > 0 ? (
-          <ScrollView
-            ref={scrollRef}
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            decelerationRate="fast"
-            onMomentumScrollEnd={onMomentumScrollEnd}
-            keyboardShouldPersistTaps="handled">
-            {items.map((item) => (
-              <AnnouncementSlide
-                key={item.id}
-                item={item}
-                width={width}
-                footerRightPad={footerRightPad}
-                onReadMore={onReadMore}
-              />
-            ))}
-          </ScrollView>
-        ) : null}
-
-        {/* Fixed pagination — stays put while slides swipe */}
-        {items.length > 1 ? (
-          <View
-            pointerEvents="none"
-            accessibilityElementsHidden
-            importantForAccessibility="no-hide-descendants"
-            style={{
-              position: 'absolute',
-              right: CARD_PAD,
-              bottom: CARD_PAD,
-              height: FOOTER_HEIGHT,
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: DOT_GAP,
-            }}>
-            {items.map((item, i) => (
-              <View
-                key={`dot-${item.id}`}
-                style={{
-                  width: DOT_SIZE,
-                  height: DOT_SIZE,
-                  borderRadius: 999,
-                  backgroundColor: i === index ? '#0D0D0D' : '#D9D9D9',
-                }}
-              />
-            ))}
-          </View>
-        ) : null}
-      </View>
+    <View style={{ gap: 10 }}>
+      {items.map((item) => (
+        <AnnouncementListRow key={item.id} item={item} onPress={onOpen} />
+      ))}
     </View>
   );
 }

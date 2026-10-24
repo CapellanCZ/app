@@ -5,6 +5,7 @@ import { IconsaxArrowRightIcon } from '@/components/icons/IconsaxArrowRightIcon'
 import { GreyAvatar } from '@/components/profile/GreyAvatar';
 import { Inter } from '@/lib/typography/inter';
 import { androidPressProps } from '@/lib/ui/androidPress';
+import { CARD_ELEVATION } from '@/lib/ui/theme';
 
 type UserInfoCardProps = {
   name: string;
@@ -37,10 +38,13 @@ export function UserInfoCard({
       style={({ pressed }) => ({
         backgroundColor: '#FFFFFF',
         borderRadius: 16,
+        borderWidth: 1,
+        borderColor: '#ECECEC',
         paddingHorizontal: 16,
         paddingVertical: 16,
         overflow: 'hidden',
         opacity: pressed ? 0.92 : 1,
+        ...CARD_ELEVATION,
       })}>
       {/* Soft blue glow — same family as Upcoming Appointments */}
       <View
@@ -61,9 +65,9 @@ export function UserInfoCard({
               r="100%"
               fx="100%"
               fy="0%">
-              <Stop offset="0%" stopColor="#D3E9FA" stopOpacity={0.95} />
-              <Stop offset="45%" stopColor="#D3E9FA" stopOpacity={0.35} />
-              <Stop offset="100%" stopColor="#D3E9FA" stopOpacity={0} />
+              <Stop offset="0%" stopColor="#E8F0FF" stopOpacity={0.95} />
+              <Stop offset="45%" stopColor="#E8F0FF" stopOpacity={0.35} />
+              <Stop offset="100%" stopColor="#E8F0FF" stopOpacity={0} />
             </RadialGradient>
           </Defs>
           <Rect x="0" y="0" width="200" height="200" fill="url(#blueGlow)" />

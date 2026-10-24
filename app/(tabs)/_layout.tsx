@@ -4,8 +4,8 @@ import { AndroidFloatingTabBar } from '@/components/layout/AndroidFloatingTabBar
 import { onBookTabPress } from '@/lib/navigation/bookTabAction';
 
 /**
- * Tabs — Home · Book (+) center · Profile.
- * Same floating dock + FAB on iOS and Android so the (+) action behaves identically.
+ * Tabs — Home · Book · Profile in a floating center pill.
+ * Book opens booking without staying on the book route.
  */
 export default function TabLayout() {
   return (

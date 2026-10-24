@@ -1,14 +1,14 @@
 import type { NotificationStatusType } from './types';
 
-/** Figma status tokens — 2254:1004 / 1022 / 1038 / 2260:1173. */
+/** Status glyph wells — soft tints + brand unread accent. */
 export const NOTIFICATION_STATUS_STYLE: Record<
   NotificationStatusType,
   { well: string; accent: string; unreadDot: string }
 > = {
-  info: { well: '#D3E9FA', accent: '#048AF3', unreadDot: '#048AF3' },
-  success: { well: 'rgba(101, 217, 0, 0.4)', accent: '#4FA603', unreadDot: '#4FA603' },
-  warning: { well: '#F4EDD6', accent: '#7E6B28', unreadDot: '#7C52A2' },
-  error: { well: '#F4E2FC', accent: '#7C52A2', unreadDot: '#7C52A2' },
+  info: { well: '#E8F0FF', accent: '#004EEB', unreadDot: '#004EEB' },
+  success: { well: '#E4F7D9', accent: '#3D9A1F', unreadDot: '#004EEB' },
+  warning: { well: '#FFF1E0', accent: '#E67A17', unreadDot: '#004EEB' },
+  error: { well: '#FFE8E6', accent: '#E53935', unreadDot: '#004EEB' },
 };
 
 const STATUS_BY_TITLE: Record<string, NotificationStatusType> = {

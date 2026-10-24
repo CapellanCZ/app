@@ -1,7 +1,7 @@
 import { Text, View } from 'react-native';
 import Svg, { Circle, G } from 'react-native-svg';
 
-const BRAND = '#2970FF';
+const BRAND = '#004EEB';
 const TRACK = '#E8E9F1';
 
 export type CircularProgressRingProps = {

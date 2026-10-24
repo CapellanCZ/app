@@ -19,14 +19,10 @@ export function BookingHero({ onBack }: HeroProps) {
 
   return (
     <View style={[styles.wrap, { paddingTop: insets.top + 8 }]}>
-      <CircleBackButton onPress={onBack} />
-
-      <View style={styles.copy}>
+      <View style={styles.row}>
+        <CircleBackButton onPress={onBack} style={styles.back} />
         <Text accessibilityRole="header" style={styles.headline}>
           Book appointment
-        </Text>
-        <Text style={styles.subhead}>
-          Pick a date and time that works for your visit
         </Text>
       </View>
     </View>
@@ -76,24 +72,22 @@ const styles = StyleSheet.create({
   wrap: {
     paddingHorizontal: 20,
     paddingBottom: 8,
-    gap: 14,
   },
-  copy: {
-    gap: 4,
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  back: {
+    flexShrink: 0,
   },
   headline: {
+    flex: 1,
     fontFamily: Inter.medium,
     fontSize: 28,
     color: '#222222',
     letterSpacing: -2.24,
     lineHeight: 34,
-  },
-  subhead: {
-    fontFamily: Inter.regular,
-    fontSize: 16,
-    color: '#727272',
-    letterSpacing: -0.64,
-    lineHeight: 20,
   },
   providerRow: {
     flexDirection: 'row',
@@ -105,7 +99,7 @@ const styles = StyleSheet.create({
     height: AVATAR,
     borderRadius: AVATAR / 2,
     overflow: 'hidden',
-    backgroundColor: '#D3E9FA',
+    backgroundColor: '#E8F0FF',
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
@@ -119,7 +113,7 @@ const styles = StyleSheet.create({
   avatarInitial: {
     fontFamily: Inter.medium,
     fontSize: 20,
-    color: '#048AF3',
+    color: '#004EEB',
   },
   textCol: {
     flex: 1,

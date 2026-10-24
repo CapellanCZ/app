@@ -6,7 +6,7 @@ type Props = {
 };
 
 /** Figma home quick-action: calendar bookings */
-export function FigmaBookingsIcon({ size = 24, color = '#323232' }: Props) {
+export function FigmaBookingsIcon({ size = 24, color = '#004EEB' }: Props) {
   return (
     <Svg width={size} height={size} viewBox="0 0 19.5 21.5" fill="none">
       <G>
@@ -50,7 +50,7 @@ export function FigmaBookingsIcon({ size = 24, color = '#323232' }: Props) {
 }
 
 /** Figma home quick-action: vital signs chart */
-export function FigmaVitalsIcon({ size = 24, color = '#323232' }: Props) {
+export function FigmaVitalsIcon({ size = 24, color = '#004EEB' }: Props) {
   return (
     <Svg width={size} height={size} viewBox="0 0 21.51 21.5" fill="none">
       <G>
@@ -74,7 +74,7 @@ export function FigmaVitalsIcon({ size = 24, color = '#323232' }: Props) {
 }
 
 /** Figma home quick-action: more (three dots) */
-export function FigmaMoreIcon({ size = 24, color = '#323232' }: Props) {
+export function FigmaMoreIcon({ size = 24, color = '#004EEB' }: Props) {
   const h = (size * 5.5) / 19.5;
   return (
     <Svg width={size} height={h} viewBox="0 0 19.5 5.5" fill="none">
@@ -103,18 +103,18 @@ export function FigmaMoreIcon({ size = 24, color = '#323232' }: Props) {
 }
 
 /** Figma blood-pressure droplet */
-export function FigmaDropletIcon({ size = 24 }: Props) {
+export function FigmaDropletIcon({ size = 24, color = '#004EEB' }: Props) {
   return (
     <Svg width={size} height={size} viewBox="0 0 16.2 20" fill="none">
       <G>
         <Path
           d="M12.6901 5.41L2.41005 15.69C1.93005 16.17 1.11005 16.06 0.820054 15.45C0.300054 14.38 5.34334e-05 13.17 5.34334e-05 11.9C-0.0199466 6.38 5.58005 1.66 7.48009 0.21C7.85009 -0.07 8.35009 -0.07 8.71009 0.21C9.58009 0.87 11.2101 2.24 12.7401 4.04C13.0801 4.44 13.0601 5.04 12.6901 5.41Z"
-          fill="#7E6B28"
+          fill={color}
         />
         <Path
           opacity={0.4}
           d="M16.2001 11.9103C16.2001 16.3703 12.5701 20.0003 8.10009 20.0003C6.31009 20.0003 4.64005 19.4203 3.29005 18.4203C2.80005 18.0603 2.76005 17.3403 3.19005 16.9103L13.2601 6.84026C13.7301 6.37026 14.5201 6.47026 14.8401 7.05026C15.6601 8.5603 16.2101 10.2003 16.2001 11.9103Z"
-          fill="#7E6B28"
+          fill={color}
         />
       </G>
     </Svg>
@@ -122,18 +122,18 @@ export function FigmaDropletIcon({ size = 24 }: Props) {
 }
 
 /** Figma heart-rate heart */
-export function FigmaHeartRateIcon({ size = 24 }: Props) {
+export function FigmaHeartRateIcon({ size = 24, color = '#004EEB' }: Props) {
   return (
     <Svg width={size} height={size} viewBox="0 0 20 18.91" fill="none">
       <G>
         <Path
           opacity={0.4}
           d="M14.44 0C12.63 0 11.01 0.87998 10 2.22998C8.99 0.87998 7.37 0 5.56 0C2.49 0 0 2.5 0 5.59C0 6.78 0.19 7.87999 0.52 8.89999C2.1 13.9 6.97 16.89 9.38 17.71C9.72 17.83 10.28 17.83 10.62 17.71C13.03 16.89 17.9 13.9 19.48 8.89999C19.81 7.87999 20 6.78 20 5.59C20 2.5 17.51 0 14.44 0Z"
-          fill="#7C52A2"
+          fill={color}
         />
         <Path
           d="M19.77 17.5801L19.01 16.8202C19.41 16.2202 19.64 15.5001 19.64 14.7301C19.64 12.6201 17.93 10.9102 15.82 10.9102C13.71 10.9102 12 12.6201 12 14.7301C12 16.8401 13.71 18.5501 15.82 18.5501C16.59 18.5501 17.31 18.3201 17.91 17.9201L18.67 18.6802C18.82 18.8302 19.02 18.9102 19.22 18.9102C19.42 18.9102 19.62 18.8302 19.77 18.6802C20.08 18.3702 20.08 17.8801 19.77 17.5801Z"
-          fill="#7C52A2"
+          fill={color}
         />
       </G>
     </Svg>

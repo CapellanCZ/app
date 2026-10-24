@@ -14,9 +14,10 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
-import Svg, { Path, Rect } from 'react-native-svg';
+import Svg, { Rect } from 'react-native-svg';
 
 import { Inter } from '@/lib/typography/inter';
+import { BRAND } from '@/lib/ui/theme';
 
 const AnimatedRect = Animated.createAnimatedComponent(Rect);
 
@@ -30,26 +31,6 @@ type Props = {
   onPress?: () => void;
   disabled?: boolean;
 };
-
-/** Single four-point sparkle (reference CTA). */
-function SparkleIcon({ size = 16 }: { size?: number }) {
-  const m = size / 2;
-  const tip = size * 0.09;
-  const d = [
-    `M${m} 0`,
-    `C${m + tip} ${m * 0.35} ${m + tip} ${m * 0.55} ${size} ${m}`,
-    `C${m + tip} ${m * 1.45} ${m + tip} ${m * 1.65} ${m} ${size}`,
-    `C${m - tip} ${m * 1.65} ${m - tip} ${m * 1.45} 0 ${m}`,
-    `C${m - tip} ${m * 0.55} ${m - tip} ${m * 0.35} ${m} 0`,
-    'Z',
-  ].join(' ');
-
-  return (
-    <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-      <Path d={d} fill="#FFFFFF" />
-    </Svg>
-  );
-}
 
 function stadiumPerimeter(width: number, height: number) {
   const r = height / 2;
@@ -124,10 +105,10 @@ function CirclingBorderGlow({ width, height }: { width: number; height: number }
 }
 
 /**
- * Professional black CTA — border comet, expanding soft pulse, spring press.
+ * Brand primary CTA — border comet, expanding soft pulse, spring press.
  */
 export function GetStartedGlassButton({
-  label = 'Get Started',
+  label = "Let's get started!",
   onPress,
   disabled = false,
 }: Props) {
@@ -135,12 +116,10 @@ export function GetStartedGlassButton({
   const [ringSize, setRingSize] = useState({ w: 0, h: 0 });
   const press = useSharedValue(0);
   const pulse = useSharedValue(0);
-  const sparkle = useSharedValue(0.7);
 
   useEffect(() => {
     if (reduceMotion) {
       pulse.set(0);
-      sparkle.set(0.85);
       return;
     }
 
@@ -149,19 +128,11 @@ export function GetStartedGlassButton({
     pulse.set(
       withRepeat(withTiming(1, { duration: PULSE_MS, easing: SMOOTH }), -1, false),
     );
-    sparkle.set(
-      withRepeat(
-        withTiming(1, { duration: 2200, easing: Easing.inOut(Easing.sin) }),
-        -1,
-        true,
-      ),
-    );
 
     return () => {
       cancelAnimation(pulse);
-      cancelAnimation(sparkle);
     };
-  }, [pulse, sparkle, reduceMotion]);
+  }, [pulse, reduceMotion]);
 
   const rootStyle = useAnimatedStyle(() => ({
     transform: [{ scale: interpolate(press.get(), [0, 1], [1, 0.97]) }],
@@ -191,11 +162,6 @@ export function GetStartedGlassButton({
 
   const specularStyle = useAnimatedStyle(() => ({
     opacity: interpolate(pulse.get(), [0, 0.35, 0.7, 1], [0.55, 0.78, 0.62, 0.55]),
-  }));
-
-  const sparkleStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(sparkle.get(), [0, 1], [0.72, 1]),
-    transform: [{ scale: interpolate(sparkle.get(), [0, 1], [0.97, 1.03]) }],
   }));
 
   const onRingLayout = (e: LayoutChangeEvent) => {
@@ -252,8 +218,8 @@ export function GetStartedGlassButton({
 
             <View style={styles.face}>
               <LinearGradient
-                colors={['#3A3A3A', '#1A1A1A', '#0A0A0A']}
-                locations={[0, 0.42, 1]}
+                colors={[BRAND.primaryCard, BRAND.primary, BRAND.primaryDeep]}
+                locations={[0, 0.45, 1]}
                 start={{ x: 0.5, y: 0 }}
                 end={{ x: 0.5, y: 1 }}
                 style={StyleSheet.absoluteFill}
@@ -263,7 +229,7 @@ export function GetStartedGlassButton({
 
               <Animated.View pointerEvents="none" style={[styles.topBevel, specularStyle]}>
                 <LinearGradient
-                  colors={['rgba(255,255,255,0.5)', 'rgba(255,255,255,0.1)', 'transparent']}
+                  colors={['rgba(255,255,255,0.35)', 'rgba(255,255,255,0.08)', 'transparent']}
                   locations={[0, 0.28, 0.75]}
                   start={{ x: 0.5, y: 0 }}
                   end={{ x: 0.5, y: 1 }}
@@ -272,16 +238,13 @@ export function GetStartedGlassButton({
               </Animated.View>
 
               <LinearGradient
-                colors={['transparent', 'rgba(0,0,0,0.55)']}
+                colors={['transparent', 'rgba(0, 40, 140, 0.35)']}
                 start={{ x: 0.5, y: 0.5 }}
                 end={{ x: 0.5, y: 1 }}
                 style={StyleSheet.absoluteFill}
               />
 
               <View style={styles.content}>
-                <Animated.View style={sparkleStyle}>
-                  <SparkleIcon size={15} />
-                </Animated.View>
                 <Text style={styles.label}>{label}</Text>
               </View>
             </View>
@@ -304,9 +267,9 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     ...Platform.select({
       ios: {
-        shadowColor: '#000000',
+        shadowColor: BRAND.primary,
         shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.18,
+        shadowOpacity: 0.28,
         shadowRadius: 16,
       },
       android: {
@@ -318,7 +281,7 @@ const styles = StyleSheet.create({
   pulseHalo: {
     ...StyleSheet.absoluteFillObject,
     borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: 'rgba(0, 78, 235, 0.12)',
   },
   pulseRing: {
     ...StyleSheet.absoluteFillObject,
@@ -329,24 +292,20 @@ const styles = StyleSheet.create({
   },
   innerGlow: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(255,255,255,0.18)',
+    backgroundColor: 'rgba(255,255,255,0.14)',
   },
   ring: {
     borderRadius: 999,
-    padding: 2.5,
+    padding: 0,
     overflow: 'hidden',
-    backgroundColor: 'rgba(0,0,0,0.22)',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: BRAND.primary,
   },
   face: {
-    height: 50,
+    height: 54,
     borderRadius: 999,
     overflow: 'hidden',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.14)',
     zIndex: 1,
   },
   topBevel: {

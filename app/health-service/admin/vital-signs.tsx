@@ -116,7 +116,7 @@ export default function VitalSignsScreen() {
       <ScrollView style={styles.content}>
         {/* Patient Info */}
         <View style={styles.patientInfo}>
-          <IconsaxHeartIcon size={24} color="#2970FF" />
+          <IconsaxHeartIcon size={24} color="#004EEB" />
           <Text style={styles.patientInfoText}>
             Recording vital signs for {ticketCode}
           </Text>
@@ -315,7 +315,7 @@ const styles = StyleSheet.create({
     paddingVertical: 24,
   },
   saveButton: {
-    backgroundColor: '#2970FF',
+    backgroundColor: '#004EEB',
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',

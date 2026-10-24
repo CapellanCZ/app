@@ -7,7 +7,7 @@ type Props = {
 };
 
 /** `assets/icons/iconsax-hierarchy.svg` */
-export function IconsaxHierarchyIcon({ size = 24, color = '#2970FF' }: Props) {
+export function IconsaxHierarchyIcon({ size = 24, color = '#004EEB' }: Props) {
   const clipId = useId().replace(/:/g, '_');
 
   return (

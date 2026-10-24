@@ -9,7 +9,7 @@ import Animated, {
 const DOT = 7;
 const PILL_W = 22;
 const GAP = 6;
-const ACTIVE = '#3F3F46';
+const ACTIVE = '#004EEB';
 const INACTIVE = '#D4D4D8';
 
 type Props = {

@@ -20,11 +20,11 @@ export function VitalsEmptyState() {
           width: 56,
           height: 56,
           borderRadius: 28,
-          backgroundColor: '#D3E9FA',
+          backgroundColor: '#E8F0FF',
           alignItems: 'center',
           justifyContent: 'center',
         }}>
-        <FigmaVitalsIcon size={26} color="#4D7A9A" />
+        <FigmaVitalsIcon size={26} color="#004EEB" />
       </View>
       <Text
         style={{

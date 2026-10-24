@@ -18,23 +18,63 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FocusableTextInput } from '@/components/ui/FocusableTextInput';
 import { IconsaxArrowDownIcon } from '@/components/icons/IconsaxArrowDownIcon';
 import { Inter } from '@/lib/typography/inter';
+import { BRAND } from '@/lib/ui/theme';
 
 const CHIP_BG = '#F9F9F9';
-const SELECTED_BG = '#0F0E0E';
+const SELECTED_BG = BRAND.primary;
 const SHEET_OFFSCREEN = 480;
 
-/** Clinic consultation request options for the booking sheet. */
-export const CONSULTATION_REQUEST_OPTIONS = [
+/** Physician-only consultation reasons. */
+export const PHYSICIAN_CONSULTATION_OPTIONS = [
   'General checkup',
+  'Medical consultation',
   'Follow-up visit',
   'Illness / symptoms',
   'Medical certificate',
-  'Dental consultation',
   'Lab / test review',
   'Other',
 ] as const;
 
-export type ConsultationRequestOption = (typeof CONSULTATION_REQUEST_OPTIONS)[number];
+/** Dentist-only consultation reasons. */
+export const DENTIST_CONSULTATION_OPTIONS = [
+  'Dental checkup',
+  'Dental consultation',
+  'Toothache / pain',
+  'Cleaning / prophylaxis',
+  'Follow-up visit',
+  'Dental certificate',
+  'Other',
+] as const;
+
+/** @deprecated Prefer provider-specific lists — kept for display/legacy parsing. */
+export const CONSULTATION_REQUEST_OPTIONS = [
+  ...PHYSICIAN_CONSULTATION_OPTIONS,
+  ...DENTIST_CONSULTATION_OPTIONS.filter(
+    (opt) => !(PHYSICIAN_CONSULTATION_OPTIONS as readonly string[]).includes(opt),
+  ),
+] as const;
+
+export type ConsultationRequestOption =
+  | (typeof PHYSICIAN_CONSULTATION_OPTIONS)[number]
+  | (typeof DENTIST_CONSULTATION_OPTIONS)[number];
+
+export type ConsultationProviderKind = 'doctor' | 'dentist';
+
+export function consultationOptionsFor(
+  providerType: ConsultationProviderKind,
+): readonly ConsultationRequestOption[] {
+  return providerType === 'dentist'
+    ? DENTIST_CONSULTATION_OPTIONS
+    : PHYSICIAN_CONSULTATION_OPTIONS;
+}
+
+export function isConsultationOptionForProvider(
+  option: ConsultationRequestOption | null,
+  providerType: ConsultationProviderKind,
+): boolean {
+  if (!option) return false;
+  return (consultationOptionsFor(providerType) as readonly string[]).includes(option);
+}
 
 export function buildBookingReason(
   request: ConsultationRequestOption | null,
@@ -80,13 +120,21 @@ type SelectProps = {
   value: ConsultationRequestOption | null;
   onChange: (value: ConsultationRequestOption) => void;
   error?: boolean;
+  /** Filters sheet options — physician vs dentist. */
+  providerType: ConsultationProviderKind;
 };
 
 /** Booking-styled consultation request dropdown (bottom sheet). */
-export function BookingConsultationSelect({ value, onChange, error }: SelectProps) {
+export function BookingConsultationSelect({
+  value,
+  onChange,
+  error,
+  providerType,
+}: SelectProps) {
   const insets = useSafeAreaInsets();
   const [visible, setVisible] = useState(false);
   const sheetTranslateY = useSharedValue(SHEET_OFFSCREEN);
+  const options = consultationOptionsFor(providerType);
 
   const openSheet = useCallback(() => {
     setVisible(true);
@@ -224,13 +272,15 @@ export function BookingConsultationSelect({ value, onChange, error }: SelectProp
                 letterSpacing: -0.28,
                 marginBottom: 12,
               }}>
-              Why are you visiting the Health Service Office?
+              {providerType === 'dentist'
+                ? 'Why are you visiting the dentist?'
+                : 'Why are you visiting the physician?'}
             </Text>
             <ScrollView
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
               contentContainerStyle={{ gap: 8, paddingBottom: 8 }}>
-              {CONSULTATION_REQUEST_OPTIONS.map((opt) => {
+              {options.map((opt) => {
                 const selected = value === opt;
                 return (
                   <Pressable

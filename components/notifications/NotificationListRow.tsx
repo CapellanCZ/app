@@ -19,12 +19,17 @@ import {
   NOTIFICATION_STATUS_STYLE,
   resolveNotificationStatus,
 } from '@/lib/notifications/resolveNotificationStatus';
-import type { NotificationItem } from '@/lib/notifications/types';
+import {
+  DEFAULT_SOURCE_BY_CATEGORY,
+  type NotificationItem,
+} from '@/lib/notifications/types';
 import { Inter } from '@/lib/typography/inter';
 import { androidPressProps } from '@/lib/ui/androidPress';
+import { BRAND } from '@/lib/ui/theme';
 
 const PRESS_SPRING = { damping: 18, stiffness: 380, mass: 0.35 } as const;
 const BODY_SPLIT = /(Dr\.\s[\w .]+?(?=\s+was\b)|confirmed)/g;
+const CARD_BG = BRAND.softSurface;
 
 export type NotificationListRowProps = {
   item: NotificationItem;
@@ -41,7 +46,7 @@ export type NotificationListRowProps = {
   onExitComplete?: (id: string) => void;
 };
 
-/** Body: 14 / #3F3F3F; emphasize doctor name + “confirmed”. */
+/** Body: muted gray; emphasize doctor name + “confirmed”. */
 function NotificationBody({ text }: { text: string }) {
   const parts = useMemo(() => text.split(BODY_SPLIT), [text]);
 
@@ -49,10 +54,10 @@ function NotificationBody({ text }: { text: string }) {
     <Text
       style={{
         fontFamily: Inter.regular,
-        fontSize: 14,
-        letterSpacing: -0.56,
-        color: '#3F3F3F',
-        lineHeight: 21,
+        fontSize: 13,
+        letterSpacing: -0.2,
+        color: '#6B7280',
+        lineHeight: 19,
       }}>
       {parts.map((part, i) => {
         if (!part) return null;
@@ -60,7 +65,7 @@ function NotificationBody({ text }: { text: string }) {
         return (
           <Text
             key={`${i}-${part.slice(0, 16)}`}
-            style={emphasize ? { fontFamily: Inter.medium, fontWeight: '500' } : undefined}>
+            style={emphasize ? { fontFamily: Inter.medium, color: '#4B5563' } : undefined}>
             {part}
           </Text>
         );
@@ -70,9 +75,7 @@ function NotificationBody({ text }: { text: string }) {
 }
 
 /**
- * Notification card — Figma 2254:1002 / 1020 / 1036 / 2260:1171.
- * Unread: white card. Read: transparent (no fill).
- * Long-press menu is owned by the screen (one Modal), not per row.
+ * Notification card — soft blue tint, unread dot beside title, source · time footer.
  */
 export const NotificationListRow = memo(function NotificationListRow({
   item,
@@ -90,10 +93,10 @@ export const NotificationListRow = memo(function NotificationListRow({
   const scale = useSharedValue(1);
   const dim = useSharedValue(1);
 
-  // notificationType is already resolved in toNotificationItem; fall back for mocks.
   const status = item.notificationType ?? resolveNotificationStatus(undefined, item.title);
   const tokens = NOTIFICATION_STATUS_STYLE[status];
   const title = item.title;
+  const source = item.source ?? DEFAULT_SOURCE_BY_CATEGORY[item.category];
 
   useEffect(() => {
     if (animateOutDelay === undefined) return;
@@ -171,76 +174,69 @@ export const NotificationListRow = memo(function NotificationListRow({
           <Animated.View
             style={[
               {
-                backgroundColor: item.read ? 'transparent' : '#FFFFFF',
+                backgroundColor: item.read ? '#F7F8FA' : CARD_BG,
                 borderRadius: 16,
-                paddingHorizontal: 16,
-                paddingVertical: 18,
+                borderCurve: 'continuous',
+                paddingHorizontal: 14,
+                paddingVertical: 14,
                 width: '100%',
+                borderWidth: 1,
+                borderColor: item.read ? '#ECECEC' : BRAND.softBorder,
               },
               pressStyle,
             ]}>
-          <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 16 }}>
-            <NotificationTypeIcon variant={status} size={44} />
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}>
+              <NotificationTypeIcon variant={status} size={44} />
 
-            <View style={{ flex: 1, minWidth: 0, gap: 8 }}>
-              <View
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  minHeight: 18,
-                  width: '100%',
-                }}>
-                <Text
-                  numberOfLines={1}
-                  style={{
-                    flex: 1,
-                    minWidth: 0,
-                    fontFamily: Inter.medium,
-                    fontSize: 16,
-                    letterSpacing: -0.64,
-                    color: '#000000',
-                    lineHeight: 18,
-                  }}>
-                  {title}
-                </Text>
-
+              <View style={{ flex: 1, minWidth: 0, gap: 6 }}>
                 <View
                   style={{
                     flexDirection: 'row',
                     alignItems: 'center',
-                    justifyContent: 'flex-end',
-                    gap: 8,
-                    marginLeft: 8,
-                    flexShrink: 0,
+                    gap: 6,
+                    width: '100%',
                   }}>
                   <Text
                     numberOfLines={1}
                     style={{
-                      fontFamily: Inter.regular,
-                      fontSize: 12,
-                      letterSpacing: -0.48,
-                      color: '#6C6C6C',
-                      lineHeight: 18,
-                      textAlign: 'right',
+                      flexShrink: 1,
+                      fontFamily: Inter.semiBold,
+                      fontSize: 15,
+                      letterSpacing: -0.4,
+                      color: '#111827',
+                      lineHeight: 20,
                     }}>
-                    {item.timeLabel}
+                    {title}
                   </Text>
                   {!item.read ? (
                     <View
                       style={{
-                        width: 6,
-                        height: 6,
+                        width: 7,
+                        height: 7,
                         borderRadius: 9999,
                         backgroundColor: tokens.unreadDot,
+                        flexShrink: 0,
                       }}
                     />
                   ) : null}
                 </View>
-              </View>
 
-              <NotificationBody text={item.body} />
+                <NotificationBody text={item.body} />
+
+                <Text
+                  numberOfLines={1}
+                  style={{
+                    fontFamily: Inter.regular,
+                    fontSize: 12,
+                    letterSpacing: -0.2,
+                    color: '#9CA3AF',
+                    lineHeight: 16,
+                    marginTop: 2,
+                  }}>
+                  {source}  ·  {item.timeLabel}
+                </Text>
+              </View>
             </View>
-          </View>
           </Animated.View>
         </Animated.View>
       </Pressable>

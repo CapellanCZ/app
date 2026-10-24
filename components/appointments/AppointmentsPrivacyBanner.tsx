@@ -3,11 +3,13 @@ import Svg, { Path } from 'react-native-svg';
 
 import { Inter } from '@/lib/typography/inter';
 
-/** Exact Figma tokens from node 4203:134 / 4203:142. */
+import { BRAND } from '@/lib/ui/theme';
+
+/** Privacy banner — brand soft surface. */
 const FIGMA_PRIVACY = {
-  background: 'rgba(211, 233, 250, 0.35)',
-  border: '#FFFFFF',
-  ink: '#048AF3',
+  background: BRAND.soft,
+  border: BRAND.softBorder,
+  ink: BRAND.primary,
 } as const;
 
 const DEFAULT_COPY = 'Your data is secure and only visible to you.';
@@ -17,7 +19,7 @@ type Props = {
 };
 
 /**
- * Figma privacy check badge (exported path, fill #048AF3).
+ * Figma privacy check badge (exported path, fill #004EEB).
  * Source: CampusCare Figma asset for 4203:139.
  */
 function PrivacyCheckIcon({ size = 20 }: { size?: number }) {

@@ -4,6 +4,7 @@ import { Pressable, Text, View } from 'react-native';
 import { IconsaxArrowRightIcon } from '@/components/icons/IconsaxArrowRightIcon';
 import { Inter } from '@/lib/typography/inter';
 import { androidPressProps } from '@/lib/ui/androidPress';
+import { CARD_ELEVATION } from '@/lib/ui/theme';
 
 export type ProfileMenuRowProps = {
   icon: ReactNode;
@@ -40,10 +41,13 @@ export function ProfileMenuRow({
           alignItems: 'center',
           backgroundColor: '#FFFFFF',
           borderRadius: 16,
+          borderWidth: 1,
+          borderColor: '#ECECEC',
           paddingHorizontal: 16,
           paddingVertical: 16,
           minHeight: 56,
           gap: 12,
+          ...CARD_ELEVATION,
         }}>
         <View style={{ width: 24, height: 24, alignItems: 'center', justifyContent: 'center' }}>
           {icon}

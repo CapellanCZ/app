@@ -7,21 +7,19 @@ export function NotificationCardSkeleton() {
   return (
     <View
       style={{
-        backgroundColor: '#FFFFFF',
+        backgroundColor: '#EEF4FF',
         borderRadius: 16,
-        paddingHorizontal: 16,
-        paddingVertical: 18,
+        paddingHorizontal: 14,
+        paddingVertical: 14,
         width: '100%',
       }}>
-      <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 16 }}>
-        <SkeletonBone width={44} height={44} borderRadius={12} />
-        <View style={{ flex: 1, gap: 10, minWidth: 0 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <SkeletonBone width="58%" height={14} borderRadius={6} />
-            <SkeletonBone width={36} height={12} borderRadius={6} />
-          </View>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}>
+        <SkeletonBone width={44} height={44} borderRadius={22} />
+        <View style={{ flex: 1, gap: 8, minWidth: 0 }}>
+          <SkeletonBone width="62%" height={14} borderRadius={6} />
           <SkeletonBone width="100%" height={12} borderRadius={6} />
-          <SkeletonBone width="82%" height={12} borderRadius={6} />
+          <SkeletonBone width="78%" height={12} borderRadius={6} />
+          <SkeletonBone width="44%" height={10} borderRadius={6} />
         </View>
       </View>
     </View>
