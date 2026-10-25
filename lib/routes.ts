@@ -26,6 +26,8 @@ export const ROUTES = {
   healthServiceAppointments: '/appointments',
   healthServiceDoctors: '/(tabs)/book',
   visitCompleted: '/visit-completed',
+  /** Dynamic: `/announcement/${id}` */
+  announcement: '/announcement',
 
   // --- Settings ---
   personalInfo: '/personal-info',

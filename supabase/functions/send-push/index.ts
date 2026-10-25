@@ -8,10 +8,32 @@
  * Foreground OS banners are suppressed in the mobile app (toast only).
  *
  * Deploy with verify_jwt disabled so pg_net can call it without a user JWT.
+ * Require header `x-campuscare-webhook-secret` matching EDGE_WEBHOOK_SECRET.
+ * Notification content is re-loaded from the DB (webhook body is not trusted).
  */
 
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let out = 0;
+  for (let i = 0; i < a.length; i++) out |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return out === 0;
+}
+
+function assertWebhookSecret(req: Request): Response | null {
+  const expected = Deno.env.get('EDGE_WEBHOOK_SECRET')?.trim() ?? '';
+  if (!expected || expected.length < 16) {
+    console.error('[send-push] EDGE_WEBHOOK_SECRET missing or too short');
+    return new Response('Misconfigured', { status: 500 });
+  }
+  const provided = req.headers.get('x-campuscare-webhook-secret')?.trim() ?? '';
+  if (!provided || !timingSafeEqual(provided, expected)) {
+    return new Response('Unauthorized', { status: 401 });
+  }
+  return null;
+}
 
 type NotificationRow = {
   id: string;
@@ -121,6 +143,9 @@ Deno.serve(async (req: Request) => {
     return new Response('Method not allowed', { status: 405 });
   }
 
+  const unauthorized = assertWebhookSecret(req);
+  if (unauthorized) return unauthorized;
+
   const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
   const SERVICE_ROLE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
   if (!SUPABASE_URL || !SERVICE_ROLE) {
@@ -134,15 +159,8 @@ Deno.serve(async (req: Request) => {
     return new Response('Bad JSON', { status: 400 });
   }
 
-  if (payload.type !== 'INSERT' || payload.table !== 'notifications' || !payload.record) {
+  if (payload.type !== 'INSERT' || payload.table !== 'notifications' || !payload.record?.id) {
     return new Response(JSON.stringify({ skipped: true }), {
-      headers: { 'content-type': 'application/json' },
-    });
-  }
-
-  const row = payload.record;
-  if (!row.user_id || !row.title) {
-    return new Response(JSON.stringify({ skipped: true, reason: 'incomplete row' }), {
       headers: { 'content-type': 'application/json' },
     });
   }
@@ -150,6 +168,25 @@ Deno.serve(async (req: Request) => {
   const admin = createClient(SUPABASE_URL, SERVICE_ROLE, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
+
+  // Trust DB row, not forged webhook body fields.
+  const { data: dbRow, error: rowError } = await admin
+    .from('notifications')
+    .select('id, user_id, type, category, title, body, href, read_at, metadata, created_at')
+    .eq('id', payload.record.id)
+    .maybeSingle();
+
+  if (rowError) {
+    console.error('[send-push] notification lookup failed');
+    return new Response('DB error', { status: 500 });
+  }
+  if (!dbRow?.user_id || !dbRow.title) {
+    return new Response(JSON.stringify({ skipped: true, reason: 'missing notification' }), {
+      headers: { 'content-type': 'application/json' },
+    });
+  }
+
+  const row = dbRow as NotificationRow;
 
   const allowed = await isPushAllowed(admin, row.user_id, row);
   if (!allowed) {

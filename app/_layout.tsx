@@ -7,6 +7,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { TamaguiProvider } from 'tamagui';
+import { NavigationBar } from 'expo-navigation-bar';
 
 import { UniwindInsetSync } from '@/components/UniwindInsetSync';
 import { AuthSessionGuard } from '@/components/auth/AuthSessionGuard';
@@ -23,10 +24,12 @@ import { AppointmentStatusHost } from '@/components/health-service/AppointmentSt
 import { LoginSheetHost } from '@/components/auth/LoginSheetHost';
 import { ConfirmSheetHost } from '@/components/ui/ConfirmSheetHost';
 import { configureAndroidText } from '@/lib/ui/configureAndroidText';
+import { configureAndroidNavigationBar } from '@/lib/ui/configureAndroidNavigationBar';
 import { prepareSplashScreen } from '@/lib/bootstrap/splashScreen';
 import { tamaguiConfig } from '../tamagui.config';
 
 configureAndroidText();
+configureAndroidNavigationBar();
 prepareSplashScreen();
 
 export const unstable_settings = {
@@ -45,14 +48,14 @@ export default function RootLayout() {
   });
 
   // Keep the native splash up until SplashBrand has laid out (see SplashBrand onLayout).
-  // Hiding here caused a heart-only flash with no "CampusCare" wordmark.
+  // Root underlay matches splash blue so font-load never flashes white.
 
   if (!fontsLoaded) {
     return null;
   }
 
   const themeName = colorScheme === 'dark' ? 'dark' : 'light';
-  const rootBackgroundColor = '#FFFFFF';
+  const rootBackgroundColor = '#004EEB';
 
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: rootBackgroundColor }}>
@@ -71,6 +74,8 @@ export default function RootLayout() {
               <NotificationSubscription />
               <UniwindInsetSync />
               <View style={{ flex: 1, backgroundColor: rootBackgroundColor }}>
+              {/* Android system nav — light style (dark icons) for contrast on white UI */}
+              <NavigationBar style="light" />
               <Stack
                 screenOptions={{
                   contentStyle: { flex: 1, backgroundColor: rootBackgroundColor },
@@ -82,6 +87,7 @@ export default function RootLayout() {
                 <Stack.Screen name="(auth)" />
                 <Stack.Screen name="(tabs)" options={{ animation: 'fade', animationDuration: 120 }} />
                 <Stack.Screen name="notifications" options={{ animation: 'slide_from_right' }} />
+                <Stack.Screen name="announcement/[id]" options={{ animation: 'slide_from_right' }} />
                 <Stack.Screen name="health-service" options={{ animation: 'fade', animationDuration: 120 }} />
                 <Stack.Screen name="appointments" />
                 <Stack.Screen name="vital-signs" options={{ animation: 'slide_from_right' }} />

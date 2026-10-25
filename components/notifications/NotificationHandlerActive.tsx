@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 
 import { useAuth } from '@/lib/auth/AuthProvider';
 import { ensureDefaultAndroidNotificationChannel } from '@/lib/notifications/androidNotificationChannel';
+import { sanitizeNotificationHref } from '@/lib/notifications/safeNotificationHref';
 import { toastFromNotification } from '@/lib/notifications/toastFromNotification';
 import { resolveNotificationStatus } from '@/lib/notifications/resolveNotificationStatus';
 
@@ -68,7 +69,7 @@ export function NotificationHandlerActive() {
           id: notificationId,
           title,
           body,
-          href: stringData(data.href),
+          href: sanitizeNotificationHref(stringData(data.href)),
           ticketId: stringData(data.ticket_id),
           queueMilestone: stringData(data.queue_milestone),
           appointmentId: stringData(data.appointment_id),
@@ -83,7 +84,7 @@ export function NotificationHandlerActive() {
     responseListener.current = Notifications.addNotificationResponseReceivedListener(
       (response) => {
         const data = response.notification.request.content.data as Record<string, unknown>;
-        const href = stringData(data?.href);
+        const href = sanitizeNotificationHref(stringData(data?.href));
         if (href) {
           router.push(href as never);
         }

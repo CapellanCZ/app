@@ -12,8 +12,11 @@ web-build/
 # expo router
 expo-env.d.ts
 
-# firebase/supabase/vexo
+# Env / secrets (keep examples only)
 .env
+.env.*
+!.env.example
+!.env*.example
 
 ios
 android

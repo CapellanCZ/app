@@ -9,7 +9,6 @@ import { displayNameWithoutMiddle } from '@/lib/profile/displayName';
 import { useProfileStore } from '@/lib/profile/profileStore';
 import { IconsaxNotificationIcon } from '@/components/icons/IconsaxNotificationIcon';
 import { IconsaxDocumentTextIcon } from '@/components/icons/IconsaxDocumentTextIcon';
-import { IconsaxArchiveIcon } from '@/components/icons/IconsaxArchiveIcon';
 import { IconsaxInfoCircleIcon } from '@/components/icons/IconsaxInfoCircleIcon';
 import { UserEditIcon } from '@/components/icons/UserEditIcon';
 import { MessageQuestionIcon } from '@/components/icons/MessageQuestionIcon';
@@ -99,21 +98,6 @@ export default function ProfileTab() {
             label="Notifications"
             onPress={() => router.push(ROUTES.notificationSettings)}
           />
-          <ProfileMenuRow
-            icon={<IconsaxDocumentTextIcon size={24} color="#004EEB" />}
-            label="Privacy Policy"
-            onPress={() => router.push(ROUTES.privacy)}
-          />
-          <ProfileMenuRow
-            icon={<IconsaxArchiveIcon size={24} color="#004EEB" />}
-            label="Past Visits"
-            onPress={() =>
-              router.push({
-                pathname: ROUTES.appointments,
-                params: { tab: 'past' },
-              })
-            }
-          />
         </ProfileSection>
 
         <ProfileSection title="Support & About">
@@ -121,6 +105,11 @@ export default function ProfileTab() {
             icon={<IconsaxInfoCircleIcon size={24} color="#004EEB" />}
             label="Terms & Policies"
             onPress={() => router.push(ROUTES.terms)}
+          />
+          <ProfileMenuRow
+            icon={<IconsaxDocumentTextIcon size={24} color="#004EEB" />}
+            label="Privacy Policy"
+            onPress={() => router.push(ROUTES.privacy)}
           />
           <ProfileMenuRow
             icon={<MessageQuestionIcon size={24} color="#004EEB" />}

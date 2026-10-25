@@ -5,6 +5,8 @@ export type Announcement = {
   /** Visibility audience from DB (`All`, `Student`, `Faculty`, `Employee`). */
   audience: string | null;
   publishedAt: string | null;
-  /** Signed (or empty) URL for the primary image attachment. */
+  /** Signed URL for the primary (first) image — used by list thumbnails. */
   imageUrl: string | null;
+  /** All signed image attachment URLs (campaign gallery), oldest → newest. */
+  imageUrls: string[];
 };

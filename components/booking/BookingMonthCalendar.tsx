@@ -6,6 +6,8 @@ import { androidPressProps } from '@/lib/ui/androidPress';
 import { BRAND, CARD_ELEVATION } from '@/lib/ui/theme';
 
 const WEEKDAYS = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'] as const;
+/** Day marker size — equal width/height + borderRadius 999 = circle on all platforms. */
+const DAY_MARKER = 36;
 const MONTH_SHORT = [
   'Jan',
   'Feb',
@@ -187,13 +189,15 @@ export function BookingMonthCalendar({
                 const past = isPastDay(day);
                 const bookable = !past && isDayBookable(day);
                 const muted = past || !bookable;
+                /** Today ring stays visible even when the day is grayed (no slots). */
+                const showTodayRing = isToday && !selected;
 
                 return (
                   <Pressable
                     key={day.toISOString()}
                     accessibilityRole="button"
                     accessibilityState={{ selected, disabled: muted }}
-                    accessibilityLabel={day.toDateString()}
+                    accessibilityLabel={`${day.toDateString()}${isToday ? ', today' : ''}${selected ? ', selected' : ''}`}
                     disabled={muted}
                     onPress={() => onSelectDay(startOfDay(day))}
                     {...androidPressProps({ hitSlop: 2 })}
@@ -205,23 +209,35 @@ export function BookingMonthCalendar({
                     }}>
                     <View
                       style={{
-                        width: 36,
-                        height: 36,
-                        borderRadius: 18,
+                        width: DAY_MARKER,
+                        height: DAY_MARKER,
+                        /** 999 → true circle on Android (half-size radius can look square). */
+                        borderRadius: 999,
+                        overflow: 'hidden',
                         alignItems: 'center',
                         justifyContent: 'center',
                         backgroundColor: selected
                           ? BRAND.primaryCard
-                          : isToday
-                            ? '#E8E8EA'
+                          : showTodayRing
+                            ? BRAND.soft
                             : 'transparent',
+                        borderWidth: showTodayRing ? 1.5 : 0,
+                        borderColor: showTodayRing ? BRAND.primary : 'transparent',
                       }}>
                       <Text
                         style={{
-                          fontFamily: selected ? Inter.semiBold : Inter.medium,
+                          fontFamily: selected || showTodayRing ? Inter.semiBold : Inter.medium,
                           fontSize: 15,
-                          color: selected ? '#FFFFFF' : muted ? '#C4C4C8' : '#222222',
+                          color: selected
+                            ? '#FFFFFF'
+                            : showTodayRing
+                              ? BRAND.primary
+                              : muted
+                                ? '#C4C4C8'
+                                : '#222222',
                           letterSpacing: -0.3,
+                          /** Keep today readable but softer when there is no schedule. */
+                          opacity: showTodayRing && muted ? 0.75 : 1,
                         }}>
                         {day.getDate()}
                       </Text>

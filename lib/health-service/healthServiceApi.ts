@@ -6,6 +6,7 @@ import {
   NotAuthenticatedError,
   PatientNotLinkedError,
 } from '@/lib/auth/errors';
+import { requireClinicStaff } from '@/lib/auth/requireClinicStaff';
 import {
   inferStaffFromProviderType,
   mapProviderTypeToStaffRole,
@@ -1038,6 +1039,7 @@ function createSupabaseHealthServiceApi(): HealthServiceApi {
 
     async confirmAppointmentByProvider(id) {
       if (!supabase) throw new Error('Supabase not configured');
+      await requireClinicStaff();
 
       const { error } = await supabase
         .from('appointments')
@@ -1049,7 +1051,8 @@ function createSupabaseHealthServiceApi(): HealthServiceApi {
 
     async getActiveTickets() {
       if (!supabase) throw new Error('Supabase not configured');
-      
+      await requireClinicStaff();
+
       const { data, error } = await supabase
         .from('health_queue_tickets')
         .select('*')
@@ -1092,7 +1095,8 @@ function createSupabaseHealthServiceApi(): HealthServiceApi {
 
     async checkInPatient(ticketCode) {
       if (!supabase) throw new Error('Supabase not configured');
-      
+      await requireClinicStaff();
+
       // Find the ticket
       const { data: ticket, error: ticketError } = await supabase
         .from('health_queue_tickets')
@@ -1147,16 +1151,14 @@ function createSupabaseHealthServiceApi(): HealthServiceApi {
 
     async recordVitalSigns(input) {
       if (!supabase) throw new Error('Supabase not configured');
-      
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new NotAuthenticatedError();
-      
+      const { userId } = await requireClinicStaff();
+
       const { error } = await supabase
         .from('health_vital_signs')
         .insert({
           appointment_id: input.appointmentId,
           ticket_id: input.ticketId,
-          recorded_by: user.id,
+          recorded_by: userId,
           blood_pressure_systolic: input.bloodPressureSystolic,
           blood_pressure_diastolic: input.bloodPressureDiastolic,
           heart_rate: input.heartRate,

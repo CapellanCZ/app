@@ -7,16 +7,18 @@ import {
   View,
   type ViewStyle,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 
 import { AnnouncementCardSkeleton } from '@/components/health-service/AnnouncementCardSkeleton';
 import { useAuth } from '@/lib/auth/AuthProvider';
+import { displayAnnouncementTitle } from '@/lib/announcements/announcementDisplay';
 import { useAnnouncementStore } from '@/lib/announcements/announcementStore';
 import { formatDateLabel, limitSentences } from '@/lib/announcements/announcementsApi';
 import type { Announcement } from '@/lib/announcements/types';
 import { Inter } from '@/lib/typography/inter';
 import { androidPressProps } from '@/lib/ui/androidPress';
-import { showInfoSheet } from '@/lib/ui/confirmSheetStore';
 import { BRAND } from '@/lib/ui/theme';
+import { ROUTES } from '@/lib/routes';
 
 const THUMB_SIZE = 88;
 const THUMB_RADIUS = 12;
@@ -35,18 +37,6 @@ const CARD_SOFT_SHADOW: ViewStyle =
         shadowRadius: 10,
       };
 
-/** Soft title case for ALL-CAPS admin titles → "World Hepatitis Day". */
-function displayTitle(raw: string): string {
-  const trimmed = raw.trim();
-  if (!trimmed) return '';
-  if (trimmed !== trimmed.toUpperCase()) return trimmed;
-  return trimmed
-    .toLowerCase()
-    .split(/\s+/)
-    .map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w))
-    .join(' ');
-}
-
 function audienceLabel(raw: string | null | undefined): string {
   const t = (raw ?? '').trim();
   if (!t) return 'All';
@@ -60,7 +50,7 @@ type RowProps = {
 
 function AnnouncementListRow({ item, onPress }: RowProps) {
   const dateLabel = formatDateLabel(item.publishedAt);
-  const title = displayTitle(item.title);
+  const title = displayAnnouncementTitle(item.title);
   const previewBody = limitSentences(item.body ?? '', PREVIEW_SENTENCES);
   const audience = audienceLabel(item.audience);
   const meta = [audience, dateLabel].filter(Boolean).join(' · ');
@@ -168,6 +158,7 @@ function AnnouncementListRow({ item, onPress }: RowProps) {
  */
 export function HealthServiceAnnouncementCard() {
   const { patient } = useAuth();
+  const router = useRouter();
 
   const items = useAnnouncementStore((s) => s.items);
   const hasLoaded = useAnnouncementStore((s) => s.hasLoaded);
@@ -177,14 +168,12 @@ export function HealthServiceAnnouncementCard() {
     void load({ patientType: patient?.patient_type });
   }, [load, patient?.patient_type]);
 
-  const onOpen = useCallback((item: Announcement) => {
-    showInfoSheet({
-      title: displayTitle(item.title),
-      message: item.body?.trim() || 'No additional details.',
-      okLabel: 'Got it',
-      icon: 'info',
-    });
-  }, []);
+  const onOpen = useCallback(
+    (item: Announcement) => {
+      router.push(`${ROUTES.announcement}/${item.id}` as never);
+    },
+    [router],
+  );
 
   if (!hasLoaded) {
     return <AnnouncementCardSkeleton />;

@@ -12,10 +12,31 @@
  *   APPOINTMENT_EMAIL_FROM  (optional; default CampusCare sender)
  *   SUPABASE_URL
  *   SUPABASE_SERVICE_ROLE_KEY
+ *   EDGE_WEBHOOK_SECRET (required; header x-campuscare-webhook-secret)
  */
 
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let out = 0;
+  for (let i = 0; i < a.length; i++) out |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return out === 0;
+}
+
+function assertWebhookSecret(req: Request): Response | null {
+  const expected = Deno.env.get('EDGE_WEBHOOK_SECRET')?.trim() ?? '';
+  if (!expected || expected.length < 16) {
+    console.error('[send-appointment-email] EDGE_WEBHOOK_SECRET missing or too short');
+    return new Response('Misconfigured', { status: 500 });
+  }
+  const provided = req.headers.get('x-campuscare-webhook-secret')?.trim() ?? '';
+  if (!provided || !timingSafeEqual(provided, expected)) {
+    return new Response('Unauthorized', { status: 401 });
+  }
+  return null;
+}
 
 type AppointmentRow = {
   id: string;
@@ -338,6 +359,9 @@ Deno.serve(async (req: Request) => {
     return new Response('Method not allowed', { status: 405 });
   }
 
+  const unauthorized = assertWebhookSecret(req);
+  if (unauthorized) return unauthorized;
+
   const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
   const SERVICE_ROLE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
   const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
@@ -429,7 +453,7 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    return new Response(JSON.stringify({ ok: true, kind, to, resend: body }), {
+    return new Response(JSON.stringify({ ok: true, kind }), {
       headers: { 'content-type': 'application/json' },
     });
   }
@@ -496,7 +520,7 @@ Deno.serve(async (req: Request) => {
     });
   }
 
-  return new Response(JSON.stringify({ ok: true, kind, to, resend: body }), {
+  return new Response(JSON.stringify({ ok: true, kind }), {
     headers: { 'content-type': 'application/json' },
   });
 });

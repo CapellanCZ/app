@@ -261,7 +261,8 @@ export function AppointmentStatusHost() {
             await Notifications.scheduleNotificationAsync({
               content: {
                 title: `Appointment in ${REMINDER_MINUTES_BEFORE} minutes`,
-                body: `Your visit with ${name} is at ${time} on ${dateLabel}. Bring your school ID.`,
+                // Keep lock-screen text generic — details stay in-app.
+                body: 'Open CampusCare for your visit details. Bring your school ID.',
                 data: { href: `/health-service/appointment/${appointmentId}` },
               },
               trigger: {
@@ -293,16 +294,7 @@ export function AppointmentStatusHost() {
     } finally {
       setReminderBusy(false);
     }
-  }, [
-    appointmentId,
-    dateKey,
-    dateLabel,
-    name,
-    reminderAvailable,
-    reminderBusy,
-    reminderSetAt,
-    time,
-  ]);
+  }, [appointmentId, dateKey, reminderAvailable, reminderBusy, reminderSetAt, time]);
 
   const handleClose = useCallback(() => {
     setShowCancelConfirm(false);

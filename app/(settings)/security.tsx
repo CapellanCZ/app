@@ -1,100 +1,51 @@
-import { useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { ScreenNavbar } from '@/components/ScreenNavbar';
-import { FocusableTextInput } from '@/components/ui/FocusableTextInput';
+import { useAuth } from '@/lib/auth/AuthProvider';
+import { signOutUser } from '@/lib/auth/signOut';
 import { SCHEDULE_PARTNER } from '@/lib/health-service/bookingScheduleTheme';
 import { showAppToast } from '@/lib/ui/toastBridge';
-import { showInfoSheet } from '@/lib/ui/confirmSheetStore';
+import { showConfirmSheet } from '@/lib/ui/confirmSheetStore';
+import { useRouter } from 'expo-router';
 
-const BRAND = SCHEDULE_PARTNER.brand;
-
-function PasswordField({
-  label,
-  value,
-  onChange,
-  placeholder,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
-}) {
-  return (
-    <View style={{ marginBottom: 14 }}>
-      <Text
-        style={{
-          fontSize: 12,
-          fontWeight: '600',
-          letterSpacing: 0.4,
-          textTransform: 'uppercase',
-          color: SCHEDULE_PARTNER.textMuted,
-          marginBottom: 6,
-          marginLeft: 2,
-        }}>
-        {label}
-      </Text>
-      <FocusableTextInput
-        value={value}
-        onChangeText={onChange}
-        secureTextEntry
-        placeholder={placeholder ?? '••••••••'}
-        style={{
-          paddingVertical: 12,
-          fontSize: 15,
-        }}
-      />
-    </View>
-  );
-}
-
+/**
+ * CampusCare signs in with email OTP — there is no local password to change.
+ * This screen explains that and offers session sign-out (device-local).
+ */
 export default function SecurityScreen() {
-  const [current, setCurrent] = useState('');
-  const [next, setNext] = useState('');
-  const [confirm, setConfirm] = useState('');
+  const { session } = useAuth();
+  const router = useRouter();
+  const email = session?.user?.email ?? null;
 
-  const handleSave = () => {
-    if (!current || !next || !confirm) {
-      showAppToast({
-        variant: 'accent',
-        placement: 'top',
-        label: 'Missing fields',
-        description: 'Please fill in all password fields.',
-      });
-      return;
-    }
-    if (next !== confirm) {
-      showAppToast({
-        variant: 'accent',
-        placement: 'top',
-        label: 'Mismatch',
-        description: 'New passwords do not match.',
-      });
-      return;
-    }
-    if (next.length < 8) {
-      showAppToast({
-        variant: 'accent',
-        placement: 'top',
-        label: 'Too short',
-        description: 'Password must be at least 8 characters.',
-      });
-      return;
-    }
-    showInfoSheet({
-      title: 'Password updated',
-      message: 'Your password has been changed successfully.',
-      okLabel: 'Done',
-      icon: 'info',
+  const handleSignOutEverywhere = () => {
+    showConfirmSheet({
+      title: 'Sign out on this device?',
+      message:
+        'You will need a new email code to sign in again. This clears your session on this device only.',
+      confirmLabel: 'Sign out',
+      cancelLabel: 'Cancel',
+      destructive: true,
+      onConfirm: () => {
+        void (async () => {
+          try {
+            await signOutUser();
+            router.replace('/(auth)');
+          } catch {
+            showAppToast({
+              variant: 'accent',
+              placement: 'top',
+              label: 'Sign out failed',
+              description: 'Please try again.',
+            });
+          }
+        })();
+      },
     });
-    setCurrent('');
-    setNext('');
-    setConfirm('');
   };
 
   return (
     <View style={{ flex: 1, backgroundColor: '#FDFDFD' }}>
-      <ScreenNavbar title="Security & Password" />
+      <ScreenNavbar title="Security" />
       <ScrollView
         keyboardDismissMode="on-drag"
         showsVerticalScrollIndicator={false}
@@ -102,51 +53,64 @@ export default function SecurityScreen() {
           paddingHorizontal: 16,
           paddingTop: 16,
           paddingBottom: 40,
+          gap: 16,
         }}>
         <Text
           style={{
-            marginBottom: 16,
-            marginLeft: 2,
             fontSize: 12,
             fontWeight: '600',
             letterSpacing: 0.5,
             textTransform: 'uppercase',
             color: SCHEDULE_PARTNER.textMuted,
           }}>
-          Change Password
+          Sign-in method
         </Text>
-
-        <PasswordField label="Current Password" value={current} onChange={setCurrent} />
-        <PasswordField label="New Password" value={next} onChange={setNext} placeholder="Min. 8 characters" />
-        <PasswordField label="Confirm New Password" value={confirm} onChange={setConfirm} />
-
-        <Pressable
-          onPress={handleSave}
-          accessibilityRole="button"
-          accessibilityLabel="Save new password"
-          className="active:opacity-80"
+        <View
           style={{
-            marginTop: 8,
-            backgroundColor: BRAND,
-            borderRadius: 12,
-            paddingVertical: 14,
-            alignItems: 'center',
+            backgroundColor: '#fff',
+            borderRadius: 14,
+            borderCurve: 'continuous',
+            padding: 16,
+            borderWidth: 1,
+            borderColor: '#EEF0F4',
+            gap: 8,
           }}>
-          <Text style={{ fontSize: 15, fontWeight: '600', color: '#FFFFFF' }}>
-            Save Changes
+          <Text style={{ fontSize: 15, fontWeight: '600', color: SCHEDULE_PARTNER.text }}>
+            Email one-time code
           </Text>
-        </Pressable>
+          <Text style={{ fontSize: 14, lineHeight: 20, color: SCHEDULE_PARTNER.textMuted }}>
+            CampusCare does not use a password. Each sign-in sends a one-time code to your campus
+            email
+            {email ? ` (${email})` : ''}. Never share that code with anyone.
+          </Text>
+        </View>
 
         <Text
           style={{
-            marginTop: 16,
-            marginLeft: 2,
+            marginTop: 8,
             fontSize: 12,
-            lineHeight: 18,
+            fontWeight: '600',
+            letterSpacing: 0.5,
+            textTransform: 'uppercase',
             color: SCHEDULE_PARTNER.textMuted,
           }}>
-          Choose a strong password with at least 8 characters, including letters and numbers.
+          Session
         </Text>
+        <Pressable
+          onPress={handleSignOutEverywhere}
+          style={{
+            backgroundColor: '#fff',
+            borderRadius: 14,
+            borderCurve: 'continuous',
+            paddingVertical: 14,
+            paddingHorizontal: 16,
+            borderWidth: 1,
+            borderColor: '#F0D0D0',
+          }}>
+          <Text style={{ fontSize: 15, fontWeight: '600', color: '#B42318' }}>
+            Sign out on this device
+          </Text>
+        </Pressable>
       </ScrollView>
     </View>
   );

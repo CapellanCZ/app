@@ -92,11 +92,11 @@ export async function registerPushToken(userId: string): Promise<void> {
     );
 
     if (error) {
-      console.warn('[push] Failed to save token:', error.message);
-    } else {
-      console.log('[push] Token registered successfully:', expo_token.slice(0, 24) + '...');
+      if (__DEV__) console.warn('[push] Failed to save token:', error.message);
+    } else if (__DEV__) {
+      console.log('[push] Token registered successfully');
     }
   } catch (err) {
-    console.warn('[push] registerPushToken failed:', err);
+    if (__DEV__) console.warn('[push] registerPushToken failed:', err);
   }
 }

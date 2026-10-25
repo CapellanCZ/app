@@ -19,6 +19,15 @@ export class PatientNotLinkedError extends Error {
   }
 }
 
+export class NotAuthorizedError extends Error {
+  readonly code = 'NOT_AUTHORIZED' as const;
+
+  constructor(message = 'Not authorized') {
+    super(message);
+    this.name = 'NotAuthorizedError';
+  }
+}
+
 export function isExpectedUnauthDataError(error: unknown): boolean {
   if (error instanceof NotAuthenticatedError || error instanceof PatientNotLinkedError) {
     return true;

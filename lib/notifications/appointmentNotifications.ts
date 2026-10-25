@@ -9,6 +9,7 @@ const DEDUPE_MS = 8_000;
 /**
  * Notify the patient that an appointment was cancelled.
  * Dedupes client + realtime paths for the same appointment id.
+ * Copy stays generic (no provider names) for lock-screen / tray privacy.
  */
 export function notifyAppointmentCancelled(
   userId: string | null | undefined,
@@ -22,11 +23,10 @@ export function notifyAppointmentCancelled(
   if (prev != null && now - prev < DEDUPE_MS) return;
   recentCancelNotifs.set(key, now);
 
-  const name = opts.doctorName?.trim() || 'a campus doctor';
   useNotificationStore.getState().notifySelf(userId, {
     category: 'health',
     title: 'Appointment Cancelled',
-    body: `Your scheduled clinic visit with ${name} was cancelled. Book a new slot with a campus doctor anytime.`,
+    body: 'Your scheduled clinic visit was cancelled. Open CampusCare to book a new slot.',
     href: '/appointments',
     source: 'Health Service',
     notificationType: 'error',
@@ -36,7 +36,6 @@ export function notifyAppointmentCancelled(
 /**
  * Notify the patient that an appointment was confirmed.
  * Prefer the DB trigger (`Appointment Confirmed!`) — kept for rare offline/dev paths.
- * Dedupes client paths for the same appointment id.
  */
 export function notifyAppointmentConfirmed(
   userId: string | null | undefined,
@@ -50,13 +49,12 @@ export function notifyAppointmentConfirmed(
   if (prev != null && now - prev < DEDUPE_MS) return;
   recentConfirmNotifs.set(key, now);
 
-  const name = opts.doctorName?.trim() || 'your campus doctor';
   const appointmentId = opts.appointmentId;
 
   useNotificationStore.getState().notifySelf(userId, {
     category: 'health',
     title: "You're All Set",
-    body: `Your appointment with ${name} has been confirmed. Arrive a few minutes early and bring your school ID.`,
+    body: 'Your appointment is confirmed. Open CampusCare for time and provider details.',
     href: appointmentId
       ? `/health-service/appointment/${appointmentId}`
       : '/appointments',
@@ -81,16 +79,12 @@ export function notifyAppointmentRescheduled(
   if (prev != null && now - prev < DEDUPE_MS) return;
   recentRescheduleNotifs.set(key, now);
 
-  const name = opts.doctorName?.trim() || 'your campus provider';
   const appointmentId = opts.appointmentId;
-  const when = opts.whenLabel?.trim();
 
   useNotificationStore.getState().notifySelf(userId, {
     category: 'health',
     title: 'Appointment Rescheduled',
-    body: when
-      ? `Your appointment with ${name} was moved to ${when}. Open Appointments to review the new schedule.`
-      : `Your appointment with ${name} was rescheduled. Open Appointments to review the new schedule.`,
+    body: 'Your appointment was rescheduled. Open CampusCare to review the new schedule.',
     href: appointmentId
       ? `/health-service/appointment/${appointmentId}`
       : '/appointments',
@@ -115,13 +109,12 @@ export function notifyAppointmentCompleted(
   if (prev != null && now - prev < DEDUPE_MS) return;
   recentCompletedNotifs.set(key, now);
 
-  const name = opts.doctorName?.trim() || 'your campus provider';
   const appointmentId = opts.appointmentId;
 
   useNotificationStore.getState().notifySelf(userId, {
     category: 'health',
     title: 'Visit Completed',
-    body: `Your consultation with ${name} is done. You can review this visit anytime.`,
+    body: 'Your clinic visit is complete. Open CampusCare to review details.',
     href: appointmentId ? `/visit-completed?id=${appointmentId}` : '/appointments',
     source: 'Health Service',
     notificationType: 'success',

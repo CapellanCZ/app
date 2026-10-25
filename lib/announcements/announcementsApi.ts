@@ -104,24 +104,68 @@ export async function fetchPublishedAnnouncements(
     .filter((row) => patientMatchesAnnouncementAudience(patientType, row.audience))
     .slice(0, MAX_ANNOUNCEMENT_SLIDES);
 
-  return Promise.all(
-    rows.map(async (row) => {
-      const images = (row.announcement_attachments ?? [])
-        .filter((a) => a.kind === 'image' && a.file_path)
-        .sort((a, b) => a.created_at.localeCompare(b.created_at));
-      const primary = images[0];
-      const imageUrl = primary ? await signedImageUrl(primary.file_path) : null;
+  return Promise.all(rows.map((row) => mapAnnouncementRow(row)));
+}
 
-      return {
-        id: row.id,
-        title: row.title,
-        body: row.body ?? '',
-        audience: row.audience?.trim() || null,
-        publishedAt: row.published_at,
-        imageUrl,
-      } satisfies Announcement;
-    }),
-  );
+async function mapAnnouncementRow(row: AnnouncementRow): Promise<Announcement> {
+  const images = (row.announcement_attachments ?? [])
+    .filter((a) => a.kind === 'image' && a.file_path)
+    .sort((a, b) => a.created_at.localeCompare(b.created_at));
+
+  const imageUrls = (
+    await Promise.all(images.map((img) => signedImageUrl(img.file_path)))
+  ).filter((url): url is string => Boolean(url));
+
+  return {
+    id: row.id,
+    title: row.title,
+    body: row.body ?? '',
+    audience: row.audience?.trim() || null,
+    publishedAt: row.published_at,
+    imageUrl: imageUrls[0] ?? null,
+    imageUrls,
+  } satisfies Announcement;
+}
+
+/**
+ * Single published announcement by id (detail deep-link / notification).
+ */
+export async function fetchAnnouncementById(
+  id: string,
+  patientType?: string | null,
+): Promise<Announcement | null> {
+  if (!isSupabaseConfigured || !supabase || !id.trim()) return null;
+
+  const { data, error } = await supabase
+    .from('announcements')
+    .select(
+      `
+      id,
+      title,
+      body,
+      audience,
+      published_at,
+      created_at,
+      announcement_attachments (
+        file_path,
+        kind,
+        created_at
+      )
+    `,
+    )
+    .eq('id', id)
+    .eq('status', 'published')
+    .maybeSingle();
+
+  if (error) {
+    console.error('[announcements] fetchAnnouncementById:', error.message);
+    return null;
+  }
+  if (!data) return null;
+
+  const row = data as AnnouncementRow;
+  if (!patientMatchesAnnouncementAudience(patientType, row.audience)) return null;
+  return mapAnnouncementRow(row);
 }
 
 export { formatDateLabel };

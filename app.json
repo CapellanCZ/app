@@ -20,10 +20,10 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/android-icon-foreground.png",
-          "imageWidth": 200,
-          "resizeMode": "contain",
-          "backgroundColor": "#ffffff"
+          "image": "./assets/splash.png",
+          "imageWidth": 1242,
+          "resizeMode": "cover",
+          "backgroundColor": "#004EEB"
         }
       ],
       "@react-native-community/datetimepicker",
@@ -37,14 +37,33 @@
         "expo-notifications",
         {
           "icon": "./assets/android-icon-monochrome.png",
-          "color": "#048AF3",
+          "color": "#004EEB",
           "defaultChannel": "default",
           "sounds": []
         }
       ],
+      [
+        "expo-navigation-bar",
+        {
+          "enforceContrast": true,
+          "style": "light"
+        }
+      ],
       "expo-web-browser",
       "expo-audio",
-      "expo-asset"
+      "expo-asset",
+      "expo-secure-store",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": false,
+            "enableMinifyInReleaseBuilds": true,
+            "compileSdkVersion": 36,
+            "targetSdkVersion": 36
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
@@ -72,14 +91,17 @@
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#2970FF"
       },
       "package": "com.yscplln.campuscareapplication",
       "googleServicesFile": "./google-services.json",
       "softwareKeyboardLayoutMode": "resize",
-      "permissions": [
+      "allowBackup": false,
+      "blockedPermissions": [
         "android.permission.RECORD_AUDIO",
-        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ],
+      "permissions": [
         "android.permission.POST_NOTIFICATIONS",
         "android.permission.VIBRATE",
         "android.permission.RECEIVE_BOOT_COMPLETED",
@@ -88,7 +110,7 @@
     },
     "notification": {
       "icon": "./assets/android-icon-monochrome.png",
-      "color": "#048AF3",
+      "color": "#004EEB",
       "androidMode": "default",
       "androidCollapsedTitle": "CampusCare"
     },
